@@ -11,6 +11,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/helmet"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -106,6 +107,7 @@ func main() {
 		},
 	})
 
+	app.Use(helmet.New())
 	app.Use(recover.New())
 	app.Use(logger.New(logger.Config{
 		Format: "[${time}] ${status} ${method} ${path} ${latency}\n",
