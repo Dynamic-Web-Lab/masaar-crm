@@ -12,6 +12,7 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/config"
 	"github.com/maidulcu/masaar-crm/internal/domain"
 	"github.com/maidulcu/masaar-crm/internal/ws"
+	"github.com/redis/go-redis/v9"
 	fiberswagger "github.com/swaggo/fiber-swagger"
 )
 
@@ -47,7 +48,7 @@ var loginLimiter = limiter.New(limiter.Config{
 	},
 })
 
-func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config) {
+func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config, rdb *redis.Client) {
 	// ── Public routes ────────────────────────────────────────────────────────
 	app.Post("/api/v1/auth/login", loginLimiter, h.Auth.Login)
 	app.Post("/api/v1/auth/refresh", h.Auth.Refresh)
@@ -65,10 +66,10 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	})
 
 	// Personal notifications
-	app.Get("/ws/notifications", middleware.JWT(cfg.JWTSecret), fiberws.New(hub.Handler()))
+	app.Get("/ws/notifications", middleware.JWT(cfg.JWTSecret), middleware.CheckBlacklist(rdb), fiberws.New(hub.Handler()))
 
 	// ── Authenticated API ────────────────────────────────────────────────────
-	v1 := app.Group("/api/v1", middleware.JWT(cfg.JWTSecret))
+	v1 := app.Group("/api/v1", middleware.JWT(cfg.JWTSecret), middleware.CheckBlacklist(rdb))
 
 	v1.Delete("/auth/logout", h.Auth.Logout)
 

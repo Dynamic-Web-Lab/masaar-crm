@@ -116,7 +116,7 @@ func main() {
 		AllowMethods: "GET,POST,PATCH,DELETE,OPTIONS",
 	}))
 
-	api.RegisterRoutes(app, handlers, hub, cfg)
+	api.RegisterRoutes(app, handlers, hub, cfg, rdb)
 
 	// ── Graceful shutdown ────────────────────────────────────────────────────
 	quit := make(chan os.Signal, 1)

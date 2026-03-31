@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/maidulcu/masaar-crm/internal/domain"
+	"github.com/redis/go-redis/v9"
 )
 
 func JWT(secret string) fiber.Handler {
@@ -57,4 +58,20 @@ func BearerToken(c *fiber.Ctx) string {
 		return parts[1]
 	}
 	return ""
+}
+
+// CheckBlacklist verifies that the current access token has not been revoked.
+func CheckBlacklist(rdb *redis.Client) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		token := BearerToken(c)
+		if token != "" {
+			exists, _ := rdb.Exists(c.Context(), "blacklist:"+token).Result()
+			if exists > 0 {
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error": "token revoked",
+				})
+			}
+		}
+		return c.Next()
+	}
 }
