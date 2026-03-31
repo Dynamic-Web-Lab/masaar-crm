@@ -162,4 +162,3 @@ func (h *DealHandler) ListInvoices(c *fiber.Ctx) error {
 	}
 	return c.JSON(invoices)
 }
-
