@@ -7,7 +7,25 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/maidulcu/masaar-crm/internal/domain"
+	"github.com/redis/go-redis/v9"
 )
+
+func CheckBlacklist(rdb *redis.Client) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		tokenVal := c.Locals("user")
+		if tokenVal != nil {
+			if token, ok := tokenVal.(*jwt.Token); ok {
+				val, err := rdb.Get(c.UserContext(), "blacklist:"+token.Raw).Result()
+				if err == nil && val == "1" {
+					return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+						"error": "token has been revoked",
+					})
+				}
+			}
+		}
+		return c.Next()
+	}
+}
 
 func JWT(secret string) fiber.Handler {
 	return jwtware.New(jwtware.Config{
