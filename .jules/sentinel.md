@@ -1,4 +1,4 @@
-## 2024-05-18 - Enforce Token Revocation Blacklist
-**Vulnerability:** The backend application had a `Logout` endpoint that added the user's JWT token to a Redis "blacklist", but the application's authentication middleware (`middleware.JWT`) never actually checked this blacklist. This resulted in revoked tokens still being considered valid until they naturally expired (Insecure Session Management).
-**Learning:** Even if the intent to revoke tokens exists (e.g., placing them in a Redis blacklist), it must be explicitly enforced in the authentication pipeline on every request. Relying only on stateless JWT parsing leaves tokens valid indefinitely if they leak.
-**Prevention:** Always verify that session invalidation logic (like blacklisting or database revocation flags) is actively checked and enforced by the authentication middleware on all protected routes, including WebSockets.
+## 2026-04-01 - [Missing Token Revocation Validation]
+**Vulnerability:** JWT tokens are not checked against the Redis blacklist during authentication, allowing revoked tokens to remain active until expiration.
+**Learning:** Relying solely on JWT signature and expiration without checking the blacklist (session revocation store) leads to session replay vulnerabilities upon logout.
+**Prevention:** Implement a CheckBlacklist middleware that queries the revocation store for the token extracted from the Authorization header.
