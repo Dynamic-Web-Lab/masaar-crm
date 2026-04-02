@@ -19,8 +19,8 @@ type Config struct {
 	RedisURL string
 
 	// JWT
-	JWTSecret          string
-	JWTAccessExpiryMin int
+	JWTSecret            string
+	JWTAccessExpiryMin   int
 	JWTRefreshExpiryDays int
 
 	// WhatsApp
