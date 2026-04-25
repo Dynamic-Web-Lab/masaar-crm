@@ -112,6 +112,9 @@ func main() {
 	// ── Scoring service for automatic lead scoring ───────────────────────────
 	scoringService := ai.NewScoringService(leadRepo, commHistRepo, leadTagRepo)
 
+	// ── Tagging service for auto-tagging on messages ────────────────────────
+	taggingService := ai.NewTaggingService(ollamaClient, leadRepo, waRepo, leadTagRepo, contactRepo)
+
 	// ── BuyOrSell24 client (optional real estate integration) ─────────────────
 	var bos24Client *bos24.Client
 	// Try to load token from database first, fall back to .env
@@ -132,7 +135,7 @@ func main() {
 		Stats:        handler.NewStatsHandler(statsRepo),
 		Contact:      handler.NewContactHandler(contactRepo),
 		Lead:             handler.NewLeadHandler(leadRepo, contactRepo, scoringService, hub),
-		WhatsApp:         handler.NewWhatsAppHandler(waRepo, contactRepo, hub, cfg),
+		WhatsApp:         handler.NewWhatsAppHandler(waRepo, contactRepo, taggingService, hub, cfg),
 		WhatsAppOutbound: handler.NewWhatsAppOutboundHandler(whatsappSender, outboundRepo, waRepo),
 		AI:               handler.NewAIHandler(ollamaClient, contactRepo, leadRepo, waRepo),
 		Message:          handler.NewMessageHandler(ollamaClient, waRepo, contactRepo, leadRepo, commHistRepo, leadTagRepo, scoringService, hub),

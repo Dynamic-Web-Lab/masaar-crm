@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/maidulcu/masaar-crm/internal/ai"
 	"github.com/maidulcu/masaar-crm/internal/config"
 	"github.com/maidulcu/masaar-crm/internal/domain"
 	"github.com/maidulcu/masaar-crm/internal/repo"
@@ -13,14 +14,15 @@ import (
 )
 
 type WhatsAppHandler struct {
-	wa       *repo.WhatsAppRepo
-	contacts *repo.ContactRepo
-	hub      *ws.Hub
-	config   *config.Config
+	wa            *repo.WhatsAppRepo
+	contacts      *repo.ContactRepo
+	taggingService *ai.TaggingService
+	hub           *ws.Hub
+	config        *config.Config
 }
 
-func NewWhatsAppHandler(wa *repo.WhatsAppRepo, contacts *repo.ContactRepo, hub *ws.Hub, cfg *config.Config) *WhatsAppHandler {
-	return &WhatsAppHandler{wa: wa, contacts: contacts, hub: hub, config: cfg}
+func NewWhatsAppHandler(wa *repo.WhatsAppRepo, contacts *repo.ContactRepo, taggingService *ai.TaggingService, hub *ws.Hub, cfg *config.Config) *WhatsAppHandler {
+	return &WhatsAppHandler{wa: wa, contacts: contacts, taggingService: taggingService, hub: hub, config: cfg}
 }
 
 // GET /webhooks/whatsapp — Meta webhook verification
@@ -257,6 +259,15 @@ func (h *WhatsAppHandler) Receive(c *fiber.Ctx) error {
 				}
 
 				_ = h.wa.UpdateThreadMeta(c.Context(), thread.ID)
+
+				// Auto-tag leads based on message content
+				if h.taggingService != nil && msg.Type == "text" {
+					go func() {
+						if err := h.taggingService.AutoTagFromMessage(c.Context(), contact.ID, msg.Text.Body); err != nil {
+							log.Printf("whatsapp: auto-tagging error: %v", err)
+						}
+					}()
+				}
 
 				h.hub.Broadcast(ws.Event{
 					Type: "whatsapp.message",
