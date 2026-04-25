@@ -116,6 +116,7 @@ func main() {
 		Lead:         handler.NewLeadHandler(leadRepo, contactRepo, hub),
 		WhatsApp:     handler.NewWhatsAppHandler(waRepo, contactRepo, hub, cfg),
 		AI:           handler.NewAIHandler(ollamaClient, contactRepo, leadRepo, waRepo),
+		Message:      handler.NewMessageHandler(ollamaClient, waRepo, contactRepo, leadRepo, hub),
 		Notification: handler.NewNotificationHandler(notificationRepo),
 		Deal:         handler.NewDealHandler(dealRepo, invoiceRepo),
 		Invoice:      handler.NewInvoiceHandler(invoiceRepo, dealRepo, companySettingsRepo),
