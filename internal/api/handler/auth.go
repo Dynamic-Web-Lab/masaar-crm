@@ -141,18 +141,21 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 		RefreshToken string `json:"refresh_token"`
 	}
 	_ = c.BodyParser(&body)
+
+	// Fail-closed on session invalidation
 	if body.RefreshToken != "" {
 		if err := h.redis.Del(context.Background(), fmt.Sprintf("refresh:%s", body.RefreshToken)).Err(); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to logout"})
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to revoke refresh token"})
 		}
 	}
+
 	// Also invalidate current access token by bearer
 	if token := middleware.BearerToken(c); token != "" {
-		if err := h.redis.Set(context.Background(), "blacklist:"+token, "1",
-			time.Duration(h.config.JWTAccessExpiryMin)*time.Minute).Err(); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to logout"})
+		if err := h.redis.Set(context.Background(), "blacklist:"+token, "1", time.Duration(h.config.JWTAccessExpiryMin)*time.Minute).Err(); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to revoke access token"})
 		}
 	}
+
 	return c.SendStatus(fiber.StatusNoContent)
 }
 

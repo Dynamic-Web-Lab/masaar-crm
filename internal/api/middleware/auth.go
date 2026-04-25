@@ -10,7 +10,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-
 func JWT(secret string) fiber.Handler {
 	return jwtware.New(jwtware.Config{
 		SigningKey:   jwtware.SigningKey{Key: []byte(secret)},
@@ -62,6 +61,7 @@ func BearerToken(c *fiber.Ctx) string {
 }
 
 // CheckBlacklist verifies that the current access token has not been revoked.
+// If Redis fails, it fails closed returning 500.
 func CheckBlacklist(rdb *redis.Client) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token := BearerToken(c)
