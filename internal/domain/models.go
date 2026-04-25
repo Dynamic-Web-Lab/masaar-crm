@@ -64,18 +64,21 @@ const (
 )
 
 type Lead struct {
-	ID        uuid.UUID  `json:"id"`
-	ContactID uuid.UUID  `json:"contact_id"`
-	Stage     LeadStage  `json:"stage"`
-	Source    LeadSource `json:"source"`
-	DealValue float64    `json:"deal_value"`
-	Currency  string     `json:"currency"` // default: AED
-	Notes     string     `json:"notes"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	ID          uuid.UUID  `json:"id"`
+	ContactID   uuid.UUID  `json:"contact_id"`
+	Stage       LeadStage  `json:"stage"`
+	Source      LeadSource `json:"source"`
+	DealValue   float64    `json:"deal_value"`
+	Currency    string     `json:"currency"` // default: AED
+	Notes       string     `json:"notes"`
+	LeadScore   int        `json:"lead_score"`
+	ScoreUpdatedAt *time.Time `json:"score_updated_at"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 
 	// Joined
 	Contact *Contact `json:"contact,omitempty"`
+	Tags    []string `json:"tags,omitempty"`
 }
 
 // ─── WhatsApp ─────────────────────────────────────────────────────────────────
@@ -277,6 +280,46 @@ type EmailHistory struct {
 	CreatedAt   time.Time      `json:"created_at"`
 	CreatedBy   *uuid.UUID     `json:"created_by"`
 	Metadata    map[string]any `json:"metadata"`
+}
+
+// ─── Lead Tags ────────────────────────────────────────────────────────────────
+
+type LeadTag struct {
+	ID          int64      `json:"id"`
+	LeadID      uuid.UUID  `json:"lead_id"`
+	Tag         string     `json:"tag"`
+	Category    string     `json:"category"` // segment, quality, interest, timeline, status
+	AutoApplied bool       `json:"auto_applied"`
+	CreatedAt   time.Time  `json:"created_at"`
+	CreatedBy   *uuid.UUID `json:"created_by"`
+}
+
+// ─── Communication History ─────────────────────────────────────────────────────
+
+type CommunicationType string
+
+const (
+	CommWhatsAppInbound  CommunicationType = "whatsapp_inbound"
+	CommWhatsAppOutbound CommunicationType = "whatsapp_outbound"
+	CommEmailSent        CommunicationType = "email_sent"
+	CommEmailReceived    CommunicationType = "email_received"
+	CommCall             CommunicationType = "call"
+)
+
+type CommunicationHistory struct {
+	ID                int64              `json:"id"`
+	LeadID            uuid.UUID          `json:"lead_id"`
+	ContactID         uuid.UUID          `json:"contact_id"`
+	CommunicationType CommunicationType  `json:"communication_type"`
+	Direction         string             `json:"direction"` // inbound, outbound
+	Body              string             `json:"body"`
+	FromIdentifier    string             `json:"from_identifier"`
+	ToIdentifier      string             `json:"to_identifier"`
+	ExternalID        string             `json:"external_id"`
+	Status            string             `json:"status"`
+	Metadata          map[string]any     `json:"metadata"`
+	CreatedAt         time.Time          `json:"created_at"`
+	CreatedBy         *uuid.UUID         `json:"created_by"`
 }
 
 // ─── Company Settings ─────────────────────────────────────────────────────────
