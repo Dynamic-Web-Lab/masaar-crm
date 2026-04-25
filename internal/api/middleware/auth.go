@@ -61,6 +61,7 @@ func BearerToken(c *fiber.Ctx) string {
 }
 
 // CheckBlacklist verifies that the current access token has not been revoked.
+// If Redis fails, it fails closed returning 500.
 func CheckBlacklist(rdb *redis.Client) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token := BearerToken(c)
@@ -68,7 +69,7 @@ func CheckBlacklist(rdb *redis.Client) fiber.Handler {
 			exists, err := rdb.Exists(c.Context(), "blacklist:"+token).Result()
 			if err != nil {
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "authentication verification failed",
+					"error": "internal server error",
 				})
 			}
 			if exists > 0 {
