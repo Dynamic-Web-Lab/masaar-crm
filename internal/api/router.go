@@ -28,6 +28,7 @@ type Handlers struct {
 	Deal         *handler.DealHandler
 	Invoice      *handler.InvoiceHandler
 	Property     *handler.PropertyHandler
+	Settings     *handler.SettingsHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -81,6 +82,16 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Get("/users/me", h.User.GetMe)
 	v1.Patch("/users/me/password", h.User.ChangePassword)
 	v1.Patch("/users/me/lang", h.User.UpdateLang)
+
+	// API Settings — admin only (integrations, API keys)
+	v1.Get("/settings/bos24",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Settings.GetBOS24Settings,
+	)
+	v1.Patch("/settings/bos24",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Settings.UpdateBOS24Settings,
+	)
 
 	// Contacts — viewers: read-only; agents: create+update; admin: delete
 	v1.Get("/contacts", h.Contact.List)

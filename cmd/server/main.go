@@ -73,6 +73,7 @@ func main() {
 	dealRepo := repo.NewDealRepo(pool)
 	invoiceRepo := repo.NewInvoiceRepo(pool)
 	statsRepo := repo.NewStatsRepo(pool)
+	settingsRepo := repo.NewSettingsRepo(pool)
 
 	// ── WebSocket hub ────────────────────────────────────────────────────────
 	hub := ws.NewHub()
@@ -82,8 +83,14 @@ func main() {
 
 	// ── BuyOrSell24 client (optional real estate integration) ─────────────────
 	var bos24Client *bos24.Client
-	if bos24.IsEnabled(cfg.BOS24Token) {
-		bos24Client = bos24.NewClient(cfg.BOS24Token, rdb)
+	// Try to load token from database first, fall back to .env
+	dbToken, err := settingsRepo.GetBOS24Token(context.Background())
+	if err != nil {
+		log.Println("no BOS24 token in database, checking .env")
+		dbToken = cfg.BOS24Token
+	}
+	if bos24.IsEnabled(dbToken) {
+		bos24Client = bos24.NewClient(dbToken, rdb)
 		log.Println("BuyOrSell24 integration enabled")
 	}
 
@@ -100,6 +107,7 @@ func main() {
 		Deal:         handler.NewDealHandler(dealRepo, invoiceRepo),
 		Invoice:      handler.NewInvoiceHandler(invoiceRepo, dealRepo),
 		Property:     handler.NewPropertyHandler(bos24Client),
+		Settings:     handler.NewSettingsHandler(settingsRepo),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
