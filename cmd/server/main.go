@@ -79,6 +79,8 @@ func main() {
 	companySettingsRepo := repo.NewCompanySettingsRepo(pool)
 	emailRepo := repo.NewEmailRepository(pool)
 	outboundRepo := repo.NewWhatsAppOutboundRepo(pool)
+	leadTagRepo := repo.NewLeadTagRepo(pool)
+	commHistRepo := repo.NewCommunicationHistoryRepo(pool)
 
 	// ── Email service (optional SMTP integration) ────────────────────────────
 	emailService := email.NewService(&email.Config{
@@ -107,6 +109,9 @@ func main() {
 	// ── AI client ────────────────────────────────────────────────────────────
 	ollamaClient := ai.NewClient(cfg.OllamaBaseURL, cfg.OllamaModel)
 
+	// ── Scoring service for automatic lead scoring ───────────────────────────
+	scoringService := ai.NewScoringService(leadRepo, commHistRepo, leadTagRepo)
+
 	// ── BuyOrSell24 client (optional real estate integration) ─────────────────
 	var bos24Client *bos24.Client
 	// Try to load token from database first, fall back to .env
@@ -126,11 +131,11 @@ func main() {
 		User:         handler.NewUserHandler(userRepo),
 		Stats:        handler.NewStatsHandler(statsRepo),
 		Contact:      handler.NewContactHandler(contactRepo),
-		Lead:             handler.NewLeadHandler(leadRepo, contactRepo, hub),
+		Lead:             handler.NewLeadHandler(leadRepo, contactRepo, scoringService, hub),
 		WhatsApp:         handler.NewWhatsAppHandler(waRepo, contactRepo, hub, cfg),
 		WhatsAppOutbound: handler.NewWhatsAppOutboundHandler(whatsappSender, outboundRepo, waRepo),
 		AI:               handler.NewAIHandler(ollamaClient, contactRepo, leadRepo, waRepo),
-		Message:          handler.NewMessageHandler(ollamaClient, waRepo, contactRepo, leadRepo, hub),
+		Message:          handler.NewMessageHandler(ollamaClient, waRepo, contactRepo, leadRepo, commHistRepo, leadTagRepo, scoringService, hub),
 		Notification: handler.NewNotificationHandler(notificationRepo),
 		Deal:         handler.NewDealHandler(dealRepo, invoiceRepo),
 		Invoice:      handler.NewInvoiceHandler(invoiceRepo, dealRepo, companySettingsRepo),

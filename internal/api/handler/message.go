@@ -12,20 +12,26 @@ import (
 )
 
 type MessageHandler struct {
-	aiClient   *ai.Client
-	waRepo     *repo.WhatsAppRepo
-	contactRepo *repo.ContactRepo
-	leadRepo   *repo.LeadRepo
-	hub        *ws.Hub
+	aiClient      *ai.Client
+	waRepo        *repo.WhatsAppRepo
+	contactRepo   *repo.ContactRepo
+	leadRepo      *repo.LeadRepo
+	commHistRepo  *repo.CommunicationHistoryRepo
+	tagRepo       *repo.LeadTagRepo
+	scoringService *ai.ScoringService
+	hub           *ws.Hub
 }
 
-func NewMessageHandler(aiClient *ai.Client, waRepo *repo.WhatsAppRepo, contactRepo *repo.ContactRepo, leadRepo *repo.LeadRepo, hub *ws.Hub) *MessageHandler {
+func NewMessageHandler(aiClient *ai.Client, waRepo *repo.WhatsAppRepo, contactRepo *repo.ContactRepo, leadRepo *repo.LeadRepo, commHistRepo *repo.CommunicationHistoryRepo, tagRepo *repo.LeadTagRepo, scoringService *ai.ScoringService, hub *ws.Hub) *MessageHandler {
 	return &MessageHandler{
-		aiClient:   aiClient,
-		waRepo:     waRepo,
-		contactRepo: contactRepo,
-		leadRepo:   leadRepo,
-		hub:        hub,
+		aiClient:      aiClient,
+		waRepo:        waRepo,
+		contactRepo:   contactRepo,
+		leadRepo:      leadRepo,
+		commHistRepo:  commHistRepo,
+		tagRepo:       tagRepo,
+		scoringService: scoringService,
+		hub:           hub,
 	}
 }
 
@@ -238,6 +244,14 @@ func (h *MessageHandler) AutoCreateLead(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to create lead",
 		})
+	}
+
+	// Calculate initial lead score
+	if h.scoringService != nil {
+		if score, err := h.scoringService.CalculateScore(c.Context(), lead.ID); err == nil {
+			h.leadRepo.UpdateScore(c.Context(), lead.ID, score)
+			lead.LeadScore = score
+		}
 	}
 
 	// Broadcast to WebSocket
