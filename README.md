@@ -51,6 +51,52 @@ Masaar is a **free, open-source CRM designed specifically for UAE businesses**. 
 
 ---
 
+## 🏢 Real Estate Market Data Integration
+
+**Masaar CRM integrates with [BuyOrSell24 by Dynamic Web Lab](https://dynamicweblab.com/products/real-estate-data-api/)** — the UAE's real estate data API — to add market intelligence directly into your CRM workflow.
+
+### What You Get
+- **Property Search** — Natural language queries: "2BR apartments in Marina" returns recent transactions, comparable prices, and market trends
+- **Transaction History** — Filter by area, property type, price range — see all recent sales/rentals in one click
+- **Building Directory** — Quick autocomplete for projects, buildings, and nearby amenities (schools, gyms, metro stations)
+- **Yield Analysis** — Investors get rental vs. sales comparison for ROI calculations
+- **Market Intelligence** — Price trends, transaction volume, per-sqm analytics
+
+### How to Enable
+
+**Step 1: Get Your API Key**
+1. Visit [https://dynamicweblab.com/products/real-estate-data-api/](https://dynamicweblab.com/products/real-estate-data-api/)
+2. View pricing tiers and features
+3. **Contact us** to set up your account (integration form on landing page)
+4. We'll send your API key via Manukaub Bank payment & setup
+
+**Step 2: Configure in Masaar**
+```bash
+# In your .env file:
+BOS24_API_TOKEN=your-api-token-received-from-setup
+```
+
+**Step 3: Start Using**
+- Agents search properties directly in leads: "Market data for 2BR Dubai Marina"
+- Auto-enriched lead cards show comparable sales and price insights
+- Investors analyze rental yields in seconds
+- All data stays in your self-hosted Masaar instance
+
+**Full API Documentation:** [https://data.buyorsell24.com/redoc](https://data.buyorsell24.com/redoc)
+
+### Pricing & Plans
+- **Masaar Pro users** — BuyOrSell24 API credits included in your subscription
+- **Open-source users** — Optional integration; contact Dynamic Web Lab for pricing:
+  - **Starter** — Limited monthly queries, great for testing
+  - **Growth** — 5,000+ monthly credits (perfect for 10-50 agents)
+  - **Enterprise** — Custom unlimited credits with dedicated support
+  
+👉 **[Contact Dynamic Web Lab](https://dynamicweblab.com/products/real-estate-data-api/)** to discuss your requirements and get a quote
+
+> 💡 **For Masaar Pro Users:** Your CRM subscription includes API credits for unlimited property searches. Market intelligence without additional cost!
+
+---
+
 ## Live Demo
 
 Try it at **[masaar.dynamicweblab.com](https://masaar.dynamicweblab.com)**
@@ -174,6 +220,14 @@ All protected routes require `Authorization: Bearer <token>`. Full interactive d
 | `PATCH` | `/api/v1/notifications/:id/read` | Mark notification read | Auth |
 | `POST` | `/api/v1/ai/summarize/:thread_id` | AI thread summary | Agent, Admin |
 | `GET` | `/ws/notifications` | Real-time notification stream | Auth (WS) |
+| | | | |
+| **Real Estate Market Data (Dynamic Web Lab)** | *Optional integration; requires API key* | | |
+| `POST` | `/api/v1/properties/search` | Search properties (natural language) | Agent, Admin |
+| `GET` | `/api/v1/properties/transactions` | List transactions with filters | Agent, Admin |
+| `GET` | `/api/v1/properties/buildings` | Search/autocomplete buildings | Agent, Admin |
+| `GET` | `/api/v1/properties/buildings/:id` | Building details | Agent, Admin |
+| `GET` | `/api/v1/properties/yield-analysis` | Rental yield analysis | Agent, Admin |
+| `GET` | `/api/v1/properties/schools/nearby` | Nearby schools & amenities | Agent, Admin |
 
 ---
 

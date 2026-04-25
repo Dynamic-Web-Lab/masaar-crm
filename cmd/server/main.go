@@ -18,6 +18,7 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/ai"
 	"github.com/maidulcu/masaar-crm/internal/api"
 	"github.com/maidulcu/masaar-crm/internal/api/handler"
+	"github.com/maidulcu/masaar-crm/internal/bos24"
 	"github.com/maidulcu/masaar-crm/internal/config"
 	"github.com/maidulcu/masaar-crm/internal/repo"
 	"github.com/maidulcu/masaar-crm/internal/ws"
@@ -79,6 +80,13 @@ func main() {
 	// ── AI client ────────────────────────────────────────────────────────────
 	ollamaClient := ai.NewClient(cfg.OllamaBaseURL, cfg.OllamaModel)
 
+	// ── BuyOrSell24 client (optional real estate integration) ─────────────────
+	var bos24Client *bos24.Client
+	if bos24.IsEnabled(cfg.BOS24Token) {
+		bos24Client = bos24.NewClient(cfg.BOS24Token, rdb)
+		log.Println("BuyOrSell24 integration enabled")
+	}
+
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	handlers := &api.Handlers{
 		Auth:         handler.NewAuthHandler(userRepo, rdb, cfg),
@@ -91,6 +99,7 @@ func main() {
 		Notification: handler.NewNotificationHandler(notificationRepo),
 		Deal:         handler.NewDealHandler(dealRepo, invoiceRepo),
 		Invoice:      handler.NewInvoiceHandler(invoiceRepo, dealRepo),
+		Property:     handler.NewPropertyHandler(bos24Client),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
