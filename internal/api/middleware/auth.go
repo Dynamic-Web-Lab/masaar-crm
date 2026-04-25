@@ -69,7 +69,7 @@ func CheckBlacklist(rdb *redis.Client) fiber.Handler {
 			exists, err := rdb.Exists(c.Context(), "blacklist:"+token).Result()
 			if err != nil {
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "internal server error during token verification",
+					"error": "internal server error",
 				})
 			}
 			if exists > 0 {
