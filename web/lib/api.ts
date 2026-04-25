@@ -129,9 +129,7 @@ export const api = {
       request('/api/v1/invoices', { method: 'POST', body: JSON.stringify(data) }),
     get: (id: string) => request(`/api/v1/invoices/${id}`),
     getPDF: (id: string) => {
-      const token = getToken()
       return `${BASE}/api/v1/invoices/${id}/pdf`
-        + (token ? `?token=${token}` : '')
     },
     send: (id: string) =>
       request(`/api/v1/invoices/${id}/send`, { method: 'POST' }),

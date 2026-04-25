@@ -97,6 +97,18 @@ func (h *LeadHandler) UpdateStage(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "stage is required"})
 	}
 
+	validStages := map[domain.LeadStage]bool{
+		domain.StageNew:       true,
+		domain.StageContacted: true,
+		domain.StageQualified: true,
+		domain.StageProposal:  true,
+		domain.StageWon:       true,
+		domain.StageLost:      true,
+	}
+	if !validStages[body.Stage] {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid stage"})
+	}
+
 	if err := h.leads.UpdateStage(c.Context(), id, body.Stage); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}

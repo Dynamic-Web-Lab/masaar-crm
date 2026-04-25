@@ -10,23 +10,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func CheckBlacklist(rdb *redis.Client) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		tokenVal := c.Locals("user")
-		if tokenVal != nil {
-			if token, ok := tokenVal.(*jwt.Token); ok {
-				val, err := rdb.Get(c.UserContext(), "blacklist:"+token.Raw).Result()
-				if err == nil && val == "1" {
-					return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-						"error": "token has been revoked",
-					})
-				}
-			}
-		}
-		return c.Next()
-	}
-}
-
 func JWT(secret string) fiber.Handler {
 	return jwtware.New(jwtware.Config{
 		SigningKey:   jwtware.SigningKey{Key: []byte(secret)},
@@ -82,7 +65,12 @@ func CheckBlacklist(rdb *redis.Client) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token := BearerToken(c)
 		if token != "" {
-			exists, _ := rdb.Exists(c.Context(), "blacklist:"+token).Result()
+			exists, err := rdb.Exists(c.Context(), "blacklist:"+token).Result()
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "failed to verify token revocation status",
+				})
+			}
 			if exists > 0 {
 				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 					"error": "token revoked",
