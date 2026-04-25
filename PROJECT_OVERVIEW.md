@@ -1,7 +1,7 @@
 # Masaar CRM - Complete Project Overview
 
 **Last Updated:** April 25, 2026  
-**Current Status:** Phase 5 Complete (WhatsApp Outbound + Lead Intelligence)
+**Current Status:** Phase 6 Complete (Automatic Scoring + Auto-Tagging)
 
 ---
 
@@ -90,6 +90,21 @@
   - Status tracking per message
   - Linked to leads and contacts
   - External ID mapping for delivery tracking
+
+### Phase 6: Automatic Scoring & Webhook Auto-Tagging
+- [x] Intelligent lead scoring algorithm
+  - Stage progression scoring (0-40 points)
+  - Recency decay (0-20 points)
+  - Engagement signals (0-30 points): message frequency, recent activity
+  - Quality tag boost (0-10 points): hot/warm tags
+  - Automatically triggered on lead creation, stage change, message analysis
+- [x] Webhook-triggered auto-tagging
+  - Real-time analysis of incoming WhatsApp messages
+  - Quality signal detection (message length, detail density)
+  - Interest extraction (property type, area, budget, transaction type)
+  - Timeline signal detection (urgent vs flexible)
+  - Runs asynchronously during webhook processing
+  - Graceful fallback if AI unavailable
 
 ### Core Features (All Phases)
 - [x] User authentication (JWT + bcrypt)
@@ -186,26 +201,28 @@
 
 ---
 
-## 🚀 NEXT PRIORITIES (Phase 6+)
+## 🚀 NEXT PRIORITIES (Phase 7+)
 
 ### HIGH PRIORITY
-1. **Lead Auto-Tagging Triggers** (Webhook)
-   - Auto-tag on incoming WhatsApp message
-   - Auto-tag on email received
-   - Hook into message analysis pipeline
-
-2. **Automatic Lead Scoring Updates**
-   - Score increases when:
-     - Agent responds (engagement signal)
-     - Lead progresses through stages
-     - Multiple messages in thread (engagement)
-   - Score decreases with age (30-day decay)
-
-3. **Communication History UI**
+1. **Communication History UI**
    - Display unified timeline in lead detail
-   - Filter by communication type
+   - Filter by communication type (WhatsApp, email, calls)
    - Show delivery status and timestamps
    - Last contacted date for follow-up planning
+   - Search within communication history
+
+2. **Agent Assist UI**
+   - Show suggested next action in message interface
+   - Display recommended properties based on parsed interests
+   - One-click actions (Send message, Send proposal, Schedule follow-up)
+   - AI-drafted reply suggestions in chat
+
+3. **Lead Analytics Dashboard**
+   - Leads by source (WhatsApp, email, website)
+   - Conversion funnel (new → contacted → qualified → proposal → won)
+   - Average time in each stage
+   - Score distribution and trends
+   - Agent performance metrics
 
 4. **WhatsApp Outbound Automation**
    - Send template on lead creation ("Thanks for inquiry, agent will contact you")
@@ -416,24 +433,29 @@ MIT - Open source and free to use
 
 ## 🎉 Current Status
 
-**Phase 5 Complete:**
+**Phase 6 Complete:**
+- ✅ Automatic lead scoring updates (with age decay & engagement signals)
+- ✅ Webhook-triggered auto-tagging on messages
+- ✅ Intelligent scoring algorithm (stage, recency, engagement, quality)
 - ✅ WhatsApp outbound messaging
-- ✅ Lead auto-tagging system
-- ✅ Automatic lead scoring framework
+- ✅ Lead auto-tagging system (Phase 5)
 - ✅ Unified communication history
 - ✅ Email integration with templates
 - ✅ Company settings & VAT compliance
 
-**Ready for:**
-- Phase 6: UI implementation for communication history, auto-tagging triggers
-- Webhook automation for real-time analysis
-- Agent assist interface
+**Ready for Phase 7:**
+- UI implementation for communication history in lead detail
+- Agent assist interface with suggested actions
 - Lead analytics dashboard
+- Bulk actions on tagged leads
+- Advanced message scheduling and automation
 
 ---
 
-**Total Development Time:** ~80 hours  
+**Total Development Time:** ~90 hours (Phases 1-6)  
 **Migrations Deployed:** 14  
 **API Endpoints:** 40+  
+**Core Services:** 8 (auth, contact, lead, WhatsApp, email, property, AI, billing)
+**Intelligent Services:** 3 (ai.Client, ScoringService, TaggingService)
 **Test Coverage:** Manual (automated tests planned)
 
