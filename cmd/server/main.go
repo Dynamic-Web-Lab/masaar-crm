@@ -75,6 +75,7 @@ func main() {
 	invoiceRepo := repo.NewInvoiceRepo(pool)
 	statsRepo := repo.NewStatsRepo(pool)
 	settingsRepo := repo.NewSettingsRepo(pool)
+	companySettingsRepo := repo.NewCompanySettingsRepo(pool)
 	emailRepo := repo.NewEmailRepository(pool)
 
 	// ── Email service (optional SMTP integration) ────────────────────────────
@@ -117,9 +118,9 @@ func main() {
 		AI:           handler.NewAIHandler(ollamaClient, contactRepo, leadRepo, waRepo),
 		Notification: handler.NewNotificationHandler(notificationRepo),
 		Deal:         handler.NewDealHandler(dealRepo, invoiceRepo),
-		Invoice:      handler.NewInvoiceHandler(invoiceRepo, dealRepo),
+		Invoice:      handler.NewInvoiceHandler(invoiceRepo, dealRepo, companySettingsRepo),
 		Property:     handler.NewPropertyHandler(bos24Client),
-		Settings:     handler.NewSettingsHandler(settingsRepo),
+		Settings:     handler.NewSettingsHandler(settingsRepo, companySettingsRepo),
 		Email:        handler.NewEmailHandler(emailService, emailRepo),
 	}
 

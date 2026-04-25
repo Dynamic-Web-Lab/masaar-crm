@@ -252,3 +252,19 @@ type EmailHistory struct {
 	CreatedBy   *uuid.UUID     `json:"created_by"`
 	Metadata    map[string]any `json:"metadata"`
 }
+
+// ─── Company Settings ─────────────────────────────────────────────────────────
+
+type CompanySettings struct {
+	ID              int        `json:"id"`
+	Name            string     `json:"name"`
+	VATNumber       string     `json:"vat_number"`
+	BusinessAddress string     `json:"business_address"`
+	BusinessPhone   string     `json:"business_phone"`
+	BusinessEmail   string     `json:"business_email"`
+	BankName        string     `json:"bank_name"`
+	BankAccount     string     `json:"bank_account"`
+	BankIBAN        string     `json:"bank_iban"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	UpdatedBy       *uuid.UUID `json:"updated_by"`
+}

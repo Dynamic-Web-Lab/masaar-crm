@@ -8,11 +8,15 @@ import (
 )
 
 type SettingsHandler struct {
-	repo *repo.SettingsRepo
+	apiSettingsRepo    *repo.SettingsRepo
+	companySettingsRepo *repo.CompanySettingsRepo
 }
 
-func NewSettingsHandler(repo *repo.SettingsRepo) *SettingsHandler {
-	return &SettingsHandler{repo: repo}
+func NewSettingsHandler(apiSettingsRepo *repo.SettingsRepo, companySettingsRepo *repo.CompanySettingsRepo) *SettingsHandler {
+	return &SettingsHandler{
+		apiSettingsRepo: apiSettingsRepo,
+		companySettingsRepo: companySettingsRepo,
+	}
 }
 
 // GetBOS24Settings retrieves the BOS24 API token configuration
@@ -34,7 +38,7 @@ func (h *SettingsHandler) GetBOS24Settings(c *fiber.Ctx) error {
 		})
 	}
 
-	setting, err := h.repo.Get(c.Context(), "bos24_api_token")
+	setting, err := h.apiSettingsRepo.Get(c.Context(), "bos24_api_token")
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve settings",
@@ -72,13 +76,92 @@ func (h *SettingsHandler) UpdateBOS24Settings(c *fiber.Ctx) error {
 
 	userID := c.Locals("user_id").(uuid.UUID)
 
-	if err := h.repo.UpdateBOS24Token(c.Context(), req.Token, &userID); err != nil {
+	if err := h.apiSettingsRepo.UpdateBOS24Token(c.Context(), req.Token, &userID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to update settings",
 		})
 	}
 
-	updated, err := h.repo.Get(c.Context(), "bos24_api_token")
+	updated, err := h.apiSettingsRepo.Get(c.Context(), "bos24_api_token")
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to retrieve updated settings",
+		})
+	}
+
+	return c.JSON(updated)
+}
+
+// GetCompanySettings retrieves company information for invoices
+// @Summary Get company settings
+// @Description Retrieve company name, VAT number, address, and bank details (admin only).
+// @Tags Settings
+// @Produce json
+// @Success 200 {object} domain.CompanySettings
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/settings/company [get]
+// @Security Bearer
+func (h *SettingsHandler) GetCompanySettings(c *fiber.Ctx) error {
+	userRole := c.Locals("role").(domain.Role)
+	if userRole != domain.RoleAdmin {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "admin access required",
+		})
+	}
+
+	settings, err := h.companySettingsRepo.Get(c.Context())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to retrieve company settings",
+		})
+	}
+
+	return c.JSON(settings)
+}
+
+// UpdateCompanySettings updates company information for invoices
+// @Summary Update company settings
+// @Description Update company name, VAT number, address, and bank details (admin only). Required for valid UAE invoices.
+// @Tags Settings
+// @Accept json
+// @Produce json
+// @Param request body domain.CompanySettings true "Company details"
+// @Success 200 {object} domain.CompanySettings
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/v1/settings/company [patch]
+// @Security Bearer
+func (h *SettingsHandler) UpdateCompanySettings(c *fiber.Ctx) error {
+	userRole := c.Locals("role").(domain.Role)
+	if userRole != domain.RoleAdmin {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "admin access required",
+		})
+	}
+
+	var req domain.CompanySettings
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+
+	// Validate required fields
+	if req.Name == "" || req.VATNumber == "" || req.BusinessAddress == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "name, vat_number, and business_address are required",
+		})
+	}
+
+	userID := c.Locals("user_id").(uuid.UUID)
+
+	if err := h.companySettingsRepo.Update(c.Context(), &req, &userID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to update company settings",
+		})
+	}
+
+	updated, err := h.companySettingsRepo.Get(c.Context())
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve updated settings",

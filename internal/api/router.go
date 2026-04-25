@@ -94,6 +94,16 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		h.Settings.UpdateBOS24Settings,
 	)
 
+	// Company Settings — admin only (invoice details, VAT number, bank info)
+	v1.Get("/settings/company",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Settings.GetCompanySettings,
+	)
+	v1.Patch("/settings/company",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Settings.UpdateCompanySettings,
+	)
+
 	// Contacts — viewers: read-only; agents: create+update; admin: delete
 	v1.Get("/contacts", h.Contact.List)
 	v1.Get("/contacts/:id", h.Contact.Get)
