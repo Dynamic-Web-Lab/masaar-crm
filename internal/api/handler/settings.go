@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/maidulcu/masaar-crm/internal/domain"
 	"github.com/maidulcu/masaar-crm/internal/repo"
 )
@@ -69,13 +70,9 @@ func (h *SettingsHandler) UpdateBOS24Settings(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
 	}
 
-	userID := c.Locals("user_id")
-	var userIDPtr *interface{}
-	if userID != nil {
-		userIDPtr = &userID
-	}
+	userID := c.Locals("user_id").(uuid.UUID)
 
-	if err := h.repo.UpdateBOS24Token(c.Context(), req.Token, nil); err != nil {
+	if err := h.repo.UpdateBOS24Token(c.Context(), req.Token, &userID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to update settings",
 		})
