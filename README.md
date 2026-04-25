@@ -51,9 +51,9 @@ Masaar is a **free, open-source CRM designed specifically for UAE businesses**. 
 
 ---
 
-## 🏢 Real Estate Market Data — BuyOrSell24 Integration
+## 🏢 Real Estate Market Data Integration
 
-**Coming in Phase 1:** Masaar CRM integrates with [BuyOrSell24](https://buyorsell24.com) — Dubai's largest real estate API — to supercharge property deals.
+**Masaar CRM integrates with [BuyOrSell24 by Dynamic Web Lab](https://dynamicweblab.com/products/real-estate-data-api/)** — the UAE's real estate data API — to add market intelligence directly into your CRM workflow.
 
 ### What You Get
 - **Property Search** — Natural language queries: "2BR apartments in Marina" returns recent transactions, comparable prices, and market trends
@@ -65,26 +65,31 @@ Masaar is a **free, open-source CRM designed specifically for UAE businesses**. 
 ### How to Enable
 
 **Step 1: Get Your API Key**
-- Visit [https://buyorsell24.com/api/keys](https://buyorsell24.com/api/keys) to register (free tier available)
-- Copy your API token
+- Visit [https://dynamicweblab.com/products/real-estate-data-api/](https://dynamicweblab.com/products/real-estate-data-api/) to register
+- Sign up for a free or paid plan (see pricing below)
+- Copy your API key
 
 **Step 2: Configure in Masaar**
 ```bash
 # In your .env file:
-BOS24_API_TOKEN=your-api-token-here
+BOS24_API_TOKEN=your-api-key-from-dynamicweblab
 ```
 
 **Step 3: Start Using**
 - Agents search properties directly in leads: "Market data for 2BR Dubai Marina"
 - Auto-enriched lead cards show comparable sales and price insights
 - Investors analyze rental yields in seconds
+- All data stays in your self-hosted Masaar instance
 
-### Pricing
-- **Free for Masaar Pro users** — Your BOS24 credits included in subscription
-- **Open-source users:** Optional integration; costs based on BOS24 credit plan (Lite: 1,000/month, Startup: 5,000/month)
-- **Enterprise:** Unlimited credits; contact us
+### Pricing & Plans
+- **Masaar Pro users** — BuyOrSell24 API credits included in your subscription
+- **Open-source users** — Optional integration; choose your plan:
+  - **Free Tier** — Limited monthly queries, great for testing
+  - **Growth Plan** — 5,000+ monthly credits (perfect for 10-50 agents)
+  - **Enterprise** — Custom unlimited credits with dedicated support
+- Visit [Dynamic Web Lab](https://dynamicweblab.com/products/real-estate-data-api/) for full pricing details
 
-> 💡 **Pro Tip:** Agents save 5 minutes per lead research using BOS24 integration — market data without leaving WhatsApp thread.
+> 💡 **For Masaar Pro Users:** Your CRM subscription includes API credits for unlimited property searches. Market intelligence without additional cost!
 
 ---
 
@@ -211,7 +216,8 @@ All protected routes require `Authorization: Bearer <token>`. Full interactive d
 | `PATCH` | `/api/v1/notifications/:id/read` | Mark notification read | Auth |
 | `POST` | `/api/v1/ai/summarize/:thread_id` | AI thread summary | Agent, Admin |
 | `GET` | `/ws/notifications` | Real-time notification stream | Auth (WS) |
-| **Real Estate Market Data** | (Optional — BuyOrSell24 integration) | | |
+| | | | |
+| **Real Estate Market Data (Dynamic Web Lab)** | *Optional integration; requires API key* | | |
 | `POST` | `/api/v1/properties/search` | Search properties (natural language) | Agent, Admin |
 | `GET` | `/api/v1/properties/transactions` | List transactions with filters | Agent, Admin |
 | `GET` | `/api/v1/properties/buildings` | Search/autocomplete buildings | Agent, Admin |
