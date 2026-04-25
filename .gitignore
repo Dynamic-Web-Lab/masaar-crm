@@ -67,3 +67,4 @@ logs/
 # Test coverage
 coverage.out
 coverage.html
+server
