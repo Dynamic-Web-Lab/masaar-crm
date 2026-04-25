@@ -22,6 +22,7 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/config"
 	"github.com/maidulcu/masaar-crm/internal/email"
 	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/maidulcu/masaar-crm/internal/whatsapp"
 	"github.com/maidulcu/masaar-crm/internal/ws"
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
@@ -77,6 +78,7 @@ func main() {
 	settingsRepo := repo.NewSettingsRepo(pool)
 	companySettingsRepo := repo.NewCompanySettingsRepo(pool)
 	emailRepo := repo.NewEmailRepository(pool)
+	outboundRepo := repo.NewWhatsAppOutboundRepo(pool)
 
 	// ── Email service (optional SMTP integration) ────────────────────────────
 	emailService := email.NewService(&email.Config{
@@ -87,6 +89,17 @@ func main() {
 		FromEmail:    cfg.SMTPFromEmail,
 		FromName:     cfg.SMTPFromName,
 	})
+
+	// ── WhatsApp Sender (optional outbound messaging) ─────────────────────────
+	var whatsappSender *whatsapp.Sender
+	if cfg.WAPhoneNumberID != "" && cfg.WAAccessToken != "" {
+		whatsappSender = whatsapp.NewSender(&whatsapp.SenderConfig{
+			BaseURL:       cfg.WABaseURL,
+			PhoneNumberID: cfg.WAPhoneNumberID,
+			AccessToken:   cfg.WAAccessToken,
+		})
+		log.Println("WhatsApp outbound messaging enabled")
+	}
 
 	// ── WebSocket hub ────────────────────────────────────────────────────────
 	hub := ws.NewHub()
@@ -113,10 +126,11 @@ func main() {
 		User:         handler.NewUserHandler(userRepo),
 		Stats:        handler.NewStatsHandler(statsRepo),
 		Contact:      handler.NewContactHandler(contactRepo),
-		Lead:         handler.NewLeadHandler(leadRepo, contactRepo, hub),
-		WhatsApp:     handler.NewWhatsAppHandler(waRepo, contactRepo, hub, cfg),
-		AI:           handler.NewAIHandler(ollamaClient, contactRepo, leadRepo, waRepo),
-		Message:      handler.NewMessageHandler(ollamaClient, waRepo, contactRepo, leadRepo, hub),
+		Lead:             handler.NewLeadHandler(leadRepo, contactRepo, hub),
+		WhatsApp:         handler.NewWhatsAppHandler(waRepo, contactRepo, hub, cfg),
+		WhatsAppOutbound: handler.NewWhatsAppOutboundHandler(whatsappSender, outboundRepo, waRepo),
+		AI:               handler.NewAIHandler(ollamaClient, contactRepo, leadRepo, waRepo),
+		Message:          handler.NewMessageHandler(ollamaClient, waRepo, contactRepo, leadRepo, hub),
 		Notification: handler.NewNotificationHandler(notificationRepo),
 		Deal:         handler.NewDealHandler(dealRepo, invoiceRepo),
 		Invoice:      handler.NewInvoiceHandler(invoiceRepo, dealRepo, companySettingsRepo),

@@ -120,6 +120,32 @@ type WhatsAppMessage struct {
 	SentAt      time.Time        `json:"sent_at"`
 }
 
+type OutboundStatus string
+
+const (
+	OutboundPending   OutboundStatus = "pending"
+	OutboundSent      OutboundStatus = "sent"
+	OutboundDelivered OutboundStatus = "delivered"
+	OutboundRead      OutboundStatus = "read"
+	OutboundFailed    OutboundStatus = "failed"
+)
+
+type WhatsAppOutbound struct {
+	ID            int64          `json:"id"`
+	ThreadID      uuid.UUID      `json:"thread_id"`
+	ToNumber      string         `json:"to_number"`
+	MessageBody   string         `json:"message_body"`
+	MediaURL      string         `json:"media_url"`
+	WAMessageID   string         `json:"wa_message_id"`
+	Status        OutboundStatus `json:"status"`
+	ErrorMsg      string         `json:"error_message"`
+	ScheduledAt   *time.Time     `json:"scheduled_at"`
+	SentAt        *time.Time     `json:"sent_at"`
+	CreatedAt     time.Time      `json:"created_at"`
+	CreatedBy     *uuid.UUID     `json:"created_by"`
+	Metadata      map[string]any `json:"metadata"`
+}
+
 // ─── Deal ─────────────────────────────────────────────────────────────────────
 
 type DealStage string
