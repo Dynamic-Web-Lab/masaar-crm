@@ -23,9 +23,12 @@ type Config struct {
 	JWTAccessExpiryMin   int
 	JWTRefreshExpiryDays int
 
-	// WhatsApp
-	WAVerifyToken string
-	WAAPIVersion  string
+	// WhatsApp (Inbound + Outbound)
+	WAVerifyToken   string
+	WAAPIVersion    string
+	WAPhoneNumberID string
+	WAAccessToken   string
+	WABaseURL       string
 
 	// Ollama
 	OllamaBaseURL string
@@ -60,6 +63,9 @@ func Load() *Config {
 		JWTRefreshExpiryDays: getEnvInt("JWT_REFRESH_EXPIRY_DAYS", 7),
 		WAVerifyToken:        getEnv("WA_VERIFY_TOKEN", "masaar-webhook-token"),
 		WAAPIVersion:         getEnv("WA_API_VERSION", "v19.0"),
+		WAPhoneNumberID:      getEnv("WA_PHONE_NUMBER_ID", ""),
+		WAAccessToken:        getEnv("WA_ACCESS_TOKEN", ""),
+		WABaseURL:            getEnv("WA_BASE_URL", "https://graph.instagram.com"),
 		OllamaBaseURL:        getEnv("OLLAMA_BASE_URL", "http://localhost:11434"),
 		OllamaModel:          getEnv("OLLAMA_MODEL", "llama3"),
 		BOS24Token:           getEnv("BOS24_API_TOKEN", ""),

@@ -17,20 +17,21 @@ import (
 )
 
 type Handlers struct {
-	Auth         *handler.AuthHandler
-	User         *handler.UserHandler
-	Stats        *handler.StatsHandler
-	Contact      *handler.ContactHandler
-	Lead         *handler.LeadHandler
-	WhatsApp     *handler.WhatsAppHandler
-	AI           *handler.AIHandler
-	Message      *handler.MessageHandler
-	Notification *handler.NotificationHandler
-	Deal         *handler.DealHandler
-	Invoice      *handler.InvoiceHandler
-	Property     *handler.PropertyHandler
-	Settings     *handler.SettingsHandler
-	Email        *handler.EmailHandler
+	Auth              *handler.AuthHandler
+	User              *handler.UserHandler
+	Stats             *handler.StatsHandler
+	Contact           *handler.ContactHandler
+	Lead              *handler.LeadHandler
+	WhatsApp          *handler.WhatsAppHandler
+	WhatsAppOutbound  *handler.WhatsAppOutboundHandler
+	AI                *handler.AIHandler
+	Message           *handler.MessageHandler
+	Notification      *handler.NotificationHandler
+	Deal              *handler.DealHandler
+	Invoice           *handler.InvoiceHandler
+	Property          *handler.PropertyHandler
+	Settings          *handler.SettingsHandler
+	Email             *handler.EmailHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -137,13 +138,27 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		h.Lead.UpdateNotes,
 	)
 
-	// WhatsApp inbox — all authenticated users read; agents+ can close
+	// WhatsApp inbox — all authenticated users read; agents+ can close/send
 	v1.Get("/threads", h.WhatsApp.ListThreads)
 	v1.Get("/threads/:id", h.WhatsApp.GetThread)
 	v1.Get("/threads/:id/messages", h.WhatsApp.GetMessages)
 	v1.Post("/threads/:id/close",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.WhatsApp.CloseThread,
+	)
+
+	// WhatsApp outbound — agents+ send messages
+	v1.Post("/threads/:id/send-message",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.WhatsAppOutbound.SendMessage,
+	)
+	v1.Post("/threads/:id/send-template",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.WhatsAppOutbound.SendTemplate,
+	)
+	v1.Get("/threads/:id/outbound-messages",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.WhatsAppOutbound.GetOutboundMessages,
 	)
 
 	// AI (manual) — agents and admin only
