@@ -31,6 +31,9 @@ type Config struct {
 	OllamaBaseURL string
 	OllamaModel   string
 
+	// BuyOrSell24 (Real Estate API)
+	BOS24Token string
+
 	// App
 	AppEnv string
 }
@@ -51,6 +54,7 @@ func Load() *Config {
 		WAAPIVersion:         getEnv("WA_API_VERSION", "v19.0"),
 		OllamaBaseURL:        getEnv("OLLAMA_BASE_URL", "http://localhost:11434"),
 		OllamaModel:          getEnv("OLLAMA_MODEL", "llama3"),
+		BOS24Token:           getEnv("BOS24_API_TOKEN", ""),
 		AppEnv:               getEnv("APP_ENV", "development"),
 	}
 }
