@@ -161,6 +161,18 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.Property.GetNearbySchools,
 	)
+	v1.Get("/properties/yield-analysis",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Property.GetYieldAnalysis,
+	)
+	v1.Get("/properties/comparables",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Property.GetComparables,
+	)
+	v1.Get("/properties/market-trends",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Property.GetMarketTrends,
+	)
 
 	// Notifications — personal; no role restriction beyond auth
 	v1.Get("/notifications", h.Notification.List)
