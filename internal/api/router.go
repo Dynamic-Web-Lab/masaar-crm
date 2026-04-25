@@ -27,6 +27,7 @@ type Handlers struct {
 	Notification *handler.NotificationHandler
 	Deal         *handler.DealHandler
 	Invoice      *handler.InvoiceHandler
+	Property     *handler.PropertyHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -126,6 +127,28 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Post("/ai/summarize/:thread_id",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.AI.SummarizeThread,
+	)
+
+	// Real Estate Market Data (BuyOrSell24) — agents and admin only (optional integration)
+	v1.Post("/properties/search",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Property.SearchProperties,
+	)
+	v1.Get("/properties/transactions",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Property.GetTransactions,
+	)
+	v1.Get("/properties/buildings",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Property.GetBuildings,
+	)
+	v1.Get("/properties/buildings/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Property.GetBuildingByID,
+	)
+	v1.Get("/properties/schools/nearby",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Property.GetNearbySchools,
 	)
 
 	// Notifications — personal; no role restriction beyond auth
