@@ -19,7 +19,8 @@ func NewPropertyHandler(bos24Client *bos24.Client) *PropertyHandler {
 
 // SearchProperties performs natural language property search
 // @Summary Search properties by natural language query
-// @Description Search for properties using natural language (e.g., "2BR apartments in Marina")
+// @Description Search for properties using natural language (e.g., "2BR apartments in Marina").
+// Requires BOS24_API_TOKEN configured. See https://data.buyorsell24.com/redoc for API details.
 // @Tags Property Search
 // @Accept json
 // @Produce json

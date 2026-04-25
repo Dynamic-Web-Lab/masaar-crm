@@ -16,6 +16,13 @@ const (
 	BaseURL = "https://data.buyorsell24.com"
 )
 
+// BuyOrSell24 API Documentation & Setup:
+// - API Docs: https://data.buyorsell24.com/redoc
+// - Product: https://dynamicweblab.com/products/real-estate-data-api/
+// - To get API token: Contact via product landing page
+// - Masaar Pro users: Credits included with subscription
+// - Open-source users: Contact for custom pricing
+//
 // Client wraps BuyOrSell24 API with caching
 type Client struct {
 	baseURL    string

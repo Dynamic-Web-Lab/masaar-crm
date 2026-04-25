@@ -65,14 +65,15 @@ Masaar is a **free, open-source CRM designed specifically for UAE businesses**. 
 ### How to Enable
 
 **Step 1: Get Your API Key**
-- Visit [https://dynamicweblab.com/products/real-estate-data-api/](https://dynamicweblab.com/products/real-estate-data-api/) to register
-- Sign up for a free or paid plan (see pricing below)
-- Copy your API key
+1. Visit [https://dynamicweblab.com/products/real-estate-data-api/](https://dynamicweblab.com/products/real-estate-data-api/)
+2. View pricing tiers and features
+3. **Contact us** to set up your account (integration form on landing page)
+4. We'll send your API key via Manukaub Bank payment & setup
 
 **Step 2: Configure in Masaar**
 ```bash
 # In your .env file:
-BOS24_API_TOKEN=your-api-key-from-dynamicweblab
+BOS24_API_TOKEN=your-api-token-received-from-setup
 ```
 
 **Step 3: Start Using**
@@ -81,13 +82,16 @@ BOS24_API_TOKEN=your-api-key-from-dynamicweblab
 - Investors analyze rental yields in seconds
 - All data stays in your self-hosted Masaar instance
 
+**Full API Documentation:** [https://data.buyorsell24.com/redoc](https://data.buyorsell24.com/redoc)
+
 ### Pricing & Plans
 - **Masaar Pro users** — BuyOrSell24 API credits included in your subscription
-- **Open-source users** — Optional integration; choose your plan:
-  - **Free Tier** — Limited monthly queries, great for testing
-  - **Growth Plan** — 5,000+ monthly credits (perfect for 10-50 agents)
+- **Open-source users** — Optional integration; contact Dynamic Web Lab for pricing:
+  - **Starter** — Limited monthly queries, great for testing
+  - **Growth** — 5,000+ monthly credits (perfect for 10-50 agents)
   - **Enterprise** — Custom unlimited credits with dedicated support
-- Visit [Dynamic Web Lab](https://dynamicweblab.com/products/real-estate-data-api/) for full pricing details
+  
+👉 **[Contact Dynamic Web Lab](https://dynamicweblab.com/products/real-estate-data-api/)** to discuss your requirements and get a quote
 
 > 💡 **For Masaar Pro Users:** Your CRM subscription includes API credits for unlimited property searches. Market intelligence without additional cost!
 
