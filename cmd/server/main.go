@@ -20,6 +20,7 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/api/handler"
 	"github.com/maidulcu/masaar-crm/internal/bos24"
 	"github.com/maidulcu/masaar-crm/internal/config"
+	"github.com/maidulcu/masaar-crm/internal/email"
 	"github.com/maidulcu/masaar-crm/internal/repo"
 	"github.com/maidulcu/masaar-crm/internal/ws"
 	"github.com/pressly/goose/v3"
@@ -74,6 +75,17 @@ func main() {
 	invoiceRepo := repo.NewInvoiceRepo(pool)
 	statsRepo := repo.NewStatsRepo(pool)
 	settingsRepo := repo.NewSettingsRepo(pool)
+	emailRepo := repo.NewEmailRepository(pool)
+
+	// ── Email service (optional SMTP integration) ────────────────────────────
+	emailService := email.NewService(&email.Config{
+		SMTPHost:     cfg.SMTPHost,
+		SMTPPort:     cfg.SMTPPort,
+		SMTPUser:     cfg.SMTPUser,
+		SMTPPassword: cfg.SMTPPassword,
+		FromEmail:    cfg.SMTPFromEmail,
+		FromName:     cfg.SMTPFromName,
+	})
 
 	// ── WebSocket hub ────────────────────────────────────────────────────────
 	hub := ws.NewHub()
@@ -108,6 +120,7 @@ func main() {
 		Invoice:      handler.NewInvoiceHandler(invoiceRepo, dealRepo),
 		Property:     handler.NewPropertyHandler(bos24Client),
 		Settings:     handler.NewSettingsHandler(settingsRepo),
+		Email:        handler.NewEmailHandler(emailService, emailRepo),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────

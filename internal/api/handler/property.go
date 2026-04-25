@@ -371,13 +371,6 @@ func (h *PropertyHandler) GetComparables(c *fiber.Ctx) error {
 		filters["property_type"] = propertyType
 	}
 
-	limit := 10
-	if l := c.Query("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-			limit = parsed
-		}
-	}
-
 	transactions, err := h.bos24Client.GetTransactions(c.Context(), filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
@@ -385,9 +378,15 @@ func (h *PropertyHandler) GetComparables(c *fiber.Ctx) error {
 		})
 	}
 
+	// Convert []map[string]interface{} to []interface{}
+	comparables := make([]interface{}, len(transactions))
+	for i, t := range transactions {
+		comparables[i] = t
+	}
+
 	response := ComparablesResponse{
 		Area:          area,
-		Comparables:   transactions,
+		Comparables:   comparables,
 		ResultCount:   len(transactions),
 		AnalysisDate:  c.Locals("timestamp"),
 	}

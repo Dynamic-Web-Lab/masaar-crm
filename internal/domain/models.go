@@ -224,3 +224,31 @@ type APISetting struct {
 	UpdatedAt    time.Time  `json:"updated_at"`
 	UpdatedBy    *uuid.UUID `json:"updated_by"`
 }
+
+// ─── Email ────────────────────────────────────────────────────────────────────
+
+type EmailStatus string
+
+const (
+	EmailPending  EmailStatus = "pending"
+	EmailSent     EmailStatus = "sent"
+	EmailFailed   EmailStatus = "failed"
+	EmailBounced  EmailStatus = "bounced"
+)
+
+type EmailHistory struct {
+	ID          int64          `json:"id"`
+	FromEmail   string         `json:"from_email"`
+	ToEmail     string         `json:"to_email"`
+	Subject     string         `json:"subject"`
+	Body        string         `json:"body"`
+	HTMLBody    string         `json:"html_body"`
+	Status      EmailStatus    `json:"status"`
+	ErrorMsg    string         `json:"error_message"`
+	RelatedTo   string         `json:"related_to"`   // invoice, proposal, followup
+	RelatedID   *int64         `json:"related_id"`
+	SentAt      *time.Time     `json:"sent_at"`
+	CreatedAt   time.Time      `json:"created_at"`
+	CreatedBy   *uuid.UUID     `json:"created_by"`
+	Metadata    map[string]any `json:"metadata"`
+}

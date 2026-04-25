@@ -34,6 +34,14 @@ type Config struct {
 	// BuyOrSell24 (Real Estate API)
 	BOS24Token string
 
+	// Email (SMTP)
+	SMTPHost     string
+	SMTPPort     string
+	SMTPUser     string
+	SMTPPassword string
+	SMTPFromEmail string
+	SMTPFromName string
+
 	// App
 	AppEnv string
 }
@@ -55,6 +63,12 @@ func Load() *Config {
 		OllamaBaseURL:        getEnv("OLLAMA_BASE_URL", "http://localhost:11434"),
 		OllamaModel:          getEnv("OLLAMA_MODEL", "llama3"),
 		BOS24Token:           getEnv("BOS24_API_TOKEN", ""),
+		SMTPHost:             getEnv("SMTP_HOST", ""),
+		SMTPPort:             getEnv("SMTP_PORT", "587"),
+		SMTPUser:             getEnv("SMTP_USER", ""),
+		SMTPPassword:         getEnv("SMTP_PASSWORD", ""),
+		SMTPFromEmail:        getEnv("SMTP_FROM_EMAIL", "noreply@masaar.local"),
+		SMTPFromName:         getEnv("SMTP_FROM_NAME", "Masaar CRM"),
 		AppEnv:               getEnv("APP_ENV", "development"),
 	}
 }

@@ -29,6 +29,7 @@ type Handlers struct {
 	Invoice      *handler.InvoiceHandler
 	Property     *handler.PropertyHandler
 	Settings     *handler.SettingsHandler
+	Email        *handler.EmailHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -204,6 +205,16 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Patch("/invoices/:id/status",
 		middleware.RequireRole(domain.RoleAdmin),
 		h.Invoice.UpdateStatus,
+	)
+
+	// Email — agents and admin only
+	v1.Post("/emails/send",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Email.SendEmail,
+	)
+	v1.Get("/emails/history",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Email.GetEmailHistory,
 	)
 
 	// Health
