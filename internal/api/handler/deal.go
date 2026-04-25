@@ -135,6 +135,16 @@ func (h *DealHandler) UpdateStage(c *fiber.Ctx) error {
 	if err := c.BodyParser(&body); err != nil || body.Stage == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "stage required"})
 	}
+
+	validStages := map[domain.DealStage]bool{
+		domain.DealStageOpen: true,
+		domain.DealStageWon:  true,
+		domain.DealStageLost: true,
+	}
+	if !validStages[body.Stage] {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid stage"})
+	}
+
 	if err := h.deals.UpdateStage(c.Context(), id, body.Stage); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
