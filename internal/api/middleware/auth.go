@@ -10,26 +10,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func CheckBlacklist(rdb *redis.Client) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		token := BearerToken(c)
-		if token != "" {
-			exists, err := rdb.Exists(c.Context(), "blacklist:"+token).Result()
-			if err != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "internal server error",
-				})
-			}
-			if exists > 0 {
-				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-					"error": "token revoked",
-				})
-			}
-		}
-		return c.Next()
-	}
-}
-
 func JWT(secret string) fiber.Handler {
 	return jwtware.New(jwtware.Config{
 		SigningKey:   jwtware.SigningKey{Key: []byte(secret)},
@@ -80,3 +60,24 @@ func BearerToken(c *fiber.Ctx) string {
 	return ""
 }
 
+// CheckBlacklist verifies that the current access token has not been revoked.
+// If Redis fails, it fails closed returning 500.
+func CheckBlacklist(rdb *redis.Client) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		token := BearerToken(c)
+		if token != "" {
+			exists, err := rdb.Exists(c.Context(), "blacklist:"+token).Result()
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "internal server error",
+				})
+			}
+			if exists > 0 {
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error": "token revoked",
+				})
+			}
+		}
+		return c.Next()
+	}
+}
