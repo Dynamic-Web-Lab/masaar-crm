@@ -213,3 +213,14 @@ type Stats struct {
 	WonDeals       int     `json:"won_deals"`
 	WonDealsValue  float64 `json:"won_deals_value"`
 }
+
+// ─── API Settings ─────────────────────────────────────────────────────────────
+
+type APISetting struct {
+	ID           uuid.UUID  `json:"id"`
+	SettingKey   string     `json:"setting_key"`
+	SettingValue string     `json:"setting_value"`
+	Description  string     `json:"description"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	UpdatedBy    *uuid.UUID `json:"updated_by"`
+}
