@@ -24,6 +24,7 @@ type Handlers struct {
 	Lead         *handler.LeadHandler
 	WhatsApp     *handler.WhatsAppHandler
 	AI           *handler.AIHandler
+	Message      *handler.MessageHandler
 	Notification *handler.NotificationHandler
 	Deal         *handler.DealHandler
 	Invoice      *handler.InvoiceHandler
@@ -149,6 +150,20 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Post("/ai/summarize/:thread_id",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.AI.SummarizeThread,
+	)
+
+	// Message Analysis — agents and admin only (intent parsing, enrichment, auto-lead)
+	v1.Post("/messages/analyze",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Message.AnalyzeMessage,
+	)
+	v1.Post("/messages/suggest-action",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Message.SuggestNextAction,
+	)
+	v1.Post("/messages/auto-create-lead",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Message.AutoCreateLead,
 	)
 
 	// Real Estate Market Data (BuyOrSell24) — agents and admin only (optional integration)
