@@ -13,10 +13,15 @@ import (
 type InvoiceHandler struct {
 	invoices *repo.InvoiceRepo
 	deals    *repo.DealRepo
+	company  *repo.CompanySettingsRepo
 }
 
-func NewInvoiceHandler(invoices *repo.InvoiceRepo, deals *repo.DealRepo) *InvoiceHandler {
-	return &InvoiceHandler{invoices: invoices, deals: deals}
+func NewInvoiceHandler(invoices *repo.InvoiceRepo, deals *repo.DealRepo, company *repo.CompanySettingsRepo) *InvoiceHandler {
+	return &InvoiceHandler{
+		invoices: invoices,
+		deals:    deals,
+		company:  company,
+	}
 }
 
 // Create godoc
@@ -163,9 +168,16 @@ func (h *InvoiceHandler) DownloadPDF(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "deal not found"})
 	}
 
-	companyName := "Masaar CRM"
-	companyAddr := "Dubai, United Arab Emirates"
-	companyVAT := "123456789"
+	// Load company settings from database
+	company, err := h.company.Get(c.Context())
+	if err != nil {
+		// Fallback if company settings not configured
+		company = &domain.CompanySettings{
+			Name:            "Your Company Name",
+			VATNumber:       "Not configured",
+			BusinessAddress: "Dubai, United Arab Emirates",
+		}
+	}
 
 	pdfData := pdf.InvoiceData{
 		InvoiceNo:   inv.InvoiceNo,
@@ -175,9 +187,9 @@ func (h *InvoiceHandler) DownloadPDF(c *fiber.Ctx) error {
 		VATAmount:   inv.VATAmount,
 		Total:       inv.Total,
 		DealTitle:   deal.Title,
-		CompanyName: companyName,
-		CompanyAddr: companyAddr,
-		CompanyVAT:  companyVAT,
+		CompanyName: company.Name,
+		CompanyAddr: company.BusinessAddress,
+		CompanyVAT:  company.VATNumber,
 	}
 
 	pdfBytes, err := pdf.GenerateInvoice(pdfData)
