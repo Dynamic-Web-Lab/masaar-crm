@@ -130,6 +130,16 @@ func (h *InvoiceHandler) UpdateStatus(c *fiber.Ctx) error {
 	if err := c.BodyParser(&body); err != nil || body.Status == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "status required"})
 	}
+
+	validStatuses := map[domain.InvoiceStatus]bool{
+		domain.InvoiceDraft: true,
+		domain.InvoiceSent:  true,
+		domain.InvoicePaid:  true,
+	}
+	if !validStatuses[body.Status] {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid status"})
+	}
+
 	if err := h.invoices.UpdateStatus(c.Context(), id, body.Status); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}

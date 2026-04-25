@@ -58,7 +58,7 @@ func (h *AIHandler) DraftReply(c *fiber.Ctx) error {
 	var bodies []string
 	for _, m := range msgs {
 		prefix := "Agent"
-		if m.Direction == "inbound" {
+		if m.Direction == domain.DirectionInbound {
 			prefix = "Customer"
 		}
 		bodies = append(bodies, prefix+": "+m.Body)
@@ -69,7 +69,11 @@ func (h *AIHandler) DraftReply(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "thread not found"})
 	}
 
-	summary, _ := h.ollama.SummarizeThread(c.Context(), bodies)
+	summary, err := h.ollama.SummarizeThread(c.Context(), bodies)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
+	}
+
 	contact, _ := h.contacts.GetByID(c.Context(), threads[0].ContactID)
 
 	lang := "en"
