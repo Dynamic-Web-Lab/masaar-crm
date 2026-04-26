@@ -6,6 +6,15 @@ import (
 	"github.com/google/uuid"
 )
 
+// ─── Audit Log ───────────────────────────────────────────────────────────────
+
+const (
+	AuditEntityContact = "contact"
+	AuditEntityLead    = "lead"
+	AuditEntityDeal    = "deal"
+	AuditEntityInvoice = "invoice"
+)
+
 // ─── User ────────────────────────────────────────────────────────────────────
 
 type Role string

@@ -29,6 +29,7 @@ type Config struct {
 	WAPhoneNumberID string
 	WAAccessToken   string
 	WABaseURL       string
+	WAAppSecret     string // used to validate X-Hub-Signature-256 on inbound webhooks
 
 	// Ollama
 	OllamaBaseURL string
@@ -47,6 +48,12 @@ type Config struct {
 
 	// App
 	AppEnv string
+
+	// Multi-tenancy (single-tenant: fixed company UUID for this installation)
+	CompanyID string
+
+	// CORS — comma-separated allowed origins; defaults to * in development only
+	AllowedOrigins string
 }
 
 func Load() *Config {
@@ -66,6 +73,7 @@ func Load() *Config {
 		WAPhoneNumberID:      getEnv("WA_PHONE_NUMBER_ID", ""),
 		WAAccessToken:        getEnv("WA_ACCESS_TOKEN", ""),
 		WABaseURL:            getEnv("WA_BASE_URL", "https://graph.instagram.com"),
+		WAAppSecret:          getEnv("WA_APP_SECRET", ""),
 		OllamaBaseURL:        getEnv("OLLAMA_BASE_URL", "http://localhost:11434"),
 		OllamaModel:          getEnv("OLLAMA_MODEL", "llama3"),
 		BOS24Token:           getEnv("BOS24_API_TOKEN", ""),
@@ -76,6 +84,8 @@ func Load() *Config {
 		SMTPFromEmail:        getEnv("SMTP_FROM_EMAIL", "noreply@masaar.local"),
 		SMTPFromName:         getEnv("SMTP_FROM_NAME", "Masaar CRM"),
 		AppEnv:               getEnv("APP_ENV", "development"),
+		CompanyID:            getEnv("APP_COMPANY_ID", "00000000-0000-0000-0000-000000000001"),
+		AllowedOrigins:       getEnv("ALLOWED_ORIGINS", "*"),
 	}
 }
 

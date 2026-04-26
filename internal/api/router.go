@@ -77,10 +77,19 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	})
 
 	// Personal notifications
-	app.Get("/ws/notifications", middleware.JWT(cfg.JWTSecret), middleware.CheckBlacklist(rdb), fiberws.New(hub.Handler()))
+	app.Get("/ws/notifications",
+		middleware.JWT(cfg.JWTSecret),
+		middleware.CheckBlacklist(rdb),
+		middleware.ExtractClaims(cfg.CompanyID),
+		fiberws.New(hub.Handler()),
+	)
 
 	// ── Authenticated API ────────────────────────────────────────────────────
-	v1 := app.Group("/api/v1", middleware.JWT(cfg.JWTSecret), middleware.CheckBlacklist(rdb))
+	v1 := app.Group("/api/v1",
+		middleware.JWT(cfg.JWTSecret),
+		middleware.CheckBlacklist(rdb),
+		middleware.ExtractClaims(cfg.CompanyID),
+	)
 
 	v1.Delete("/auth/logout", h.Auth.Logout)
 
