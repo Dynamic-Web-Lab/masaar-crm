@@ -707,3 +707,85 @@ type PaymentReminder struct {
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
 }
+
+// ─── Bank Statements & Payment Confirmations ───────────────────────────────
+
+type FileFormat string
+
+const (
+	FormatCSV  FileFormat = "csv"
+	FormatPDF  FileFormat = "pdf"
+	FormatXLSX FileFormat = "xlsx"
+)
+
+type ProcessingStatus string
+
+const (
+	StatusPending    ProcessingStatus = "pending"
+	StatusProcessing ProcessingStatus = "processing"
+	StatusCompleted  ProcessingStatus = "completed"
+	StatusFailed     ProcessingStatus = "failed"
+)
+
+type DataClassification string
+
+const (
+	ClassPublic      DataClassification = "public"
+	ClassInternal    DataClassification = "internal"
+	ClassConfidential DataClassification = "confidential"
+)
+
+type BankStatement struct {
+	ID                  uuid.UUID          `json:"id"`
+	CompanyID           uuid.UUID          `json:"company_id"`
+	BankIntegrationID   uuid.UUID          `json:"bank_integration_id"`
+	FileName            string             `json:"file_name"`
+	FileSizeBytes       int                `json:"file_size_bytes"`
+	FileURL             string             `json:"file_url"`
+	FileFormat          FileFormat         `json:"file_format"`
+	UploadedBy          uuid.UUID          `json:"uploaded_by"`
+	UploadDate          time.Time          `json:"upload_date"`
+	ProcessingStatus    ProcessingStatus   `json:"processing_status"`
+	TransactionsImported int               `json:"transactions_imported"`
+	ImportError         string             `json:"import_error"`
+	DataClassification  DataClassification `json:"data_classification"`
+	RetentionUntil      *time.Time         `json:"retention_until"`
+	CreatedAt           time.Time          `json:"created_at"`
+	UpdatedAt           time.Time          `json:"updated_at"`
+	DeletedAt           *time.Time         `json:"deleted_at"`
+}
+
+type ConfirmationDeliveryStatus string
+
+const (
+	ConfPending  ConfirmationDeliveryStatus = "pending"
+	ConfSent     ConfirmationDeliveryStatus = "sent"
+	ConfFailed   ConfirmationDeliveryStatus = "failed"
+	ConfBounced  ConfirmationDeliveryStatus = "bounced"
+)
+
+type ConfirmationDeliveryMethod string
+
+const (
+	ConfDeliveryEmail    ConfirmationDeliveryMethod = "email"
+	ConfDeliveryWhatsApp ConfirmationDeliveryMethod = "whatsapp"
+	ConfDeliverySMS      ConfirmationDeliveryMethod = "sms"
+)
+
+type PaymentConfirmation struct {
+	ID                 uuid.UUID                      `json:"id"`
+	CompanyID          uuid.UUID                      `json:"company_id"`
+	PaymentID          uuid.UUID                      `json:"payment_id"`
+	ConfirmationNumber string                         `json:"confirmation_number"`
+	TenantEmail        string                         `json:"tenant_email"`
+	TenantPhone        *string                        `json:"tenant_phone"`
+	SentAt             *time.Time                     `json:"sent_at"`
+	DeliveryStatus     ConfirmationDeliveryStatus     `json:"delivery_status"`
+	DeliveryMethod     ConfirmationDeliveryMethod     `json:"delivery_method"`
+	PDFURL             *string                        `json:"pdf_url"`
+	DataClassification DataClassification            `json:"data_classification"`
+	RetentionUntil     *time.Time                     `json:"retention_until"`
+	CreatedAt          time.Time                      `json:"created_at"`
+	UpdatedAt          time.Time                      `json:"updated_at"`
+	DeletedAt          *time.Time                     `json:"deleted_at"`
+}
