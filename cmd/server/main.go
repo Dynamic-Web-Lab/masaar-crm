@@ -81,6 +81,8 @@ func main() {
 	outboundRepo := repo.NewWhatsAppOutboundRepo(pool)
 	leadTagRepo := repo.NewLeadTagRepo(pool)
 	commHistRepo := repo.NewCommunicationHistoryRepo(pool)
+	rentalPropertyRepo := repo.NewRentalPropertyRepo(pool)
+	tenantRepo := repo.NewTenantRepo(pool)
 
 	// ── Email service (optional SMTP integration) ────────────────────────────
 	emailService := email.NewService(&email.Config{
@@ -145,6 +147,8 @@ func main() {
 		Property:     handler.NewPropertyHandler(bos24Client),
 		Settings:     handler.NewSettingsHandler(settingsRepo, companySettingsRepo),
 		Email:        handler.NewEmailHandler(emailService, emailRepo),
+		RentalProperty: handler.NewRentalPropertyHandler(rentalPropertyRepo),
+		Tenant:         handler.NewTenantHandler(tenantRepo),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
