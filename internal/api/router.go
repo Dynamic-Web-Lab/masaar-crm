@@ -36,6 +36,8 @@ type Handlers struct {
 	Tenant            *handler.TenantHandler
 	LeaseTemplate     *handler.LeaseTemplateHandler
 	Lease             *handler.LeaseHandler
+	Payment           *handler.PaymentHandler
+	BankIntegration   *handler.BankIntegrationHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -328,6 +330,38 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Delete("/leases/:id",
 		middleware.RequireRole(domain.RoleAdmin),
 		h.Lease.Delete,
+	)
+
+	// Payments — agents: create+view+update; admin: all; viewers: read-only
+	v1.Get("/payments", h.Payment.List)
+	v1.Get("/payments/:id", h.Payment.Get)
+	v1.Post("/payments",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Payment.Create,
+	)
+	v1.Patch("/payments/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Payment.Update,
+	)
+	v1.Delete("/payments/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Payment.Delete,
+	)
+
+	// Bank Integrations — admin only
+	v1.Get("/bank-integrations", h.BankIntegration.List)
+	v1.Get("/bank-integrations/:id", h.BankIntegration.Get)
+	v1.Post("/bank-integrations",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.BankIntegration.Create,
+	)
+	v1.Patch("/bank-integrations/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.BankIntegration.Update,
+	)
+	v1.Delete("/bank-integrations/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.BankIntegration.Delete,
 	)
 
 	// Health

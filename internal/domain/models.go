@@ -557,3 +557,110 @@ type Lease struct {
 	Tenant   *Tenant         `json:"tenant,omitempty"`
 	Template *LeaseTemplate  `json:"template,omitempty"`
 }
+
+// ─── Payment Management ────────────────────────────────────────────────────────
+
+type PaymentMethod string
+
+const (
+	MethodTransfer PaymentMethod = "transfer"
+	MethodCheck    PaymentMethod = "check"
+	MethodCash     PaymentMethod = "cash"
+	MethodCard     PaymentMethod = "card"
+	MethodOther    PaymentMethod = "other"
+)
+
+type PaymentStatus string
+
+const (
+	PaymentPending   PaymentStatus = "pending"
+	PaymentReceived  PaymentStatus = "received"
+	PaymentOverdue   PaymentStatus = "overdue"
+	PaymentFailed    PaymentStatus = "failed"
+	PaymentRefunded  PaymentStatus = "refunded"
+)
+
+type Payment struct {
+	ID                  uuid.UUID      `json:"id"`
+	CompanyID           uuid.UUID      `json:"company_id"`
+	LeaseID             uuid.UUID      `json:"lease_id"`
+	Amount              float64        `json:"amount"`
+	Currency            string         `json:"currency"`
+	DueDate             time.Time      `json:"due_date"`
+	PaidDate            *time.Time     `json:"paid_date"`
+	PaymentMethod       PaymentMethod  `json:"payment_method"`
+	PaymentReference    string         `json:"payment_reference"`
+	Status              PaymentStatus  `json:"status"`
+	BankTransactionID   *uuid.UUID     `json:"bank_transaction_id"`
+	ReconciledAt        *time.Time     `json:"reconciled_at"`
+	ReconciledBy        *uuid.UUID     `json:"reconciled_by"`
+	Notes               string         `json:"notes"`
+	ReceiptURL          string         `json:"receipt_url"`
+	LateFeesApplied     bool           `json:"late_fee_applied"`
+	LateFeeAmount       float64        `json:"late_fee_amount"`
+	CreatedAt           time.Time      `json:"created_at"`
+	UpdatedAt           time.Time      `json:"updated_at"`
+	CreatedBy           *uuid.UUID     `json:"created_by"`
+	UpdatedBy           *uuid.UUID     `json:"updated_by"`
+
+	// Joined
+	Lease *Lease `json:"lease,omitempty"`
+}
+
+type TransactionType string
+
+const (
+	TypeCredit    TransactionType = "credit"
+	TypeDebit     TransactionType = "debit"
+	TypeTransfer  TransactionType = "transfer"
+	TypeCheck     TransactionType = "check"
+)
+
+type BankTransaction struct {
+	ID                  uuid.UUID        `json:"id"`
+	CompanyID           uuid.UUID        `json:"company_id"`
+	BankIntegrationID   *uuid.UUID       `json:"bank_integration_id"`
+	ExternalID          string           `json:"external_id"`
+	TransactionDate     time.Time        `json:"transaction_date"`
+	Amount              float64          `json:"amount"`
+	Currency            string           `json:"currency"`
+	FromAccount         string           `json:"from_account"`
+	ToAccount           string           `json:"to_account"`
+	FromName            string           `json:"from_name"`
+	ToName              string           `json:"to_name"`
+	Reference           string           `json:"reference"`
+	TransactionType     TransactionType  `json:"transaction_type"`
+	Status              string           `json:"status"`
+	MatchedPaymentID    *uuid.UUID       `json:"matched_payment_id"`
+	MatchConfidence     float64          `json:"match_confidence"`
+	MatchedAt           *time.Time       `json:"matched_at"`
+	ImportedAt          time.Time        `json:"imported_at"`
+	LastChecked         *time.Time       `json:"last_checked"`
+	SyncError           string           `json:"sync_error"`
+}
+
+type BankIntegration struct {
+	ID                   uuid.UUID `json:"id"`
+	CompanyID            uuid.UUID `json:"company_id"`
+	BankName             string    `json:"bank_name"`
+	BankCode             string    `json:"bank_code"`
+	AccountNumber        string    `json:"account_number"`
+	AccountName          string    `json:"account_name"`
+	IBAN                 string    `json:"iban"`
+	IntegrationType      string    `json:"integration_type"`
+	Status               string    `json:"status"`
+	APIKeyEncrypted      string    `json:"-"`
+	APISecretEncrypted   string    `json:"-"`
+	APIEndpoint          string    `json:"api_endpoint"`
+	AutoSync             bool      `json:"auto_sync"`
+	LastSyncDate         *time.Time `json:"last_sync_date"`
+	SyncIntervalHours    int       `json:"sync_interval_hours"`
+	LastSyncError        string    `json:"last_sync_error"`
+	SyncErrorCount       int       `json:"sync_error_count"`
+	IsConnected          bool      `json:"is_connected"`
+	ConnectionTestDate   *time.Time `json:"connection_test_date"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
+	CreatedBy            *uuid.UUID `json:"created_by"`
+	UpdatedBy            *uuid.UUID `json:"updated_by"`
+}
