@@ -857,3 +857,87 @@ type MaintenanceAnalytics struct {
 	HighPriorityTasks   int     `json:"high_priority_tasks"`
 	CompletionRate      float64 `json:"completion_rate"`
 }
+
+// ─── Expenses ──────────────────────────────────────────────────────────────
+
+type ExpenseCategoryType string
+
+const (
+	ExpenseCategoryMaintenance ExpenseCategoryType = "property_maintenance"
+	ExpenseCategoryUtilities   ExpenseCategoryType = "utilities"
+	ExpenseCategoryInsurance   ExpenseCategoryType = "insurance"
+	ExpenseCategoryCleaning    ExpenseCategoryType = "cleaning"
+	ExpenseCategoryRepairs     ExpenseCategoryType = "repairs"
+	ExpenseCategoryStaff       ExpenseCategoryType = "staff"
+	ExpenseCategoryOther       ExpenseCategoryType = "other"
+)
+
+type ExpensePaymentMethod string
+
+const (
+	ExpensePaymentCash         ExpensePaymentMethod = "cash"
+	ExpensePaymentTransfer     ExpensePaymentMethod = "bank_transfer"
+	ExpensePaymentCard         ExpensePaymentMethod = "credit_card"
+	ExpensePaymentCheck        ExpensePaymentMethod = "check"
+	ExpensePaymentOther        ExpensePaymentMethod = "other"
+)
+
+type ExpensePaymentStatus string
+
+const (
+	ExpensePaymentPending  ExpensePaymentStatus = "pending"
+	ExpensePaymentPaid     ExpensePaymentStatus = "paid"
+	ExpensePaymentRefunded ExpensePaymentStatus = "refunded"
+)
+
+type ExpenseApprovalStatus string
+
+const (
+	ExpenseApprovalPending  ExpenseApprovalStatus = "pending"
+	ExpenseApprovalApproved ExpenseApprovalStatus = "approved"
+	ExpenseApprovalRejected ExpenseApprovalStatus = "rejected"
+)
+
+type ExpenseCategory struct {
+	ID           uuid.UUID                `json:"id"`
+	CompanyID    uuid.UUID                `json:"company_id"`
+	CategoryName string                   `json:"category_name"`
+	CategoryType ExpenseCategoryType      `json:"category_type"`
+	Description  string                   `json:"description"`
+	CreatedAt    time.Time                `json:"created_at"`
+}
+
+type Expense struct {
+	ID             uuid.UUID              `json:"id"`
+	CompanyID      uuid.UUID              `json:"company_id"`
+	CategoryID     uuid.UUID              `json:"category_id"`
+	PropertyID     *uuid.UUID             `json:"property_id,omitempty"`
+	TenantID       *uuid.UUID             `json:"tenant_id,omitempty"`
+	Amount         float64                `json:"amount"`
+	Currency       string                 `json:"currency"`
+	ExpenseDate    time.Time              `json:"expense_date"`
+	Description    string                 `json:"description"`
+	VendorName     string                 `json:"vendor_name"`
+	VendorContact  string                 `json:"vendor_contact"`
+	PaymentMethod  ExpensePaymentMethod   `json:"payment_method"`
+	PaymentStatus  ExpensePaymentStatus   `json:"payment_status"`
+	ReceiptURL     string                 `json:"receipt_url"`
+	Notes          string                 `json:"notes"`
+	CreatedBy      uuid.UUID              `json:"created_by"`
+	CreatedAt      time.Time              `json:"created_at"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+	DeletedAt      *time.Time             `json:"deleted_at,omitempty"`
+
+	// Joined
+	Category *ExpenseCategory `json:"category,omitempty"`
+}
+
+type ExpenseApproval struct {
+	ID                 uuid.UUID             `json:"id"`
+	ExpenseID          uuid.UUID             `json:"expense_id"`
+	ApprovalStatus     ExpenseApprovalStatus `json:"approval_status"`
+	ApprovedBy         *uuid.UUID            `json:"approved_by,omitempty"`
+	ApprovalComments   string                `json:"approval_comments"`
+	ApprovalDate       *time.Time            `json:"approval_date,omitempty"`
+	CreatedAt          time.Time             `json:"created_at"`
+}
