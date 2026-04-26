@@ -266,8 +266,218 @@ func (h *PropertyHandler) GetNearbySchools(c *fiber.Ctx) error {
 	})
 }
 
+// GetYieldAnalysis calculates rental yield for investors
+// @Summary Analyze rental yields
+// @Description Get rental vs sales analysis for yield calculation
+// @Tags Analytics
+// @Produce json
+// @Param area query string true "Area name"
+// @Param property_type query string false "Property type (Unit, Villa, etc.)"
+// @Param rooms query string false "Number of rooms (1BR, 2BR, etc.)"
+// @Success 200 {object} YieldAnalysisResponse
+// @Failure 400 {object} map[string]string
+// @Failure 503 {object} map[string]string
+// @Router /api/v1/properties/yield-analysis [get]
+// @Security Bearer
+func (h *PropertyHandler) GetYieldAnalysis(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "real estate service not enabled",
+		})
+	}
+
+	area := c.Query("area")
+	if area == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "area is required",
+		})
+	}
+
+	// Get rental stats
+	rentalFilters := map[string]interface{}{
+		"area": area,
+	}
+	if propertyType := c.Query("property_type"); propertyType != "" {
+		rentalFilters["property_type"] = propertyType
+	}
+
+	rentalStats, err := h.bos24Client.GetEjariStats(c.Context(), rentalFilters)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "failed to get rental stats: " + err.Error(),
+		})
+	}
+
+	// Get sales stats
+	salesFilters := map[string]interface{}{
+		"area": area,
+	}
+	if propertyType := c.Query("property_type"); propertyType != "" {
+		salesFilters["property_type"] = propertyType
+	}
+
+	salesStats, err := h.bos24Client.GetTransactionStats(c.Context(), salesFilters)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "failed to get sales stats: " + err.Error(),
+		})
+	}
+
+	// Calculate yield
+	response := YieldAnalysisResponse{
+		Area:         area,
+		RentalStats:  rentalStats,
+		SalesStats:   salesStats,
+		AnalysisDate: c.Locals("timestamp"),
+	}
+
+	return c.JSON(response)
+}
+
+// GetComparables finds similar properties for comparison
+// @Summary Get comparable properties
+// @Description Find similar properties to compare prices
+// @Tags Analytics
+// @Produce json
+// @Param building_id query string false "Building ID for comparables"
+// @Param area query string false "Area to search"
+// @Param property_type query string false "Property type"
+// @Param rooms query string false "Number of rooms"
+// @Param radius_km query number false "Search radius in km (default 2)"
+// @Param limit query integer false "Result limit (default 10)"
+// @Success 200 {object} ComparablesResponse
+// @Failure 400 {object} map[string]string
+// @Failure 503 {object} map[string]string
+// @Router /api/v1/properties/comparables [get]
+// @Security Bearer
+func (h *PropertyHandler) GetComparables(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "real estate service not enabled",
+		})
+	}
+
+	area := c.Query("area")
+	if area == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "area is required",
+		})
+	}
+
+	filters := map[string]interface{}{
+		"area": area,
+	}
+	if propertyType := c.Query("property_type"); propertyType != "" {
+		filters["property_type"] = propertyType
+	}
+
+	transactions, err := h.bos24Client.GetTransactions(c.Context(), filters)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "failed to get comparables: " + err.Error(),
+		})
+	}
+
+	// Convert []map[string]interface{} to []interface{}
+	comparables := make([]interface{}, len(transactions))
+	for i, t := range transactions {
+		comparables[i] = t
+	}
+
+	response := ComparablesResponse{
+		Area:          area,
+		Comparables:   comparables,
+		ResultCount:   len(transactions),
+		AnalysisDate:  c.Locals("timestamp"),
+	}
+
+	return c.JSON(response)
+}
+
+// GetMarketTrends returns market analytics and trends
+// @Summary Get market trends and analytics
+// @Description Analyze market trends by area and property type
+// @Tags Analytics
+// @Produce json
+// @Param area query string true "Area name"
+// @Param property_type query string false "Property type (Unit, Villa, etc.)"
+// @Param period query string false "Time period (month, quarter, year)"
+// @Success 200 {object} MarketTrendsResponse
+// @Failure 400 {object} map[string]string
+// @Failure 503 {object} map[string]string
+// @Router /api/v1/properties/market-trends [get]
+// @Security Bearer
+func (h *PropertyHandler) GetMarketTrends(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "real estate service not enabled",
+		})
+	}
+
+	area := c.Query("area")
+	if area == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "area is required",
+		})
+	}
+
+	filters := map[string]interface{}{
+		"area": area,
+	}
+	if propertyType := c.Query("property_type"); propertyType != "" {
+		filters["property_type"] = propertyType
+	}
+
+	// Get transaction stats for trends
+	stats, err := h.bos24Client.GetTransactionStats(c.Context(), filters)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "failed to get market trends: " + err.Error(),
+		})
+	}
+
+	// Get rental stats too
+	rentalStats, err := h.bos24Client.GetEjariStats(c.Context(), filters)
+	if err != nil {
+		// Don't fail if rental stats unavailable
+		rentalStats = map[string]interface{}{}
+	}
+
+	response := MarketTrendsResponse{
+		Area:         area,
+		SalesStats:   stats,
+		RentalStats:  rentalStats,
+		Period:       c.Query("period", "month"),
+		AnalysisDate: c.Locals("timestamp"),
+	}
+
+	return c.JSON(response)
+}
+
 // Request/Response types
 type SearchPropertiesRequest struct {
 	Query string `json:"query"`
 	Limit int    `json:"limit"`
+}
+
+type YieldAnalysisResponse struct {
+	Area         string                 `json:"area"`
+	RentalStats  map[string]interface{} `json:"rental_stats"`
+	SalesStats   map[string]interface{} `json:"sales_stats"`
+	AnalysisDate interface{}            `json:"analysis_date"`
+}
+
+type ComparablesResponse struct {
+	Area         string        `json:"area"`
+	Comparables  []interface{} `json:"comparables"`
+	ResultCount  int           `json:"result_count"`
+	AnalysisDate interface{}   `json:"analysis_date"`
+}
+
+type MarketTrendsResponse struct {
+	Area         string                 `json:"area"`
+	SalesStats   map[string]interface{} `json:"sales_stats"`
+	RentalStats  map[string]interface{} `json:"rental_stats"`
+	Period       string                 `json:"period"`
+	AnalysisDate interface{}            `json:"analysis_date"`
 }

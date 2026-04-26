@@ -64,18 +64,21 @@ const (
 )
 
 type Lead struct {
-	ID        uuid.UUID  `json:"id"`
-	ContactID uuid.UUID  `json:"contact_id"`
-	Stage     LeadStage  `json:"stage"`
-	Source    LeadSource `json:"source"`
-	DealValue float64    `json:"deal_value"`
-	Currency  string     `json:"currency"` // default: AED
-	Notes     string     `json:"notes"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	ID          uuid.UUID  `json:"id"`
+	ContactID   uuid.UUID  `json:"contact_id"`
+	Stage       LeadStage  `json:"stage"`
+	Source      LeadSource `json:"source"`
+	DealValue   float64    `json:"deal_value"`
+	Currency    string     `json:"currency"` // default: AED
+	Notes       string     `json:"notes"`
+	LeadScore   int        `json:"lead_score"`
+	ScoreUpdatedAt *time.Time `json:"score_updated_at"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 
 	// Joined
 	Contact *Contact `json:"contact,omitempty"`
+	Tags    []string `json:"tags,omitempty"`
 }
 
 // ─── WhatsApp ─────────────────────────────────────────────────────────────────
@@ -118,6 +121,32 @@ type WhatsAppMessage struct {
 	MediaURL    string           `json:"media_url"`
 	WAMessageID string           `json:"wa_message_id"`
 	SentAt      time.Time        `json:"sent_at"`
+}
+
+type OutboundStatus string
+
+const (
+	OutboundPending   OutboundStatus = "pending"
+	OutboundSent      OutboundStatus = "sent"
+	OutboundDelivered OutboundStatus = "delivered"
+	OutboundRead      OutboundStatus = "read"
+	OutboundFailed    OutboundStatus = "failed"
+)
+
+type WhatsAppOutbound struct {
+	ID            int64          `json:"id"`
+	ThreadID      uuid.UUID      `json:"thread_id"`
+	ToNumber      string         `json:"to_number"`
+	MessageBody   string         `json:"message_body"`
+	MediaURL      string         `json:"media_url"`
+	WAMessageID   string         `json:"wa_message_id"`
+	Status        OutboundStatus `json:"status"`
+	ErrorMsg      string         `json:"error_message"`
+	ScheduledAt   *time.Time     `json:"scheduled_at"`
+	SentAt        *time.Time     `json:"sent_at"`
+	CreatedAt     time.Time      `json:"created_at"`
+	CreatedBy     *uuid.UUID     `json:"created_by"`
+	Metadata      map[string]any `json:"metadata"`
 }
 
 // ─── Deal ─────────────────────────────────────────────────────────────────────
@@ -212,4 +241,99 @@ type Stats struct {
 	OpenDealsValue float64 `json:"open_deals_value"`
 	WonDeals       int     `json:"won_deals"`
 	WonDealsValue  float64 `json:"won_deals_value"`
+}
+
+// ─── API Settings ─────────────────────────────────────────────────────────────
+
+type APISetting struct {
+	ID           uuid.UUID  `json:"id"`
+	SettingKey   string     `json:"setting_key"`
+	SettingValue string     `json:"setting_value"`
+	Description  string     `json:"description"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	UpdatedBy    *uuid.UUID `json:"updated_by"`
+}
+
+// ─── Email ────────────────────────────────────────────────────────────────────
+
+type EmailStatus string
+
+const (
+	EmailPending  EmailStatus = "pending"
+	EmailSent     EmailStatus = "sent"
+	EmailFailed   EmailStatus = "failed"
+	EmailBounced  EmailStatus = "bounced"
+)
+
+type EmailHistory struct {
+	ID          int64          `json:"id"`
+	FromEmail   string         `json:"from_email"`
+	ToEmail     string         `json:"to_email"`
+	Subject     string         `json:"subject"`
+	Body        string         `json:"body"`
+	HTMLBody    string         `json:"html_body"`
+	Status      EmailStatus    `json:"status"`
+	ErrorMsg    string         `json:"error_message"`
+	RelatedTo   string         `json:"related_to"`   // invoice, proposal, followup
+	RelatedID   *int64         `json:"related_id"`
+	SentAt      *time.Time     `json:"sent_at"`
+	CreatedAt   time.Time      `json:"created_at"`
+	CreatedBy   *uuid.UUID     `json:"created_by"`
+	Metadata    map[string]any `json:"metadata"`
+}
+
+// ─── Lead Tags ────────────────────────────────────────────────────────────────
+
+type LeadTag struct {
+	ID          int64      `json:"id"`
+	LeadID      uuid.UUID  `json:"lead_id"`
+	Tag         string     `json:"tag"`
+	Category    string     `json:"category"` // segment, quality, interest, timeline, status
+	AutoApplied bool       `json:"auto_applied"`
+	CreatedAt   time.Time  `json:"created_at"`
+	CreatedBy   *uuid.UUID `json:"created_by"`
+}
+
+// ─── Communication History ─────────────────────────────────────────────────────
+
+type CommunicationType string
+
+const (
+	CommWhatsAppInbound  CommunicationType = "whatsapp_inbound"
+	CommWhatsAppOutbound CommunicationType = "whatsapp_outbound"
+	CommEmailSent        CommunicationType = "email_sent"
+	CommEmailReceived    CommunicationType = "email_received"
+	CommCall             CommunicationType = "call"
+)
+
+type CommunicationHistory struct {
+	ID                int64              `json:"id"`
+	LeadID            uuid.UUID          `json:"lead_id"`
+	ContactID         uuid.UUID          `json:"contact_id"`
+	CommunicationType CommunicationType  `json:"communication_type"`
+	Direction         string             `json:"direction"` // inbound, outbound
+	Body              string             `json:"body"`
+	FromIdentifier    string             `json:"from_identifier"`
+	ToIdentifier      string             `json:"to_identifier"`
+	ExternalID        string             `json:"external_id"`
+	Status            string             `json:"status"`
+	Metadata          map[string]any     `json:"metadata"`
+	CreatedAt         time.Time          `json:"created_at"`
+	CreatedBy         *uuid.UUID         `json:"created_by"`
+}
+
+// ─── Company Settings ─────────────────────────────────────────────────────────
+
+type CompanySettings struct {
+	ID              int        `json:"id"`
+	Name            string     `json:"name"`
+	VATNumber       string     `json:"vat_number"`
+	BusinessAddress string     `json:"business_address"`
+	BusinessPhone   string     `json:"business_phone"`
+	BusinessEmail   string     `json:"business_email"`
+	BankName        string     `json:"bank_name"`
+	BankAccount     string     `json:"bank_account"`
+	BankIBAN        string     `json:"bank_iban"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+	UpdatedBy       *uuid.UUID `json:"updated_by"`
 }

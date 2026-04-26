@@ -3,19 +3,21 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/maidulcu/masaar-crm/internal/ai"
 	"github.com/maidulcu/masaar-crm/internal/domain"
 	"github.com/maidulcu/masaar-crm/internal/repo"
 	"github.com/maidulcu/masaar-crm/internal/ws"
 )
 
 type LeadHandler struct {
-	leads    *repo.LeadRepo
-	contacts *repo.ContactRepo
-	hub      *ws.Hub
+	leads          *repo.LeadRepo
+	contacts       *repo.ContactRepo
+	scoringService *ai.ScoringService
+	hub            *ws.Hub
 }
 
-func NewLeadHandler(leads *repo.LeadRepo, contacts *repo.ContactRepo, hub *ws.Hub) *LeadHandler {
-	return &LeadHandler{leads: leads, contacts: contacts, hub: hub}
+func NewLeadHandler(leads *repo.LeadRepo, contacts *repo.ContactRepo, scoringService *ai.ScoringService, hub *ws.Hub) *LeadHandler {
+	return &LeadHandler{leads: leads, contacts: contacts, scoringService: scoringService, hub: hub}
 }
 
 // KanbanBoard godoc
@@ -111,6 +113,11 @@ func (h *LeadHandler) UpdateStage(c *fiber.Ctx) error {
 
 	if err := h.leads.UpdateStage(c.Context(), id, body.Stage); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// Update lead score based on stage progression
+	if h.scoringService != nil {
+		h.scoringService.UpdateScoreOnStageChange(c.Context(), id, body.Stage)
 	}
 
 	h.hub.Broadcast(ws.Event{

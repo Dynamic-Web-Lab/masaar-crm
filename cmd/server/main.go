@@ -20,7 +20,9 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/api/handler"
 	"github.com/maidulcu/masaar-crm/internal/bos24"
 	"github.com/maidulcu/masaar-crm/internal/config"
+	"github.com/maidulcu/masaar-crm/internal/email"
 	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/maidulcu/masaar-crm/internal/whatsapp"
 	"github.com/maidulcu/masaar-crm/internal/ws"
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
@@ -73,6 +75,33 @@ func main() {
 	dealRepo := repo.NewDealRepo(pool)
 	invoiceRepo := repo.NewInvoiceRepo(pool)
 	statsRepo := repo.NewStatsRepo(pool)
+	settingsRepo := repo.NewSettingsRepo(pool)
+	companySettingsRepo := repo.NewCompanySettingsRepo(pool)
+	emailRepo := repo.NewEmailRepository(pool)
+	outboundRepo := repo.NewWhatsAppOutboundRepo(pool)
+	leadTagRepo := repo.NewLeadTagRepo(pool)
+	commHistRepo := repo.NewCommunicationHistoryRepo(pool)
+
+	// ── Email service (optional SMTP integration) ────────────────────────────
+	emailService := email.NewService(&email.Config{
+		SMTPHost:     cfg.SMTPHost,
+		SMTPPort:     cfg.SMTPPort,
+		SMTPUser:     cfg.SMTPUser,
+		SMTPPassword: cfg.SMTPPassword,
+		FromEmail:    cfg.SMTPFromEmail,
+		FromName:     cfg.SMTPFromName,
+	})
+
+	// ── WhatsApp Sender (optional outbound messaging) ─────────────────────────
+	var whatsappSender *whatsapp.Sender
+	if cfg.WAPhoneNumberID != "" && cfg.WAAccessToken != "" {
+		whatsappSender = whatsapp.NewSender(&whatsapp.SenderConfig{
+			BaseURL:       cfg.WABaseURL,
+			PhoneNumberID: cfg.WAPhoneNumberID,
+			AccessToken:   cfg.WAAccessToken,
+		})
+		log.Println("WhatsApp outbound messaging enabled")
+	}
 
 	// ── WebSocket hub ────────────────────────────────────────────────────────
 	hub := ws.NewHub()
@@ -80,10 +109,22 @@ func main() {
 	// ── AI client ────────────────────────────────────────────────────────────
 	ollamaClient := ai.NewClient(cfg.OllamaBaseURL, cfg.OllamaModel)
 
+	// ── Scoring service for automatic lead scoring ───────────────────────────
+	scoringService := ai.NewScoringService(leadRepo, commHistRepo, leadTagRepo)
+
+	// ── Tagging service for auto-tagging on messages ────────────────────────
+	taggingService := ai.NewTaggingService(ollamaClient, leadRepo, waRepo, leadTagRepo, contactRepo)
+
 	// ── BuyOrSell24 client (optional real estate integration) ─────────────────
 	var bos24Client *bos24.Client
-	if bos24.IsEnabled(cfg.BOS24Token) {
-		bos24Client = bos24.NewClient(cfg.BOS24Token, rdb)
+	// Try to load token from database first, fall back to .env
+	dbToken, err := settingsRepo.GetBOS24Token(context.Background())
+	if err != nil {
+		log.Println("no BOS24 token in database, checking .env")
+		dbToken = cfg.BOS24Token
+	}
+	if bos24.IsEnabled(dbToken) {
+		bos24Client = bos24.NewClient(dbToken, rdb)
 		log.Println("BuyOrSell24 integration enabled")
 	}
 
@@ -93,13 +134,17 @@ func main() {
 		User:         handler.NewUserHandler(userRepo),
 		Stats:        handler.NewStatsHandler(statsRepo),
 		Contact:      handler.NewContactHandler(contactRepo),
-		Lead:         handler.NewLeadHandler(leadRepo, contactRepo, hub),
-		WhatsApp:     handler.NewWhatsAppHandler(waRepo, contactRepo, hub, cfg),
-		AI:           handler.NewAIHandler(ollamaClient, contactRepo, leadRepo, waRepo),
+		Lead:             handler.NewLeadHandler(leadRepo, contactRepo, scoringService, hub),
+		WhatsApp:         handler.NewWhatsAppHandler(waRepo, contactRepo, taggingService, hub, cfg),
+		WhatsAppOutbound: handler.NewWhatsAppOutboundHandler(whatsappSender, outboundRepo, waRepo),
+		AI:               handler.NewAIHandler(ollamaClient, contactRepo, leadRepo, waRepo),
+		Message:          handler.NewMessageHandler(ollamaClient, waRepo, contactRepo, leadRepo, commHistRepo, leadTagRepo, scoringService, hub),
 		Notification: handler.NewNotificationHandler(notificationRepo),
 		Deal:         handler.NewDealHandler(dealRepo, invoiceRepo),
-		Invoice:      handler.NewInvoiceHandler(invoiceRepo, dealRepo),
+		Invoice:      handler.NewInvoiceHandler(invoiceRepo, dealRepo, companySettingsRepo),
 		Property:     handler.NewPropertyHandler(bos24Client),
+		Settings:     handler.NewSettingsHandler(settingsRepo, companySettingsRepo),
+		Email:        handler.NewEmailHandler(emailService, emailRepo),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
