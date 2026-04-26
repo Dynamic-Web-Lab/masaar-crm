@@ -298,4 +298,41 @@ export const api = {
     delete: (id: string) =>
       request(`/api/v1/bank-integrations/${id}`, { method: 'DELETE' }),
   },
+
+  // ─── Bank Statements ──────────────────────────────────────────────────────
+
+  bankStatements: {
+    list: (params: { page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/bank-statements?${q}`)
+    },
+    get: (id: string) => request(`/api/v1/bank-statements/${id}`),
+    upload: (file: File, bankIntegrationId: string) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('bank_integration_id', bankIntegrationId)
+      const token = getToken()
+      return fetch(`${BASE}/api/v1/bank-statements/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      }).then(async (res) => {
+        if (!res.ok) throw new Error((await res.json()).error || 'Upload failed')
+        return res.json()
+      })
+    },
+    delete: (id: string) =>
+      request(`/api/v1/bank-statements/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Payment Confirmations ────────────────────────────────────────────────
+
+  paymentConfirmations: {
+    getByPayment: (paymentId: string) =>
+      request(`/api/v1/payments/${paymentId}/confirmation`),
+    send: (paymentId: string) =>
+      request(`/api/v1/payments/${paymentId}/send-confirmation`, { method: 'POST' }),
+  },
 }

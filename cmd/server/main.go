@@ -88,6 +88,8 @@ func main() {
 	paymentRepo := repo.NewPaymentRepo(pool)
 	bankIntegrationRepo := repo.NewBankIntegrationRepo(pool)
 	paymentReminderRepo := repo.NewPaymentReminderRepo(pool)
+	bankStatementRepo := repo.NewBankStatementRepo(pool)
+	paymentConfirmationRepo := repo.NewPaymentConfirmationRepo(pool)
 
 	// ── Email service (optional SMTP integration) ────────────────────────────
 	emailService := email.NewService(&email.Config{
@@ -141,6 +143,12 @@ func main() {
 		emailService, whatsappSender, hub,
 	)
 
+	// ── Payment Confirmation Service ───────────────────────────────────────────
+	paymentConfirmationService := ai.NewPaymentConfirmationService(
+		paymentRepo, paymentConfirmationRepo, leaseRepo, tenantRepo, rentalPropertyRepo,
+		companySettingsRepo, emailService,
+	)
+
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	handlers := &api.Handlers{
 		Auth:         handler.NewAuthHandler(userRepo, rdb, cfg),
@@ -164,6 +172,8 @@ func main() {
 		Lease:           handler.NewLeaseHandler(leaseRepo),
 		Payment:         handler.NewPaymentHandler(paymentRepo),
 		BankIntegration: handler.NewBankIntegrationHandler(bankIntegrationRepo),
+		BankStatement:     handler.NewBankStatementHandler(bankStatementRepo),
+		PaymentConfirmation: handler.NewPaymentConfirmationHandler(paymentConfirmationRepo, paymentConfirmationService),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────

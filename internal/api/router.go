@@ -38,6 +38,8 @@ type Handlers struct {
 	Lease             *handler.LeaseHandler
 	Payment           *handler.PaymentHandler
 	BankIntegration   *handler.BankIntegrationHandler
+	BankStatement     *handler.BankStatementHandler
+	PaymentConfirmation *handler.PaymentConfirmationHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -362,6 +364,34 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Delete("/bank-integrations/:id",
 		middleware.RequireRole(domain.RoleAdmin),
 		h.BankIntegration.Delete,
+	)
+
+	// Bank Statements — agents: upload+view; admin: all
+	v1.Get("/bank-statements",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.BankStatement.List,
+	)
+	v1.Get("/bank-statements/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.BankStatement.Get,
+	)
+	v1.Post("/bank-statements/upload",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.BankStatement.Upload,
+	)
+	v1.Delete("/bank-statements/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.BankStatement.Delete,
+	)
+
+	// Payment Confirmations — agents: view+send; admin: all
+	v1.Get("/payments/:payment_id/confirmation",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.PaymentConfirmation.GetByPayment,
+	)
+	v1.Post("/payments/:payment_id/send-confirmation",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.PaymentConfirmation.Send,
 	)
 
 	// Health
