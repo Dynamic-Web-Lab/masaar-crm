@@ -91,6 +91,9 @@ func main() {
 	bankStatementRepo := repo.NewBankStatementRepo(pool)
 	paymentConfirmationRepo := repo.NewPaymentConfirmationRepo(pool)
 	expenseRepo := repo.NewExpenseRepository(pool)
+	inspectionTemplateRepo := repo.NewInspectionTemplateRepo(pool)
+	inspectionRepo := repo.NewInspectionRepo(pool)
+	maintenanceRepo := repo.NewMaintenanceTaskRepo(pool)
 
 	// ── Email service (optional SMTP integration) ────────────────────────────
 	emailService := email.NewService(&email.Config{
@@ -177,6 +180,8 @@ func main() {
 		PaymentConfirmation: handler.NewPaymentConfirmationHandler(paymentConfirmationRepo, paymentConfirmationService),
 		Analytics:       handler.NewAnalyticsHandler(repo.NewAnalyticsRepository(pool)),
 		Expense:         handler.NewExpenseHandler(expenseRepo),
+		Inspection:      handler.NewInspectionHandler(inspectionTemplateRepo, inspectionRepo),
+		Maintenance:     handler.NewMaintenanceTaskHandler(maintenanceRepo),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────

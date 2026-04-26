@@ -42,6 +42,8 @@ type Handlers struct {
 	PaymentConfirmation *handler.PaymentConfirmationHandler
 	Analytics         *handler.AnalyticsHandler
 	Expense           *handler.ExpenseHandler
+	Inspection        *handler.InspectionHandler
+	Maintenance       *handler.MaintenanceTaskHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -430,6 +432,54 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Post("/expenses/:id/approve",
 		middleware.RequireRole(domain.RoleAdmin),
 		h.Expense.ApproveExpense,
+	)
+
+	// Inspection Templates — admin: create/update; all: list
+	v1.Get("/inspection-templates", h.Inspection.ListTemplates)
+	v1.Post("/inspection-templates",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Inspection.CreateTemplate,
+	)
+
+	// Inspections — agents: create+view+update; admin: all
+	v1.Get("/inspections", h.Inspection.ListInspections)
+	v1.Get("/inspections/:id", h.Inspection.GetInspection)
+	v1.Post("/inspections",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Inspection.CreateInspection,
+	)
+	v1.Patch("/inspections/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Inspection.UpdateInspection,
+	)
+	v1.Post("/inspections/:id/complete",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Inspection.CompleteInspection,
+	)
+
+	// Maintenance Tasks — agents: create+view+update; admin: all
+	v1.Get("/maintenance-tasks", h.Maintenance.List)
+	v1.Get("/maintenance-tasks/:id", h.Maintenance.Get)
+	v1.Post("/maintenance-tasks",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Maintenance.Create,
+	)
+	v1.Patch("/maintenance-tasks/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Maintenance.Update,
+	)
+	v1.Post("/maintenance-tasks/:id/complete",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Maintenance.Complete,
+	)
+	v1.Post("/maintenance-tasks/:id/photos",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Maintenance.AddPhoto,
+	)
+	v1.Get("/maintenance-tasks/:id/photos", h.Maintenance.GetPhotos)
+	v1.Delete("/maintenance-tasks/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Maintenance.Delete,
 	)
 
 	// Health

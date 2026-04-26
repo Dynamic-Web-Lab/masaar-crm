@@ -941,3 +941,136 @@ type ExpenseApproval struct {
 	ApprovalDate       *time.Time            `json:"approval_date,omitempty"`
 	CreatedAt          time.Time             `json:"created_at"`
 }
+
+// ─── Inspection & Maintenance ────────────────────────────────────────────────
+
+type InspectionType string
+
+const (
+	InspectionGeneral         InspectionType = "general"
+	InspectionPreLease        InspectionType = "pre_lease"
+	InspectionEndLease        InspectionType = "end_lease"
+	InspectionDamageAssessment InspectionType = "damage_assessment"
+	InspectionSafety         InspectionType = "safety"
+)
+
+type InspectionStatus string
+
+const (
+	InspectionScheduled InspectionStatus = "scheduled"
+	InspectionInProgress InspectionStatus = "in_progress"
+	InspectionCompleted InspectionStatus = "completed"
+	InspectionCancelled InspectionStatus = "cancelled"
+)
+
+type SeverityLevel string
+
+const (
+	SeverityGreen  SeverityLevel = "green"
+	SeverityYellow SeverityLevel = "yellow"
+	SeverityRed    SeverityLevel = "red"
+)
+
+type ChecklistItem struct {
+	ID          string `json:"id"`
+	Description string `json:"description"`
+	Critical    bool   `json:"critical"`
+}
+
+type ChecklistResult struct {
+	Status string `json:"status"` // pass/fail
+	Notes  string `json:"notes,omitempty"`
+}
+
+type InspectionTemplate struct {
+	ID                       uuid.UUID        `json:"id"`
+	CompanyID                uuid.UUID        `json:"company_id"`
+	TemplateName             string           `json:"template_name"`
+	InspectionType           InspectionType   `json:"inspection_type"`
+	ChecklistItems           []ChecklistItem  `json:"checklist_items,omitempty"`
+	EstimatedDurationMinutes int              `json:"estimated_duration_minutes"`
+	CreatedAt                time.Time        `json:"created_at"`
+}
+
+type Inspection struct {
+	ID               uuid.UUID                      `json:"id"`
+	CompanyID        uuid.UUID                      `json:"company_id"`
+	PropertyID       uuid.UUID                      `json:"property_id"`
+	TemplateID       *uuid.UUID                     `json:"template_id,omitempty"`
+	InspectionType   string                         `json:"inspection_type"`
+	ScheduledDate    time.Time                      `json:"scheduled_date"`
+	CompletedDate    *time.Time                     `json:"completed_date,omitempty"`
+	InspectorID      *uuid.UUID                     `json:"inspector_id,omitempty"`
+	TenantID         *uuid.UUID                     `json:"tenant_id,omitempty"`
+	Status           InspectionStatus               `json:"status"`
+	Findings         string                         `json:"findings"`
+	SeverityLevel    SeverityLevel                  `json:"severity_level"`
+	PhotosURLs       []string                       `json:"photos_urls,omitempty"`
+	ChecklistResults map[string]ChecklistResult     `json:"checklist_results,omitempty"`
+	CreatedBy        uuid.UUID                      `json:"created_by"`
+	CreatedAt        time.Time                      `json:"created_at"`
+	UpdatedAt        time.Time                      `json:"updated_at"`
+}
+
+type MaintenanceType string
+
+const (
+	MaintenancePlumbing    MaintenanceType = "plumbing"
+	MaintenanceElectrical  MaintenanceType = "electrical"
+	MaintenanceHVAC        MaintenanceType = "hvac"
+	MaintenanceFlooring    MaintenanceType = "flooring"
+	MaintenancePainting    MaintenanceType = "painting"
+	MaintenanceStructural  MaintenanceType = "structural"
+	MaintenanceOther       MaintenanceType = "other"
+)
+
+type TaskPriority string
+
+const (
+	PriorityLow    TaskPriority = "low"
+	PriorityMedium TaskPriority = "medium"
+	PriorityHigh   TaskPriority = "high"
+	PriorityUrgent TaskPriority = "urgent"
+)
+
+type MaintenanceStatus string
+
+const (
+	MaintenancePending     MaintenanceStatus = "pending"
+	MaintenanceScheduled   MaintenanceStatus = "scheduled"
+	MaintenanceInProgress  MaintenanceStatus = "in_progress"
+	MaintenanceCompleted   MaintenanceStatus = "completed"
+	MaintenanceCancelled   MaintenanceStatus = "cancelled"
+)
+
+type MaintenanceTask struct {
+	ID               uuid.UUID           `json:"id"`
+	CompanyID        uuid.UUID           `json:"company_id"`
+	PropertyID       uuid.UUID           `json:"property_id"`
+	InspectionID     *uuid.UUID          `json:"inspection_id,omitempty"`
+	MaintenanceType  MaintenanceType     `json:"maintenance_type"`
+	Description      string              `json:"description"`
+	Priority         TaskPriority        `json:"priority"`
+	ScheduledDate    *time.Time          `json:"scheduled_date,omitempty"`
+	DueDate          *time.Time          `json:"due_date,omitempty"`
+	CompletionDate   *time.Time          `json:"completion_date,omitempty"`
+	ContractorName   string              `json:"contractor_name"`
+	ContractorContact string             `json:"contractor_contact"`
+	EstimatedCost    *float64            `json:"estimated_cost,omitempty"`
+	ActualCost       *float64            `json:"actual_cost,omitempty"`
+	Status           MaintenanceStatus   `json:"status"`
+	AssignedTo       *uuid.UUID          `json:"assigned_to,omitempty"`
+	Notes            string              `json:"notes"`
+	CreatedBy        uuid.UUID           `json:"created_by"`
+	CreatedAt        time.Time           `json:"created_at"`
+	UpdatedAt        time.Time           `json:"updated_at"`
+	DeletedAt        *time.Time          `json:"deleted_at,omitempty"`
+}
+
+type MaintenancePhoto struct {
+	ID          uuid.UUID `json:"id"`
+	TaskID      uuid.UUID `json:"task_id"`
+	PhotoURL    string    `json:"photo_url"`
+	UploadedAt  time.Time `json:"uploaded_at"`
+	PhotoStage  string    `json:"photo_stage"` // before/during/after
+}
