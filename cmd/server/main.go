@@ -81,6 +81,12 @@ func main() {
 	outboundRepo := repo.NewWhatsAppOutboundRepo(pool)
 	leadTagRepo := repo.NewLeadTagRepo(pool)
 	commHistRepo := repo.NewCommunicationHistoryRepo(pool)
+	rentalPropertyRepo := repo.NewRentalPropertyRepo(pool)
+	tenantRepo := repo.NewTenantRepo(pool)
+	leaseTemplateRepo := repo.NewLeaseTemplateRepo(pool)
+	leaseRepo := repo.NewLeaseRepo(pool)
+	paymentRepo := repo.NewPaymentRepo(pool)
+	bankIntegrationRepo := repo.NewBankIntegrationRepo(pool)
 
 	// ── Email service (optional SMTP integration) ────────────────────────────
 	emailService := email.NewService(&email.Config{
@@ -134,7 +140,7 @@ func main() {
 		User:         handler.NewUserHandler(userRepo),
 		Stats:        handler.NewStatsHandler(statsRepo),
 		Contact:      handler.NewContactHandler(contactRepo),
-		Lead:             handler.NewLeadHandler(leadRepo, contactRepo, scoringService, hub),
+		Lead:             handler.NewLeadHandler(leadRepo, contactRepo, commHistRepo, scoringService, hub),
 		WhatsApp:         handler.NewWhatsAppHandler(waRepo, contactRepo, taggingService, hub, cfg),
 		WhatsAppOutbound: handler.NewWhatsAppOutboundHandler(whatsappSender, outboundRepo, waRepo),
 		AI:               handler.NewAIHandler(ollamaClient, contactRepo, leadRepo, waRepo),
@@ -145,6 +151,12 @@ func main() {
 		Property:     handler.NewPropertyHandler(bos24Client),
 		Settings:     handler.NewSettingsHandler(settingsRepo, companySettingsRepo),
 		Email:        handler.NewEmailHandler(emailService, emailRepo),
+		RentalProperty: handler.NewRentalPropertyHandler(rentalPropertyRepo),
+		Tenant:         handler.NewTenantHandler(tenantRepo),
+		LeaseTemplate:   handler.NewLeaseTemplateHandler(leaseTemplateRepo),
+		Lease:           handler.NewLeaseHandler(leaseRepo),
+		Payment:         handler.NewPaymentHandler(paymentRepo),
+		BankIntegration: handler.NewBankIntegrationHandler(bankIntegrationRepo),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────

@@ -77,6 +77,11 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify({ notes }),
       }),
+    communications: (id: string, limit: number = 100) => {
+      const q = new URLSearchParams()
+      q.set('limit', String(limit))
+      return request(`/api/v1/leads/${id}/communications?${q}`)
+    },
   },
 
   // ─── WhatsApp ───────────────────────────────────────────────────────────────
@@ -172,5 +177,125 @@ export const api = {
     },
     markRead: (id: string) =>
       request(`/api/v1/notifications/${id}/read`, { method: 'PATCH' }),
+  },
+
+  // ─── Rental Properties ────────────────────────────────────────────────────────
+
+  rentalProperties: {
+    list: (params: { page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/rental-properties?${q}`)
+    },
+    get: (id: string) => request(`/api/v1/rental-properties/${id}`),
+    create: (data: unknown) =>
+      request('/api/v1/rental-properties', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) =>
+      request(`/api/v1/rental-properties/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request(`/api/v1/rental-properties/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Tenants ──────────────────────────────────────────────────────────────────
+
+  tenants: {
+    list: (params: { page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/tenants?${q}`)
+    },
+    get: (id: string) => request(`/api/v1/tenants/${id}`),
+    create: (data: unknown) =>
+      request('/api/v1/tenants', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) =>
+      request(`/api/v1/tenants/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request(`/api/v1/tenants/${id}`, { method: 'DELETE' }),
+    verify: (id: string, verificationNotes: string) =>
+      request(`/api/v1/tenants/${id}/verify`, {
+        method: 'POST',
+        body: JSON.stringify({ verification_notes: verificationNotes }),
+      }),
+  },
+
+  // ─── Messages ─────────────────────────────────────────────────────────────────
+
+  messages: {
+    suggestAction: (data: unknown) =>
+      request('/api/v1/messages/suggest-action', { method: 'POST', body: JSON.stringify(data) }),
+  },
+
+  // ─── Lease Templates ──────────────────────────────────────────────────────────
+
+  leaseTemplates: {
+    list: (params: { page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/lease-templates?${q}`)
+    },
+    get: (id: string) => request(`/api/v1/lease-templates/${id}`),
+    create: (data: unknown) =>
+      request('/api/v1/lease-templates', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) =>
+      request(`/api/v1/lease-templates/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request(`/api/v1/lease-templates/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Leases ────────────────────────────────────────────────────────────────────
+
+  leases: {
+    list: (params: { page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/leases?${q}`)
+    },
+    get: (id: string) => request(`/api/v1/leases/${id}`),
+    create: (data: unknown) =>
+      request('/api/v1/leases', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) =>
+      request(`/api/v1/leases/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request(`/api/v1/leases/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Payments ─────────────────────────────────────────────────────────────────
+
+  payments: {
+    list: (params: { page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/payments?${q}`)
+    },
+    get: (id: string) => request(`/api/v1/payments/${id}`),
+    create: (data: unknown) =>
+      request('/api/v1/payments', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) =>
+      request(`/api/v1/payments/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request(`/api/v1/payments/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Bank Integrations ────────────────────────────────────────────────────────
+
+  bankIntegrations: {
+    list: (params: { page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/bank-integrations?${q}`)
+    },
+    get: (id: string) => request(`/api/v1/bank-integrations/${id}`),
+    create: (data: unknown) =>
+      request('/api/v1/bank-integrations', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) =>
+      request(`/api/v1/bank-integrations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request(`/api/v1/bank-integrations/${id}`, { method: 'DELETE' }),
   },
 }

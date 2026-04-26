@@ -32,6 +32,12 @@ type Handlers struct {
 	Property          *handler.PropertyHandler
 	Settings          *handler.SettingsHandler
 	Email             *handler.EmailHandler
+	RentalProperty    *handler.RentalPropertyHandler
+	Tenant            *handler.TenantHandler
+	LeaseTemplate     *handler.LeaseTemplateHandler
+	Lease             *handler.LeaseHandler
+	Payment           *handler.PaymentHandler
+	BankIntegration   *handler.BankIntegrationHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -137,6 +143,7 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.Lead.UpdateNotes,
 	)
+	v1.Get("/leads/:id/communications", h.Lead.GetCommunications)
 
 	// WhatsApp inbox — all authenticated users read; agents+ can close/send
 	v1.Get("/threads", h.WhatsApp.ListThreads)
@@ -255,6 +262,106 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Get("/emails/history",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.Email.GetEmailHistory,
+	)
+
+	// Rental Properties — agents: create+view+update; admin: all; viewers: read-only
+	v1.Get("/rental-properties", h.RentalProperty.List)
+	v1.Get("/rental-properties/:id", h.RentalProperty.Get)
+	v1.Post("/rental-properties",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.RentalProperty.Create,
+	)
+	v1.Patch("/rental-properties/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.RentalProperty.Update,
+	)
+	v1.Delete("/rental-properties/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.RentalProperty.Delete,
+	)
+
+	// Tenants — agents: create+view+update; admin: all; viewers: read-only
+	v1.Get("/tenants", h.Tenant.List)
+	v1.Get("/tenants/:id", h.Tenant.Get)
+	v1.Post("/tenants",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Tenant.Create,
+	)
+	v1.Patch("/tenants/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Tenant.Update,
+	)
+	v1.Delete("/tenants/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Tenant.Delete,
+	)
+	v1.Post("/tenants/:id/verify",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Tenant.Verify,
+	)
+
+	// Lease Templates — agents: view; admin: all
+	v1.Get("/lease-templates", h.LeaseTemplate.List)
+	v1.Get("/lease-templates/:id", h.LeaseTemplate.Get)
+	v1.Post("/lease-templates",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.LeaseTemplate.Create,
+	)
+	v1.Patch("/lease-templates/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.LeaseTemplate.Update,
+	)
+	v1.Delete("/lease-templates/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.LeaseTemplate.Delete,
+	)
+
+	// Leases — agents: create+view+update; admin: all; viewers: read-only
+	v1.Get("/leases", h.Lease.List)
+	v1.Get("/leases/:id", h.Lease.Get)
+	v1.Post("/leases",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Lease.Create,
+	)
+	v1.Patch("/leases/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Lease.Update,
+	)
+	v1.Delete("/leases/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Lease.Delete,
+	)
+
+	// Payments — agents: create+view+update; admin: all; viewers: read-only
+	v1.Get("/payments", h.Payment.List)
+	v1.Get("/payments/:id", h.Payment.Get)
+	v1.Post("/payments",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Payment.Create,
+	)
+	v1.Patch("/payments/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Payment.Update,
+	)
+	v1.Delete("/payments/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Payment.Delete,
+	)
+
+	// Bank Integrations — admin only
+	v1.Get("/bank-integrations", h.BankIntegration.List)
+	v1.Get("/bank-integrations/:id", h.BankIntegration.Get)
+	v1.Post("/bank-integrations",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.BankIntegration.Create,
+	)
+	v1.Patch("/bank-integrations/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.BankIntegration.Update,
+	)
+	v1.Delete("/bank-integrations/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.BankIntegration.Delete,
 	)
 
 	// Health
