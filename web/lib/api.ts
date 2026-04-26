@@ -77,6 +77,11 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify({ notes }),
       }),
+    communications: (id: string, limit: number = 100) => {
+      const q = new URLSearchParams()
+      q.set('limit', String(limit))
+      return request(`/api/v1/leads/${id}/communications?${q}`)
+    },
   },
 
   // ─── WhatsApp ───────────────────────────────────────────────────────────────

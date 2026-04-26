@@ -47,8 +47,8 @@ export default function PipelinePage() {
     // Fetch communication history
     setCommLoading(true)
     try {
-      const response = await api.get(`/api/v1/leads/${lead.id}/communications`)
-      setCommunications(response.data || [])
+      const response = (await api.leads.communications(lead.id, 100)) as CommunicationHistory[]
+      setCommunications(Array.isArray(response) ? response : [])
     } catch (err) {
       console.error('Failed to fetch communications:', err)
       setCommunications([])
