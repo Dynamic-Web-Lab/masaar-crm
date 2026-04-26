@@ -219,3 +219,67 @@ func (r *PaymentRepo) GetByStatus(ctx context.Context, companyID uuid.UUID, stat
 	}
 	return payments, nil
 }
+
+func (r *PaymentRepo) GetByDueDate(ctx context.Context, companyID uuid.UUID, dueDate time.Time) ([]domain.Payment, error) {
+	const q = `
+		SELECT id, company_id, lease_id, amount, currency, due_date, paid_date, payment_method,
+		       payment_reference, status, bank_transaction_id, reconciled_at, reconciled_by,
+		       notes, receipt_url, late_fee_applied, late_fee_amount,
+		       created_at, updated_at, created_by, updated_by
+		FROM payments
+		WHERE company_id = $1 AND DATE(due_date) = $2 AND status IN ('pending', 'overdue')
+		ORDER BY due_date ASC
+	`
+	rows, err := r.db.Query(ctx, q, companyID, dueDate.Format("2006-01-02"))
+	if err != nil {
+		return nil, fmt.Errorf("get payments by due date: %w", err)
+	}
+	defer rows.Close()
+
+	var payments []domain.Payment
+	for rows.Next() {
+		var p domain.Payment
+		if err := rows.Scan(
+			&p.ID, &p.CompanyID, &p.LeaseID, &p.Amount, &p.Currency, &p.DueDate, &p.PaidDate, &p.PaymentMethod,
+			&p.PaymentReference, &p.Status, &p.BankTransactionID, &p.ReconciledAt, &p.ReconciledBy,
+			&p.Notes, &p.ReceiptURL, &p.LateFeesApplied, &p.LateFeeAmount,
+			&p.CreatedAt, &p.UpdatedAt, &p.CreatedBy, &p.UpdatedBy,
+		); err != nil {
+			return nil, fmt.Errorf("scan payment: %w", err)
+		}
+		payments = append(payments, p)
+	}
+	return payments, nil
+}
+
+func (r *PaymentRepo) GetOverdueByDate(ctx context.Context, companyID uuid.UUID, sinceDateInclusive time.Time) ([]domain.Payment, error) {
+	const q = `
+		SELECT id, company_id, lease_id, amount, currency, due_date, paid_date, payment_method,
+		       payment_reference, status, bank_transaction_id, reconciled_at, reconciled_by,
+		       notes, receipt_url, late_fee_applied, late_fee_amount,
+		       created_at, updated_at, created_by, updated_by
+		FROM payments
+		WHERE company_id = $1 AND status IN ('pending', 'overdue') AND due_date <= $2
+		ORDER BY due_date ASC
+	`
+	rows, err := r.db.Query(ctx, q, companyID, sinceDateInclusive)
+	if err != nil {
+		return nil, fmt.Errorf("get overdue payments: %w", err)
+	}
+	defer rows.Close()
+
+	var payments []domain.Payment
+	for rows.Next() {
+		var p domain.Payment
+		if err := rows.Scan(
+			&p.ID, &p.CompanyID, &p.LeaseID, &p.Amount, &p.Currency, &p.DueDate, &p.PaidDate, &p.PaymentMethod,
+			&p.PaymentReference, &p.Status, &p.BankTransactionID, &p.ReconciledAt, &p.ReconciledBy,
+			&p.Notes, &p.ReceiptURL, &p.LateFeesApplied, &p.LateFeeAmount,
+			&p.CreatedAt, &p.UpdatedAt, &p.CreatedBy, &p.UpdatedBy,
+		); err != nil {
+			return nil, fmt.Errorf("scan payment: %w", err)
+		}
+		payments = append(payments, p)
+	}
+	return payments, nil
+}
