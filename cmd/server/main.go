@@ -85,6 +85,8 @@ func main() {
 	tenantRepo := repo.NewTenantRepo(pool)
 	leaseTemplateRepo := repo.NewLeaseTemplateRepo(pool)
 	leaseRepo := repo.NewLeaseRepo(pool)
+	paymentRepo := repo.NewPaymentRepo(pool)
+	bankIntegrationRepo := repo.NewBankIntegrationRepo(pool)
 
 	// ── Email service (optional SMTP integration) ────────────────────────────
 	emailService := email.NewService(&email.Config{
@@ -151,8 +153,10 @@ func main() {
 		Email:        handler.NewEmailHandler(emailService, emailRepo),
 		RentalProperty: handler.NewRentalPropertyHandler(rentalPropertyRepo),
 		Tenant:         handler.NewTenantHandler(tenantRepo),
-		LeaseTemplate:  handler.NewLeaseTemplateHandler(leaseTemplateRepo),
-		Lease:          handler.NewLeaseHandler(leaseRepo),
+		LeaseTemplate:   handler.NewLeaseTemplateHandler(leaseTemplateRepo),
+		Lease:           handler.NewLeaseHandler(leaseRepo),
+		Payment:         handler.NewPaymentHandler(paymentRepo),
+		BankIntegration: handler.NewBankIntegrationHandler(bankIntegrationRepo),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
