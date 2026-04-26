@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strconv"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/maidulcu/masaar-crm/internal/ai"
@@ -10,14 +12,15 @@ import (
 )
 
 type LeadHandler struct {
-	leads          *repo.LeadRepo
-	contacts       *repo.ContactRepo
-	scoringService *ai.ScoringService
-	hub            *ws.Hub
+	leads             *repo.LeadRepo
+	contacts          *repo.ContactRepo
+	commHistRepo      *repo.CommunicationHistoryRepo
+	scoringService    *ai.ScoringService
+	hub               *ws.Hub
 }
 
-func NewLeadHandler(leads *repo.LeadRepo, contacts *repo.ContactRepo, scoringService *ai.ScoringService, hub *ws.Hub) *LeadHandler {
-	return &LeadHandler{leads: leads, contacts: contacts, scoringService: scoringService, hub: hub}
+func NewLeadHandler(leads *repo.LeadRepo, contacts *repo.ContactRepo, commHistRepo *repo.CommunicationHistoryRepo, scoringService *ai.ScoringService, hub *ws.Hub) *LeadHandler {
+	return &LeadHandler{leads: leads, contacts: contacts, commHistRepo: commHistRepo, scoringService: scoringService, hub: hub}
 }
 
 // KanbanBoard godoc
@@ -189,4 +192,36 @@ func (h *LeadHandler) Get(c *fiber.Ctx) error {
 	lead.Contact = contact
 
 	return c.JSON(lead)
+}
+
+// GetCommunications godoc
+// @Summary      Get lead communications
+// @Description  Returns all communications (WhatsApp, email, calls) for a lead, ordered by date.
+// @Tags         Leads
+// @Produce      json
+// @Param        id    path      string  true  "Lead UUID"
+// @Param        limit query     int     false  "Max communications to return (default 100)"
+// @Success      200   {array}   domain.CommunicationHistory
+// @Failure      400   {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /leads/{id}/communications [get]
+func (h *LeadHandler) GetCommunications(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+
+	limit := 100
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil {
+			limit = parsed
+		}
+	}
+
+	comms, err := h.commHistRepo.GetByLead(c.Context(), id, limit)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(comms)
 }
