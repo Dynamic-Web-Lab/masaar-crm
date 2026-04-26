@@ -9,6 +9,7 @@ import { KanbanColumn } from '@/components/kanban/Column'
 import { KanbanCard } from '@/components/kanban/Card'
 import { Modal, FormField, FormError } from '@/components/ui/Modal'
 import { CommunicationHistoryComponent } from '@/components/communication/CommunicationHistory'
+import { AgentAssist } from '@/components/agent/AgentAssist'
 import { api } from '@/lib/api'
 import { useLang } from '@/context/LangContext'
 import type { KanbanBoard, Lead, LeadStage, Contact, PaginatedResult, CommunicationHistory } from '@/types'
@@ -35,7 +36,11 @@ export default function PipelinePage() {
   // Communication history
   const [communications, setCommunications] = useState<CommunicationHistory[]>([])
   const [commLoading, setCommLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'notes' | 'history'>('history')
+  const [activeTab, setActiveTab] = useState<'notes' | 'history' | 'assist'>('history')
+
+  // Agent assist (Phase 8)
+  const [threadId, setThreadId] = useState<string>('')
+  const [threadConversation, setThreadConversation] = useState('')
 
   const handleOpenLead = async (lead: Lead) => {
     setSelectedLead(lead)
@@ -54,6 +59,24 @@ export default function PipelinePage() {
       setCommunications([])
     } finally {
       setCommLoading(false)
+    }
+
+    // Fetch thread data for agent assist (Phase 8)
+    try {
+      const threads = await api.threads.list({ limit: 1 })
+      const threadsList = (threads as any).data || []
+      const matchingThread = threadsList.find((t: any) => t.contact_id === lead.contact_id)
+      if (matchingThread) {
+        setThreadId(matchingThread.id)
+        const messages = await api.threads.messages(matchingThread.id)
+        const messagesList = Array.isArray(messages) ? messages : (messages as any).data || []
+        const conversation = messagesList.map((m: any) => m.body).join('\n')
+        setThreadConversation(conversation)
+      }
+    } catch (err) {
+      console.error('Failed to fetch thread data:', err)
+      setThreadId('')
+      setThreadConversation('')
     }
   }
 
@@ -340,6 +363,16 @@ export default function PipelinePage() {
                 {t('السجل', 'History')}
               </button>
               <button
+                onClick={() => setActiveTab('assist')}
+                className={`py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'assist'
+                    ? 'text-brand-600 border-brand-600'
+                    : 'text-gray-600 border-transparent hover:text-gray-800'
+                }`}
+              >
+                💡 {t('المساعد', 'Assist')}
+              </button>
+              <button
                 onClick={() => setActiveTab('notes')}
                 className={`py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'notes'
@@ -352,14 +385,37 @@ export default function PipelinePage() {
             </div>
 
             {/* Tab content */}
-            {activeTab === 'history' ? (
+            {activeTab === 'history' && (
               <div className="max-h-96 overflow-y-auto">
                 <CommunicationHistoryComponent
                   communications={communications}
                   loading={commLoading}
                 />
               </div>
-            ) : (
+            )}
+
+            {activeTab === 'assist' && threadId && (
+              <div className="max-h-96 overflow-y-auto">
+                <AgentAssist
+                  leadId={selectedLead.id}
+                  threadId={threadId}
+                  contactName={selectedLead.contact?.full_name || 'Unknown'}
+                  conversation={threadConversation}
+                  onActionClick={(action, message) => {
+                    console.log('Action clicked:', action, message)
+                    // Handle action (send message, etc.)
+                  }}
+                />
+              </div>
+            )}
+
+            {activeTab === 'assist' && !threadId && (
+              <div className="py-6 text-center text-gray-400">
+                {t('لا توجد محادثة لهذا العميل', 'No conversation for this lead')}
+              </div>
+            )}
+
+            {activeTab === 'notes' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   {t('الملاحظات', 'Notes')}
