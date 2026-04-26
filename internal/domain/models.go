@@ -1104,6 +1104,85 @@ const (
 	LangEnglish Language = "en"
 )
 
+// ─── Commission Tracking ────────────────────────────────────────────────────
+
+type CommissionType string
+
+const (
+	CommissionFixed      CommissionType = "fixed_amount"
+	CommissionPercentage CommissionType = "percentage"
+	CommissionTiered     CommissionType = "tiered"
+)
+
+type ApplicableToType string
+
+const (
+	ApplicableDeals  ApplicableToType = "deals"
+	ApplicableLeases ApplicableToType = "leases"
+	ApplicableBoth   ApplicableToType = "both"
+)
+
+type CommissionStatusType string
+
+const (
+	CommissionStatusPending   CommissionStatusType = "pending"
+	CommissionStatusApproved  CommissionStatusType = "approved"
+	CommissionStatusPaid      CommissionStatusType = "paid"
+	CommissionStatusDisputed  CommissionStatusType = "disputed"
+)
+
+type CommissionTransactionType string
+
+const (
+	TransactionDealCommission  CommissionTransactionType = "deal_commission"
+	TransactionLeaseCommission CommissionTransactionType = "lease_commission"
+	TransactionBonus           CommissionTransactionType = "bonus"
+	TransactionDeduction       CommissionTransactionType = "deduction"
+)
+
+type CommissionStructure struct {
+	ID              uuid.UUID          `json:"id"`
+	CompanyID       uuid.UUID          `json:"company_id"`
+	StructureName   string             `json:"structure_name"`
+	CommissionType  CommissionType     `json:"commission_type"`
+	ApplicableTo    ApplicableToType   `json:"applicable_to"`
+	EffectiveFrom   *time.Time         `json:"effective_from,omitempty"`
+	EffectiveTo     *time.Time         `json:"effective_to,omitempty"`
+	Rules           map[string]interface{} `json:"rules,omitempty"`
+	CreatedAt       time.Time          `json:"created_at"`
+}
+
+type AgentCommission struct {
+	ID                    uuid.UUID                `json:"id"`
+	CompanyID             uuid.UUID                `json:"company_id"`
+	AgentID               uuid.UUID                `json:"agent_id"`
+	CommissionPeriodStart time.Time                `json:"commission_period_start"`
+	CommissionPeriodEnd   time.Time                `json:"commission_period_end"`
+	CommissionStructureID *uuid.UUID               `json:"commission_structure_id,omitempty"`
+	DealsCount            int                      `json:"deals_count"`
+	DealsRevenue          float64                  `json:"deals_revenue"`
+	LeasesCount           int                      `json:"leases_count"`
+	LeasesRevenue         float64                  `json:"leases_revenue"`
+	TotalCommission       float64                  `json:"total_commission"`
+	Status                CommissionStatusType    `json:"status"`
+	ApprovalDate          *time.Time               `json:"approval_date,omitempty"`
+	PaymentDate           *time.Time               `json:"payment_date,omitempty"`
+	PaymentReference      string                  `json:"payment_reference"`
+	Notes                 string                  `json:"notes"`
+	CreatedAt             time.Time               `json:"created_at"`
+	UpdatedAt             time.Time               `json:"updated_at"`
+}
+
+type CommissionTransaction struct {
+	ID                  uuid.UUID                    `json:"id"`
+	CommissionID        uuid.UUID                    `json:"commission_id"`
+	DealID              *uuid.UUID                   `json:"deal_id,omitempty"`
+	LeaseID             *uuid.UUID                   `json:"lease_id,omitempty"`
+	TransactionAmount   float64                      `json:"transaction_amount"`
+	TransactionType     CommissionTransactionType    `json:"transaction_type"`
+	CreatedAt           time.Time                    `json:"created_at"`
+}
+
 type LeaseRenewalWorkflow struct {
 	ID                 uuid.UUID                `json:"id"`
 	CompanyID          uuid.UUID                `json:"company_id"`
@@ -1141,4 +1220,82 @@ type RenewalCommunicationLog struct {
 	TenantResponseDate  *time.Time         `json:"tenant_response_date,omitempty"`
 	ResponseText        string             `json:"response_text"`
 	CreatedAt           time.Time          `json:"created_at"`
+}
+
+// ─── Document Management ────────────────────────────────────────────────────
+
+type DocumentType string
+
+const (
+	DocTypeLease         DocumentType = "lease"
+	DocTypeOffer         DocumentType = "offer"
+	DocTypeInspection    DocumentType = "inspection_report"
+	DocTypeWaiver        DocumentType = "maintenance_waiver"
+	DocTypeCustom        DocumentType = "custom"
+)
+
+type SignatureStatus string
+
+const (
+	SignatureNotRequired SignatureStatus = "not_required"
+	SignaturePending     SignatureStatus = "pending"
+	SignatureSigned      SignatureStatus = "signed"
+)
+
+type DocumentTemplate struct {
+	ID                 uuid.UUID                    `json:"id"`
+	CompanyID          uuid.UUID                    `json:"company_id"`
+	TemplateName       string                       `json:"template_name"`
+	DocumentType       DocumentType                 `json:"document_type"`
+	TemplateContent    string                       `json:"template_content"`
+	Language           Language                     `json:"language"`
+	SignatureRequired  bool                         `json:"signature_required"`
+	SignatureFields    []map[string]interface{}     `json:"signature_fields,omitempty"`
+	CreatedBy          uuid.UUID                    `json:"created_by"`
+	CreatedAt          time.Time                    `json:"created_at"`
+}
+
+type Document struct {
+	ID                   uuid.UUID               `json:"id"`
+	CompanyID            uuid.UUID               `json:"company_id"`
+	DocumentType         DocumentType            `json:"document_type"`
+	OriginalTemplateID   *uuid.UUID              `json:"original_template_id,omitempty"`
+	RelatedEntityType    string                  `json:"related_entity_type"`
+	RelatedEntityID      *uuid.UUID              `json:"related_entity_id,omitempty"`
+	DocumentTitle        string                  `json:"document_title"`
+	FileURL              string                  `json:"file_url"`
+	FileSizeBytes        int                     `json:"file_size_bytes,omitempty"`
+	ContentHash          string                  `json:"content_hash"`
+	SignatureStatus      SignatureStatus         `json:"signature_status"`
+	CreatedBy            uuid.UUID               `json:"created_by"`
+	CreatedAt            time.Time               `json:"created_at"`
+	UpdatedAt            time.Time               `json:"updated_at"`
+	DataClassification   DataClassification      `json:"data_classification"`
+	RetentionUntil       *time.Time              `json:"retention_until,omitempty"`
+	DeletedAt            *time.Time              `json:"deleted_at,omitempty"`
+}
+
+type DocumentSignature struct {
+	ID                  uuid.UUID       `json:"id"`
+	DocumentID          uuid.UUID       `json:"document_id"`
+	SignerName          string          `json:"signer_name"`
+	SignerEmail         string          `json:"signer_email"`
+	SignatureFieldName  string          `json:"signature_field_name"`
+	SignatureStatus     SignatureStatus `json:"signature_status"`
+	SignedAt            *time.Time      `json:"signed_at,omitempty"`
+	SignatureImageURL   string          `json:"signature_image_url"`
+	IPAddress           string          `json:"ip_address"`
+	UserAgent           string          `json:"user_agent"`
+	CreatedAt           time.Time       `json:"created_at"`
+}
+
+type DocumentAuditLog struct {
+	ID         uuid.UUID              `json:"id"`
+	DocumentID uuid.UUID              `json:"document_id"`
+	Action     string                 `json:"action"`
+	ActorID    *uuid.UUID             `json:"actor_id,omitempty"`
+	ActorName  string                 `json:"actor_name"`
+	OldValues  map[string]interface{} `json:"old_values,omitempty"`
+	NewValues  map[string]interface{} `json:"new_values,omitempty"`
+	CreatedAt  time.Time              `json:"created_at"`
 }
