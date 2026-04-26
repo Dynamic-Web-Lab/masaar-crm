@@ -34,7 +34,8 @@ interface Props {
 }
 
 export function CommunicationHistoryComponent({ communications, loading }: Props) {
-  const { t, isAR } = useLang()
+  const { t, lang } = useLang()
+  const isAR = lang === 'ar'
 
   if (loading) {
     return (
