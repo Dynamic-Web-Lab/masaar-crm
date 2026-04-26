@@ -17,17 +17,21 @@ import (
 )
 
 type Handlers struct {
-	Auth         *handler.AuthHandler
-	User         *handler.UserHandler
-	Stats        *handler.StatsHandler
-	Contact      *handler.ContactHandler
-	Lead         *handler.LeadHandler
-	WhatsApp     *handler.WhatsAppHandler
-	AI           *handler.AIHandler
-	Notification *handler.NotificationHandler
-	Deal         *handler.DealHandler
-	Invoice      *handler.InvoiceHandler
-	Property     *handler.PropertyHandler
+	Auth              *handler.AuthHandler
+	User              *handler.UserHandler
+	Stats             *handler.StatsHandler
+	Contact           *handler.ContactHandler
+	Lead              *handler.LeadHandler
+	WhatsApp          *handler.WhatsAppHandler
+	WhatsAppOutbound  *handler.WhatsAppOutboundHandler
+	AI                *handler.AIHandler
+	Message           *handler.MessageHandler
+	Notification      *handler.NotificationHandler
+	Deal              *handler.DealHandler
+	Invoice           *handler.InvoiceHandler
+	Property          *handler.PropertyHandler
+	Settings          *handler.SettingsHandler
+	Email             *handler.EmailHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -82,6 +86,26 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Patch("/users/me/password", h.User.ChangePassword)
 	v1.Patch("/users/me/lang", h.User.UpdateLang)
 
+	// API Settings — admin only (integrations, API keys)
+	v1.Get("/settings/bos24",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Settings.GetBOS24Settings,
+	)
+	v1.Patch("/settings/bos24",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Settings.UpdateBOS24Settings,
+	)
+
+	// Company Settings — admin only (invoice details, VAT number, bank info)
+	v1.Get("/settings/company",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Settings.GetCompanySettings,
+	)
+	v1.Patch("/settings/company",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Settings.UpdateCompanySettings,
+	)
+
 	// Contacts — viewers: read-only; agents: create+update; admin: delete
 	v1.Get("/contacts", h.Contact.List)
 	v1.Get("/contacts/:id", h.Contact.Get)
@@ -114,7 +138,7 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		h.Lead.UpdateNotes,
 	)
 
-	// WhatsApp inbox — all authenticated users read; agents+ can close
+	// WhatsApp inbox — all authenticated users read; agents+ can close/send
 	v1.Get("/threads", h.WhatsApp.ListThreads)
 	v1.Get("/threads/:id", h.WhatsApp.GetThread)
 	v1.Get("/threads/:id/messages", h.WhatsApp.GetMessages)
@@ -123,10 +147,38 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		h.WhatsApp.CloseThread,
 	)
 
+	// WhatsApp outbound — agents+ send messages
+	v1.Post("/threads/:id/send-message",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.WhatsAppOutbound.SendMessage,
+	)
+	v1.Post("/threads/:id/send-template",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.WhatsAppOutbound.SendTemplate,
+	)
+	v1.Get("/threads/:id/outbound-messages",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.WhatsAppOutbound.GetOutboundMessages,
+	)
+
 	// AI (manual) — agents and admin only
 	v1.Post("/ai/summarize/:thread_id",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.AI.SummarizeThread,
+	)
+
+	// Message Analysis — agents and admin only (intent parsing, enrichment, auto-lead)
+	v1.Post("/messages/analyze",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Message.AnalyzeMessage,
+	)
+	v1.Post("/messages/suggest-action",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Message.SuggestNextAction,
+	)
+	v1.Post("/messages/auto-create-lead",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Message.AutoCreateLead,
 	)
 
 	// Real Estate Market Data (BuyOrSell24) — agents and admin only (optional integration)
@@ -149,6 +201,18 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Get("/properties/schools/nearby",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.Property.GetNearbySchools,
+	)
+	v1.Get("/properties/yield-analysis",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Property.GetYieldAnalysis,
+	)
+	v1.Get("/properties/comparables",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Property.GetComparables,
+	)
+	v1.Get("/properties/market-trends",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Property.GetMarketTrends,
 	)
 
 	// Notifications — personal; no role restriction beyond auth
@@ -181,6 +245,16 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Patch("/invoices/:id/status",
 		middleware.RequireRole(domain.RoleAdmin),
 		h.Invoice.UpdateStatus,
+	)
+
+	// Email — agents and admin only
+	v1.Post("/emails/send",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Email.SendEmail,
+	)
+	v1.Get("/emails/history",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Email.GetEmailHistory,
 	)
 
 	// Health

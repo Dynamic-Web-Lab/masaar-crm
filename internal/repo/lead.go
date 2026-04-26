@@ -79,17 +79,25 @@ func (r *LeadRepo) UpdateStage(ctx context.Context, id uuid.UUID, stage domain.L
 	return err
 }
 
+func (r *LeadRepo) UpdateScore(ctx context.Context, id uuid.UUID, score int) error {
+	_, err := r.db.Exec(ctx,
+		`UPDATE leads SET lead_score=$1, score_updated_at=NOW(), updated_at=NOW() WHERE id=$2`,
+		score, id,
+	)
+	return err
+}
+
 func (r *LeadRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Lead, error) {
 	const q = `
 		SELECT l.id, l.contact_id, l.stage, l.source, l.deal_value, l.currency, l.notes,
-		       l.created_at, l.updated_at
+		       l.lead_score, l.score_updated_at, l.created_at, l.updated_at
 		FROM leads l WHERE l.id = $1
 	`
 	l := &domain.Lead{}
 	err := r.db.QueryRow(ctx, q, id).Scan(
 		&l.ID, &l.ContactID, &l.Stage, &l.Source,
 		&l.DealValue, &l.Currency, &l.Notes,
-		&l.CreatedAt, &l.UpdatedAt,
+		&l.LeadScore, &l.ScoreUpdatedAt, &l.CreatedAt, &l.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get lead by id: %w", err)
