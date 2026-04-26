@@ -49,12 +49,35 @@ export interface Lead {
   deal_value: number
   currency: string
   notes: string
+  lead_score?: number
+  tags?: string[]
   created_at: string
   updated_at: string
   contact?: Contact
 }
 
 export type KanbanBoard = Partial<Record<LeadStage, Lead[]>>
+
+// ─── Communication History ────────────────────────────────────────────────────
+
+export type CommunicationType = 'whatsapp_inbound' | 'whatsapp_outbound' | 'email_sent' | 'email_received' | 'call'
+export type CommunicationStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed' | 'bounced'
+
+export interface CommunicationHistory {
+  id: number
+  lead_id: string
+  contact_id: string
+  communication_type: CommunicationType
+  direction: 'inbound' | 'outbound'
+  body: string
+  from_identifier: string
+  to_identifier: string
+  external_id: string
+  status: CommunicationStatus
+  metadata?: Record<string, unknown>
+  created_at: string
+  created_by?: string
+}
 
 // ─── WhatsApp ─────────────────────────────────────────────────────────────────
 

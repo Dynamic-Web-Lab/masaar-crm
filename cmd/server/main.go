@@ -134,7 +134,7 @@ func main() {
 		User:         handler.NewUserHandler(userRepo),
 		Stats:        handler.NewStatsHandler(statsRepo),
 		Contact:      handler.NewContactHandler(contactRepo),
-		Lead:             handler.NewLeadHandler(leadRepo, contactRepo, scoringService, hub),
+		Lead:             handler.NewLeadHandler(leadRepo, contactRepo, commHistRepo, scoringService, hub),
 		WhatsApp:         handler.NewWhatsAppHandler(waRepo, contactRepo, taggingService, hub, cfg),
 		WhatsAppOutbound: handler.NewWhatsAppOutboundHandler(whatsappSender, outboundRepo, waRepo),
 		AI:               handler.NewAIHandler(ollamaClient, contactRepo, leadRepo, waRepo),
