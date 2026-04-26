@@ -90,6 +90,7 @@ func main() {
 	paymentReminderRepo := repo.NewPaymentReminderRepo(pool)
 	bankStatementRepo := repo.NewBankStatementRepo(pool)
 	paymentConfirmationRepo := repo.NewPaymentConfirmationRepo(pool)
+	expenseRepo := repo.NewExpenseRepository(pool)
 
 	// ── Email service (optional SMTP integration) ────────────────────────────
 	emailService := email.NewService(&email.Config{
@@ -175,6 +176,7 @@ func main() {
 		BankStatement:     handler.NewBankStatementHandler(bankStatementRepo),
 		PaymentConfirmation: handler.NewPaymentConfirmationHandler(paymentConfirmationRepo, paymentConfirmationService),
 		Analytics:       handler.NewAnalyticsHandler(repo.NewAnalyticsRepository(pool)),
+		Expense:         handler.NewExpenseHandler(expenseRepo),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────

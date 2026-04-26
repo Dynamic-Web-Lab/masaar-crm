@@ -41,6 +41,7 @@ type Handlers struct {
 	BankStatement     *handler.BankStatementHandler
 	PaymentConfirmation *handler.PaymentConfirmationHandler
 	Analytics         *handler.AnalyticsHandler
+	Expense           *handler.ExpenseHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -403,6 +404,33 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Get("/analytics/tenants/:tenantID", h.Analytics.GetTenantPerformance)
 	v1.Get("/analytics/financial", h.Analytics.GetFinancialAnalytics)
 	v1.Get("/analytics/maintenance", h.Analytics.GetMaintenanceAnalytics)
+
+	// Expenses — agents: create+view+update; admin: all
+	v1.Get("/expense-categories",
+		h.Expense.ListCategories,
+	)
+	v1.Post("/expense-categories",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Expense.CreateCategory,
+	)
+	v1.Get("/expenses", h.Expense.ListExpenses)
+	v1.Get("/expenses/:id", h.Expense.GetExpense)
+	v1.Post("/expenses",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Expense.CreateExpense,
+	)
+	v1.Patch("/expenses/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Expense.UpdateExpense,
+	)
+	v1.Delete("/expenses/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Expense.DeleteExpense,
+	)
+	v1.Post("/expenses/:id/approve",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Expense.ApproveExpense,
+	)
 
 	// Health
 	app.Get("/health", func(c *fiber.Ctx) error {
