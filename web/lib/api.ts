@@ -335,4 +335,37 @@ export const api = {
     send: (paymentId: string) =>
       request(`/api/v1/payments/${paymentId}/send-confirmation`, { method: 'POST' }),
   },
+
+  // ─── Analytics ────────────────────────────────────────────────────────────
+
+  analytics: {
+    getTenantOverview: () =>
+      request('/api/v1/analytics/tenant-overview'),
+    listProperties: (params: { limit?: number; offset?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.limit) q.set('limit', String(params.limit))
+      if (params.offset) q.set('offset', String(params.offset))
+      return request(`/api/v1/analytics/properties?${q}`)
+    },
+    getProperty: (propertyId: string) =>
+      request(`/api/v1/analytics/properties/${propertyId}`),
+    listTenants: (params: { limit?: number; offset?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.limit) q.set('limit', String(params.limit))
+      if (params.offset) q.set('offset', String(params.offset))
+      return request(`/api/v1/analytics/tenants?${q}`)
+    },
+    getTenant: (tenantId: string) =>
+      request(`/api/v1/analytics/tenants/${tenantId}`),
+    getFinancial: (startDate?: string, endDate?: string) => {
+      const q = new URLSearchParams()
+      if (startDate) q.set('startDate', startDate)
+      if (endDate) q.set('endDate', endDate)
+      return request(`/api/v1/analytics/financial?${q}`)
+    },
+    getMaintenance: () =>
+      request('/api/v1/analytics/maintenance'),
+  },
 }
+
+export default api

@@ -174,6 +174,7 @@ func main() {
 		BankIntegration: handler.NewBankIntegrationHandler(bankIntegrationRepo),
 		BankStatement:     handler.NewBankStatementHandler(bankStatementRepo),
 		PaymentConfirmation: handler.NewPaymentConfirmationHandler(paymentConfirmationRepo, paymentConfirmationService),
+		Analytics:       handler.NewAnalyticsHandler(repo.NewAnalyticsRepository(pool)),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
