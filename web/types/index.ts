@@ -301,6 +301,77 @@ export interface Lease {
   template?: LeaseTemplate
 }
 
+// ─── Payment Management ───────────────────────────────────────────────────────
+
+export type PaymentStatus = 'pending' | 'received' | 'overdue' | 'failed' | 'refunded'
+export type PaymentMethod = 'transfer' | 'check' | 'cash' | 'card' | 'other'
+
+export interface Payment {
+  id: string
+  company_id: string
+  lease_id: string
+  amount: number
+  currency: string
+  due_date: string
+  payment_method: PaymentMethod
+  status: PaymentStatus
+  received_date: string | null
+  received_amount: number
+  late_fee: number
+  bank_transaction_id: string | null
+  notes: string
+  created_at: string
+  updated_at: string
+  created_by: string | null
+  updated_by: string | null
+}
+
+// ─── Bank Integration ─────────────────────────────────────────────────────────
+
+export type TransactionType = 'credit' | 'debit' | 'transfer' | 'check'
+
+export interface BankTransaction {
+  id: string
+  company_id: string
+  bank_integration_id: string
+  external_id: string
+  amount: number
+  currency: string
+  transaction_date: string
+  description: string
+  transaction_type: TransactionType
+  matched_payment_id: string | null
+  match_confidence: number
+  created_at: string
+  updated_at: string
+}
+
+export interface BankIntegration {
+  id: string
+  company_id: string
+  bank_name: string
+  bank_code: string
+  account_number: string
+  account_name: string
+  iban: string
+  integration_type: string
+  status: string
+  api_key_encrypted?: string
+  api_secret_encrypted?: string
+  api_endpoint: string
+  auto_sync: boolean
+  last_sync_date: string | null
+  sync_interval_hours: number
+  last_sync_error: string | null
+  sync_error_count: number
+  is_connected: boolean
+  connection_test_date: string | null
+  created_at: string
+  updated_at: string
+  created_by: string | null
+  updated_by: string | null
+}
+
 // ─── WebSocket Events ─────────────────────────────────────────────────────────
 
 export interface WSEvent {

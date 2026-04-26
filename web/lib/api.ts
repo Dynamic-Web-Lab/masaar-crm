@@ -262,4 +262,40 @@ export const api = {
     delete: (id: string) =>
       request(`/api/v1/leases/${id}`, { method: 'DELETE' }),
   },
+
+  // ─── Payments ─────────────────────────────────────────────────────────────────
+
+  payments: {
+    list: (params: { page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/payments?${q}`)
+    },
+    get: (id: string) => request(`/api/v1/payments/${id}`),
+    create: (data: unknown) =>
+      request('/api/v1/payments', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) =>
+      request(`/api/v1/payments/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request(`/api/v1/payments/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Bank Integrations ────────────────────────────────────────────────────────
+
+  bankIntegrations: {
+    list: (params: { page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/bank-integrations?${q}`)
+    },
+    get: (id: string) => request(`/api/v1/bank-integrations/${id}`),
+    create: (data: unknown) =>
+      request('/api/v1/bank-integrations', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) =>
+      request(`/api/v1/bank-integrations/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request(`/api/v1/bank-integrations/${id}`, { method: 'DELETE' }),
+  },
 }
