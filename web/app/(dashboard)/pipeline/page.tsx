@@ -8,9 +8,11 @@ import { Header } from '@/components/layout/Header'
 import { KanbanColumn } from '@/components/kanban/Column'
 import { KanbanCard } from '@/components/kanban/Card'
 import { Modal, FormField, FormError } from '@/components/ui/Modal'
+import { CommunicationHistoryComponent } from '@/components/communication/CommunicationHistory'
+import { AgentAssist } from '@/components/agent/AgentAssist'
 import { api } from '@/lib/api'
 import { useLang } from '@/context/LangContext'
-import type { KanbanBoard, Lead, LeadStage, Contact, PaginatedResult } from '@/types'
+import type { KanbanBoard, Lead, LeadStage, Contact, PaginatedResult, CommunicationHistory } from '@/types'
 
 const STAGES: LeadStage[] = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost']
 
@@ -31,11 +33,51 @@ export default function PipelinePage() {
   const [notesSaved, setNotesSaved] = useState(false)
   const [notesError, setNotesError] = useState('')
 
-  const handleOpenLead = (lead: Lead) => {
+  // Communication history
+  const [communications, setCommunications] = useState<CommunicationHistory[]>([])
+  const [commLoading, setCommLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<'notes' | 'history' | 'assist'>('history')
+
+  // Agent assist (Phase 8)
+  const [threadId, setThreadId] = useState<string>('')
+  const [threadConversation, setThreadConversation] = useState('')
+
+  const handleOpenLead = async (lead: Lead) => {
     setSelectedLead(lead)
     setNotes(lead.notes ?? '')
     setNotesSaved(false)
     setNotesError('')
+    setActiveTab('history')
+
+    // Fetch communication history
+    setCommLoading(true)
+    try {
+      const response = (await api.leads.communications(lead.id, 100)) as CommunicationHistory[]
+      setCommunications(Array.isArray(response) ? response : [])
+    } catch (err) {
+      console.error('Failed to fetch communications:', err)
+      setCommunications([])
+    } finally {
+      setCommLoading(false)
+    }
+
+    // Fetch thread data for agent assist (Phase 8)
+    try {
+      const threads = await api.threads.list({ limit: 1 })
+      const threadsList = (threads as any).data || []
+      const matchingThread = threadsList.find((t: any) => t.contact_id === lead.contact_id)
+      if (matchingThread) {
+        setThreadId(matchingThread.id)
+        const messages = await api.threads.messages(matchingThread.id)
+        const messagesList = Array.isArray(messages) ? messages : (messages as any).data || []
+        const conversation = messagesList.map((m: any) => m.body).join('\n')
+        setThreadConversation(conversation)
+      }
+    } catch (err) {
+      console.error('Failed to fetch thread data:', err)
+      setThreadId('')
+      setThreadConversation('')
+    }
   }
 
   const handleSaveNotes = async () => {
@@ -308,19 +350,85 @@ export default function PipelinePage() {
               )}
             </div>
 
-            {/* Notes editor */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+            {/* Tabs */}
+            <div className="border-b border-gray-200 flex gap-4">
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'history'
+                    ? 'text-brand-600 border-brand-600'
+                    : 'text-gray-600 border-transparent hover:text-gray-800'
+                }`}
+              >
+                {t('السجل', 'History')}
+              </button>
+              <button
+                onClick={() => setActiveTab('assist')}
+                className={`py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'assist'
+                    ? 'text-brand-600 border-brand-600'
+                    : 'text-gray-600 border-transparent hover:text-gray-800'
+                }`}
+              >
+                💡 {t('المساعد', 'Assist')}
+              </button>
+              <button
+                onClick={() => setActiveTab('notes')}
+                className={`py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'notes'
+                    ? 'text-brand-600 border-brand-600'
+                    : 'text-gray-600 border-transparent hover:text-gray-800'
+                }`}
+              >
                 {t('الملاحظات', 'Notes')}
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => { setNotes(e.target.value); setNotesSaved(false) }}
-                rows={5}
-                placeholder={t('أضف ملاحظات حول هذا العميل المحتمل...', 'Add notes about this lead...')}
-                className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none"
-              />
+              </button>
             </div>
+
+            {/* Tab content */}
+            {activeTab === 'history' && (
+              <div className="max-h-96 overflow-y-auto">
+                <CommunicationHistoryComponent
+                  communications={communications}
+                  loading={commLoading}
+                />
+              </div>
+            )}
+
+            {activeTab === 'assist' && threadId && (
+              <div className="max-h-96 overflow-y-auto">
+                <AgentAssist
+                  leadId={selectedLead.id}
+                  threadId={threadId}
+                  contactName={selectedLead.contact?.full_name || 'Unknown'}
+                  conversation={threadConversation}
+                  onActionClick={(action, message) => {
+                    console.log('Action clicked:', action, message)
+                    // Handle action (send message, etc.)
+                  }}
+                />
+              </div>
+            )}
+
+            {activeTab === 'assist' && !threadId && (
+              <div className="py-6 text-center text-gray-400">
+                {t('لا توجد محادثة لهذا العميل', 'No conversation for this lead')}
+              </div>
+            )}
+
+            {activeTab === 'notes' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('الملاحظات', 'Notes')}
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => { setNotes(e.target.value); setNotesSaved(false) }}
+                  rows={5}
+                  placeholder={t('أضف ملاحظات حول هذا العميل المحتمل...', 'Add notes about this lead...')}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none"
+                />
+              </div>
+            )}
 
             {notesError && (
               <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{notesError}</p>
@@ -337,14 +445,16 @@ export default function PipelinePage() {
               >
                 {t('إغلاق', 'Close')}
               </button>
-              <button
-                type="button"
-                onClick={handleSaveNotes}
-                disabled={notesSaving}
-                className="flex-1 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 disabled:opacity-60 transition-colors"
-              >
-                {notesSaving ? t('جاري الحفظ...', 'Saving...') : t('حفظ الملاحظات', 'Save Notes')}
-              </button>
+              {activeTab === 'notes' && (
+                <button
+                  type="button"
+                  onClick={handleSaveNotes}
+                  disabled={notesSaving}
+                  className="flex-1 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 disabled:opacity-60 transition-colors"
+                >
+                  {notesSaving ? t('جاري الحفظ...', 'Saving...') : t('حفظ الملاحظات', 'Save Notes')}
+                </button>
+              )}
             </div>
           </div>
         )}

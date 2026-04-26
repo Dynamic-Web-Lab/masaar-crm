@@ -337,3 +337,330 @@ type CompanySettings struct {
 	UpdatedAt       time.Time  `json:"updated_at"`
 	UpdatedBy       *uuid.UUID `json:"updated_by"`
 }
+
+// ─── Rental Properties ────────────────────────────────────────────────────────
+
+type PropertyType string
+
+const (
+	PropertyTypeVilla       PropertyType = "villa"
+	PropertyTypeApartment   PropertyType = "apartment"
+	PropertyTypeTownhouse   PropertyType = "townhouse"
+	PropertyTypeCommercial  PropertyType = "commercial"
+)
+
+type PropertyStatus string
+
+const (
+	PropertyStatusActive      PropertyStatus = "active"
+	PropertyStatusInactive    PropertyStatus = "inactive"
+	PropertyStatusSold        PropertyStatus = "sold"
+	PropertyStatusMaintenance PropertyStatus = "maintenance"
+)
+
+type OccupancyStatus string
+
+const (
+	OccupancyVacant      OccupancyStatus = "vacant"
+	OccupancyOccupied    OccupancyStatus = "occupied"
+	OccupancyMaintenance OccupancyStatus = "maintenance"
+)
+
+type RentalProperty struct {
+	ID                  uuid.UUID       `json:"id"`
+	CompanyID           uuid.UUID       `json:"company_id"`
+	Name                string          `json:"name"`
+	Description         string          `json:"description"`
+	PropertyType        PropertyType    `json:"property_type"`
+	UnitsCount          int             `json:"units_count"`
+	Area                string          `json:"area"`
+	StreetAddress       string          `json:"street_address"`
+	BuildingNumber      string          `json:"building_number"`
+	UnitNumber          string          `json:"unit_number"`
+	City                string          `json:"city"`
+	Emirate             string          `json:"emirate"`
+	PostalCode          string          `json:"postal_code"`
+	TotalSqft           float64         `json:"total_sqft"`
+	Bedrooms            int             `json:"bedrooms"`
+	Bathrooms           int             `json:"bathrooms"`
+	ParkingSpaces       int             `json:"parking_spaces"`
+	Amenities           []string        `json:"amenities"`
+	PurchasePrice       float64         `json:"purchase_price"`
+	PurchaseDate        *time.Time      `json:"purchase_date"`
+	MarketValue         float64         `json:"market_value"`
+	Currency            string          `json:"currency"`
+	Status              PropertyStatus  `json:"status"`
+	OccupancyStatus     OccupancyStatus `json:"occupancy_status"`
+	TotalOccupiedUnits  int             `json:"total_occupied_units"`
+	PropertyDeedURL     string          `json:"property_deed_url"`
+	TitleDeedNumber     string          `json:"title_deed_number"`
+	MunicipalityRegNum  string          `json:"municipality_registration"`
+	CreatedAt           time.Time       `json:"created_at"`
+	UpdatedAt           time.Time       `json:"updated_at"`
+	CreatedBy           *uuid.UUID      `json:"created_by"`
+	UpdatedBy           *uuid.UUID      `json:"updated_by"`
+}
+
+// ─── Tenants ──────────────────────────────────────────────────────────────────
+
+type IDType string
+
+const (
+	IDTypeEmiratiID     IDType = "emirati_id"
+	IDTypePassport      IDType = "passport"
+	IDTypeDrivingLicense IDType = "driving_license"
+	IDTypeTradeLicense  IDType = "trade_license"
+)
+
+type EmploymentStatus string
+
+const (
+	EmploymentEmployed      EmploymentStatus = "employed"
+	EmploymentSelfEmployed  EmploymentStatus = "self_employed"
+	EmploymentRetired       EmploymentStatus = "retired"
+	EmploymentStudent       EmploymentStatus = "student"
+)
+
+type TenantStatus string
+
+const (
+	TenantStatusActive      TenantStatus = "active"
+	TenantStatusInactive    TenantStatus = "inactive"
+	TenantStatusBlacklisted TenantStatus = "blacklisted"
+)
+
+type VerificationStatus string
+
+const (
+	VerificationPending  VerificationStatus = "pending"
+	VerificationVerified VerificationStatus = "verified"
+	VerificationRejected VerificationStatus = "rejected"
+)
+
+type Tenant struct {
+	ID                      uuid.UUID          `json:"id"`
+	CompanyID               uuid.UUID          `json:"company_id"`
+	FullNameEN              string             `json:"full_name_en"`
+	FullNameAR              string             `json:"full_name_ar"`
+	Email                   string             `json:"email"`
+	Phone                   string             `json:"phone"`
+	PhoneWA                 string             `json:"phone_wa"`
+	IDType                  IDType             `json:"id_type"`
+	IDNumber                string             `json:"id_number"`
+	IDExpiryDate            *time.Time         `json:"id_expiry_date"`
+	IDDocumentURL           string             `json:"id_document_url"`
+	IsVerified              bool               `json:"is_verified"`
+	VerificationStatus      VerificationStatus `json:"verification_status"`
+	VerificationDate        *time.Time         `json:"verification_date"`
+	VerifiedBy              *uuid.UUID         `json:"verified_by"`
+	VerificationNotes       string             `json:"verification_notes"`
+	EmploymentStatus        EmploymentStatus   `json:"employment_status"`
+	EmployerName            string             `json:"employer_name"`
+	AnnualIncome            float64            `json:"annual_income"`
+	IncomeCurrency          string             `json:"income_currency"`
+	SalaryCertificateURL    string             `json:"salary_certificate_url"`
+	Nationality             string             `json:"nationality"`
+	CountryOfOrigin         string             `json:"country_of_origin"`
+	PermanentAddress        string             `json:"permanent_address"`
+	EmergencyContactName    string             `json:"emergency_contact_name"`
+	EmergencyContactPhone   string             `json:"emergency_contact_phone"`
+	Status                  TenantStatus       `json:"status"`
+	Notes                   string             `json:"notes"`
+	CreatedAt               time.Time          `json:"created_at"`
+	UpdatedAt               time.Time          `json:"updated_at"`
+	CreatedBy               *uuid.UUID         `json:"created_by"`
+	UpdatedBy               *uuid.UUID         `json:"updated_by"`
+}
+
+// ─── Lease Management ──────────────────────────────────────────────────────
+
+type PaymentFrequency string
+
+const (
+	FrequencyMonthly      PaymentFrequency = "monthly"
+	FrequencyQuarterly    PaymentFrequency = "quarterly"
+	FrequencySemiAnnual   PaymentFrequency = "semi_annual"
+	FrequencyAnnual       PaymentFrequency = "annual"
+)
+
+type LeaseStatus string
+
+const (
+	LeaseStatusActive      LeaseStatus = "active"
+	LeaseStatusRenewed     LeaseStatus = "renewed"
+	LeaseStatusTerminated  LeaseStatus = "terminated"
+	LeaseStatusExpired     LeaseStatus = "expired"
+)
+
+type LeaseTemplate struct {
+	ID                          uuid.UUID         `json:"id"`
+	CompanyID                   uuid.UUID         `json:"company_id"`
+	Name                        string            `json:"name"`
+	Description                 string            `json:"description"`
+	IsDefault                   bool              `json:"is_default"`
+	PaymentFrequency            PaymentFrequency  `json:"payment_frequency"`
+	PaymentDayOfMonth           int               `json:"payment_day_of_month"`
+	AutoGeneratePayments        bool              `json:"auto_generate_payments"`
+	DefaultSecurityDepositPct   float64           `json:"default_security_deposit_percent"`
+	DefaultUtilityCharges       float64           `json:"default_utility_charges"`
+	DefaultLateFeePercent       float64           `json:"default_late_fee_percent"`
+	DefaultLeaseDurationMonths  int               `json:"default_lease_duration_months"`
+	DefaultNoticePeriodDays     int               `json:"default_notice_period_days"`
+	DefaultRenewalDurationMonths int              `json:"default_renewal_duration_months"`
+	TemplateDocumentURL         string            `json:"template_document_url"`
+	TermsConditions             string            `json:"terms_conditions"`
+	Status                      string            `json:"status"`
+	CreatedAt                   time.Time         `json:"created_at"`
+	UpdatedAt                   time.Time         `json:"updated_at"`
+	CreatedBy                   *uuid.UUID        `json:"created_by"`
+	UpdatedBy                   *uuid.UUID        `json:"updated_by"`
+}
+
+type Lease struct {
+	ID                      uuid.UUID         `json:"id"`
+	CompanyID               uuid.UUID         `json:"company_id"`
+	PropertyID              uuid.UUID         `json:"property_id"`
+	TenantID                uuid.UUID         `json:"tenant_id"`
+	TemplateID              *uuid.UUID        `json:"template_id"`
+	StartDate               time.Time         `json:"start_date"`
+	EndDate                 time.Time         `json:"end_date"`
+	RenewalStartDate        *time.Time        `json:"renewal_start_date"`
+	RenewalEndDate          *time.Time        `json:"renewal_end_date"`
+	MonthlyRent             float64           `json:"monthly_rent"`
+	Currency                string            `json:"currency"`
+	SecurityDeposit         float64           `json:"security_deposit"`
+	UtilityCharges          float64           `json:"utility_charges"`
+	LateFeePct              float64           `json:"late_fee_percent"`
+	PaymentFrequency        PaymentFrequency  `json:"payment_frequency"`
+	PaymentDayOfMonth       int               `json:"payment_day_of_month"`
+	AutoGeneratePayments    bool              `json:"auto_generate_payments"`
+	LastGeneratedPaymentDt  *time.Time        `json:"last_generated_payment_date"`
+	NoticePeriodDays        int               `json:"notice_period_days"`
+	MoveOutDate             *time.Time        `json:"move_out_date"`
+	MoveOutInspectionDate   *time.Time        `json:"move_out_inspection_date"`
+	LeaseDocumentURL        string            `json:"lease_document_url"`
+	SignedByLandlordDate    *time.Time        `json:"signed_by_landlord_date"`
+	SignedByTenantDate      *time.Time        `json:"signed_by_tenant_date"`
+	EjariNumber             string            `json:"ejari_number"`
+	EjariURL                string            `json:"ejari_url"`
+	Status                  LeaseStatus       `json:"status"`
+	TerminationReason       string            `json:"termination_reason"`
+	TerminationDate         *time.Time        `json:"termination_date"`
+	Notes                   string            `json:"notes"`
+	CreatedAt               time.Time         `json:"created_at"`
+	UpdatedAt               time.Time         `json:"updated_at"`
+	CreatedBy               *uuid.UUID        `json:"created_by"`
+	UpdatedBy               *uuid.UUID        `json:"updated_by"`
+
+	// Joined
+	Property *RentalProperty `json:"property,omitempty"`
+	Tenant   *Tenant         `json:"tenant,omitempty"`
+	Template *LeaseTemplate  `json:"template,omitempty"`
+}
+
+// ─── Payment Management ────────────────────────────────────────────────────────
+
+type PaymentMethod string
+
+const (
+	MethodTransfer PaymentMethod = "transfer"
+	MethodCheck    PaymentMethod = "check"
+	MethodCash     PaymentMethod = "cash"
+	MethodCard     PaymentMethod = "card"
+	MethodOther    PaymentMethod = "other"
+)
+
+type PaymentStatus string
+
+const (
+	PaymentPending   PaymentStatus = "pending"
+	PaymentReceived  PaymentStatus = "received"
+	PaymentOverdue   PaymentStatus = "overdue"
+	PaymentFailed    PaymentStatus = "failed"
+	PaymentRefunded  PaymentStatus = "refunded"
+)
+
+type Payment struct {
+	ID                  uuid.UUID      `json:"id"`
+	CompanyID           uuid.UUID      `json:"company_id"`
+	LeaseID             uuid.UUID      `json:"lease_id"`
+	Amount              float64        `json:"amount"`
+	Currency            string         `json:"currency"`
+	DueDate             time.Time      `json:"due_date"`
+	PaidDate            *time.Time     `json:"paid_date"`
+	PaymentMethod       PaymentMethod  `json:"payment_method"`
+	PaymentReference    string         `json:"payment_reference"`
+	Status              PaymentStatus  `json:"status"`
+	BankTransactionID   *uuid.UUID     `json:"bank_transaction_id"`
+	ReconciledAt        *time.Time     `json:"reconciled_at"`
+	ReconciledBy        *uuid.UUID     `json:"reconciled_by"`
+	Notes               string         `json:"notes"`
+	ReceiptURL          string         `json:"receipt_url"`
+	LateFeesApplied     bool           `json:"late_fee_applied"`
+	LateFeeAmount       float64        `json:"late_fee_amount"`
+	CreatedAt           time.Time      `json:"created_at"`
+	UpdatedAt           time.Time      `json:"updated_at"`
+	CreatedBy           *uuid.UUID     `json:"created_by"`
+	UpdatedBy           *uuid.UUID     `json:"updated_by"`
+
+	// Joined
+	Lease *Lease `json:"lease,omitempty"`
+}
+
+type TransactionType string
+
+const (
+	TypeCredit    TransactionType = "credit"
+	TypeDebit     TransactionType = "debit"
+	TypeTransfer  TransactionType = "transfer"
+	TypeCheck     TransactionType = "check"
+)
+
+type BankTransaction struct {
+	ID                  uuid.UUID        `json:"id"`
+	CompanyID           uuid.UUID        `json:"company_id"`
+	BankIntegrationID   *uuid.UUID       `json:"bank_integration_id"`
+	ExternalID          string           `json:"external_id"`
+	TransactionDate     time.Time        `json:"transaction_date"`
+	Amount              float64          `json:"amount"`
+	Currency            string           `json:"currency"`
+	FromAccount         string           `json:"from_account"`
+	ToAccount           string           `json:"to_account"`
+	FromName            string           `json:"from_name"`
+	ToName              string           `json:"to_name"`
+	Reference           string           `json:"reference"`
+	TransactionType     TransactionType  `json:"transaction_type"`
+	Status              string           `json:"status"`
+	MatchedPaymentID    *uuid.UUID       `json:"matched_payment_id"`
+	MatchConfidence     float64          `json:"match_confidence"`
+	MatchedAt           *time.Time       `json:"matched_at"`
+	ImportedAt          time.Time        `json:"imported_at"`
+	LastChecked         *time.Time       `json:"last_checked"`
+	SyncError           string           `json:"sync_error"`
+}
+
+type BankIntegration struct {
+	ID                   uuid.UUID `json:"id"`
+	CompanyID            uuid.UUID `json:"company_id"`
+	BankName             string    `json:"bank_name"`
+	BankCode             string    `json:"bank_code"`
+	AccountNumber        string    `json:"account_number"`
+	AccountName          string    `json:"account_name"`
+	IBAN                 string    `json:"iban"`
+	IntegrationType      string    `json:"integration_type"`
+	Status               string    `json:"status"`
+	APIKeyEncrypted      string    `json:"-"`
+	APISecretEncrypted   string    `json:"-"`
+	APIEndpoint          string    `json:"api_endpoint"`
+	AutoSync             bool      `json:"auto_sync"`
+	LastSyncDate         *time.Time `json:"last_sync_date"`
+	SyncIntervalHours    int       `json:"sync_interval_hours"`
+	LastSyncError        string    `json:"last_sync_error"`
+	SyncErrorCount       int       `json:"sync_error_count"`
+	IsConnected          bool      `json:"is_connected"`
+	ConnectionTestDate   *time.Time `json:"connection_test_date"`
+	CreatedAt            time.Time `json:"created_at"`
+	UpdatedAt            time.Time `json:"updated_at"`
+	CreatedBy            *uuid.UUID `json:"created_by"`
+	UpdatedBy            *uuid.UUID `json:"updated_by"`
+}
