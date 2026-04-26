@@ -94,6 +94,9 @@ func main() {
 	inspectionTemplateRepo := repo.NewInspectionTemplateRepo(pool)
 	inspectionRepo := repo.NewInspectionRepo(pool)
 	maintenanceRepo := repo.NewMaintenanceTaskRepo(pool)
+	leaseRenewalRepo := repo.NewLeaseRenewalRepo(pool)
+	renewalTemplateRepo := repo.NewRenewalTemplateRepo(pool)
+	renewalCommLogRepo := repo.NewRenewalCommunicationLogRepo(pool)
 
 	// ── Email service (optional SMTP integration) ────────────────────────────
 	emailService := email.NewService(&email.Config{
@@ -182,6 +185,7 @@ func main() {
 		Expense:         handler.NewExpenseHandler(expenseRepo),
 		Inspection:      handler.NewInspectionHandler(inspectionTemplateRepo, inspectionRepo),
 		Maintenance:     handler.NewMaintenanceTaskHandler(maintenanceRepo),
+		LeaseRenewal:    handler.NewLeaseRenewalHandler(leaseRenewalRepo, renewalTemplateRepo, renewalCommLogRepo),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────

@@ -44,6 +44,7 @@ type Handlers struct {
 	Expense           *handler.ExpenseHandler
 	Inspection        *handler.InspectionHandler
 	Maintenance       *handler.MaintenanceTaskHandler
+	LeaseRenewal      *handler.LeaseRenewalHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -480,6 +481,41 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Delete("/maintenance-tasks/:id",
 		middleware.RequireRole(domain.RoleAdmin),
 		h.Maintenance.Delete,
+	)
+
+	// Lease Renewals
+	v1.Get("/lease-renewals", h.LeaseRenewal.List)
+	v1.Get("/lease-renewals/:id", h.LeaseRenewal.Get)
+	v1.Post("/lease-renewals/:lease_id/initiate",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.LeaseRenewal.Initiate,
+	)
+	v1.Put("/lease-renewals/:id/propose",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.LeaseRenewal.Propose,
+	)
+	v1.Post("/lease-renewals/:id/send-offer",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.LeaseRenewal.SendOffer,
+	)
+	v1.Put("/lease-renewals/:id/accept",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.LeaseRenewal.Accept,
+	)
+	v1.Put("/lease-renewals/:id/reject",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.LeaseRenewal.Reject,
+	)
+	v1.Post("/lease-renewals/:id/counter-offer",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.LeaseRenewal.CounterOffer,
+	)
+
+	// Renewal Templates
+	v1.Get("/renewal-templates", h.LeaseRenewal.ListTemplates)
+	v1.Post("/renewal-templates",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.LeaseRenewal.CreateTemplate,
 	)
 
 	// Health
