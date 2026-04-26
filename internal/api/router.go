@@ -40,6 +40,7 @@ type Handlers struct {
 	BankIntegration   *handler.BankIntegrationHandler
 	BankStatement     *handler.BankStatementHandler
 	PaymentConfirmation *handler.PaymentConfirmationHandler
+	Analytics         *handler.AnalyticsHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -393,6 +394,15 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.PaymentConfirmation.Send,
 	)
+
+	// Analytics — read-only; all authenticated users
+	v1.Get("/analytics/tenant-overview", h.Analytics.GetTenantOverview)
+	v1.Get("/analytics/properties", h.Analytics.ListPropertiesAnalytics)
+	v1.Get("/analytics/properties/:propertyID", h.Analytics.GetPropertyAnalytics)
+	v1.Get("/analytics/tenants", h.Analytics.ListTenantsPerformance)
+	v1.Get("/analytics/tenants/:tenantID", h.Analytics.GetTenantPerformance)
+	v1.Get("/analytics/financial", h.Analytics.GetFinancialAnalytics)
+	v1.Get("/analytics/maintenance", h.Analytics.GetMaintenanceAnalytics)
 
 	// Health
 	app.Get("/health", func(c *fiber.Ctx) error {

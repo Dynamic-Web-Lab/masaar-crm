@@ -789,3 +789,71 @@ type PaymentConfirmation struct {
 	UpdatedAt          time.Time                      `json:"updated_at"`
 	DeletedAt          *time.Time                     `json:"deleted_at"`
 }
+
+// ─── Analytics ────────────────────────────────────────────────────────────────
+
+type TenantAnalytics struct {
+	TotalTenants        int     `json:"total_tenants"`
+	ActiveTenants       int     `json:"active_tenants"`
+	InactiveTenants     int     `json:"inactive_tenants"`
+	VacantUnits         int     `json:"vacant_units"`
+	OccupiedUnits       int     `json:"occupied_units"`
+	OccupancyRate       float64 `json:"occupancy_rate"`
+	AverageRentPerUnit  float64 `json:"average_rent_per_unit"`
+	TotalMonthlyRevenue float64 `json:"total_monthly_revenue"`
+	CollectionRate      float64 `json:"collection_rate"`
+	OverduePayments     int     `json:"overdue_payments"`
+	OverdueDuesAmount   float64 `json:"overdue_dues_amount"`
+	UpcomingRenewals    int     `json:"upcoming_renewals"`
+	TenantChurnRate     float64 `json:"tenant_churn_rate"`
+}
+
+type PropertyAnalytics struct {
+	PropertyID          uuid.UUID `json:"property_id"`
+	PropertyName        string    `json:"property_name"`
+	PropertyType        string    `json:"property_type"`
+	Area                string    `json:"area"`
+	TotalUnits          int       `json:"total_units"`
+	OccupiedUnits       int       `json:"occupied_units"`
+	VacantUnits         int       `json:"vacant_units"`
+	OccupancyRate       float64   `json:"occupancy_rate"`
+	MonthlyRevenue      float64   `json:"monthly_revenue"`
+	OperatingExpenses   float64   `json:"operating_expenses"`
+	NetOperatingIncome  float64   `json:"net_operating_income"`
+	MaintenanceNeeded   int       `json:"maintenance_needed"`
+	ActiveLeases        int       `json:"active_leases"`
+	ExpiringLeases      int       `json:"expiring_leases"`
+}
+
+type TenantPerformanceMetrics struct {
+	TenantID        uuid.UUID `json:"tenant_id"`
+	TenantName      string    `json:"tenant_name"`
+	RentalHistory   int       `json:"rental_history"`
+	AverageStay     float64   `json:"average_stay"`
+	PaymentOnTimeRate float64 `json:"payment_on_time_rate"`
+	DisputeCount    int       `json:"dispute_count"`
+	RiskScore       int       `json:"risk_score"`
+	Status          string    `json:"status"`
+}
+
+type FinancialAnalytics struct {
+	Period              string  `json:"period"`
+	TotalRevenue        float64 `json:"total_revenue"`
+	TotalExpenses       float64 `json:"total_expenses"`
+	NetProfit           float64 `json:"net_profit"`
+	ProfitMargin        float64 `json:"profit_margin"`
+	RentCollected       float64 `json:"rent_collected"`
+	RentPending         float64 `json:"rent_pending"`
+	UtilitiesExpense    float64 `json:"utilities_expense"`
+	MaintenanceExpense  float64 `json:"maintenance_expense"`
+	OtherExpenses       float64 `json:"other_expenses"`
+}
+
+type MaintenanceAnalytics struct {
+	TotalTasks          int     `json:"total_tasks"`
+	CompletedTasks      int     `json:"completed_tasks"`
+	PendingTasks        int     `json:"pending_tasks"`
+	AvgCompletionDays   float64 `json:"avg_completion_days"`
+	HighPriorityTasks   int     `json:"high_priority_tasks"`
+	CompletionRate      float64 `json:"completion_rate"`
+}
