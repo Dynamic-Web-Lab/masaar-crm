@@ -1074,3 +1074,71 @@ type MaintenancePhoto struct {
 	UploadedAt  time.Time `json:"uploaded_at"`
 	PhotoStage  string    `json:"photo_stage"` // before/during/after
 }
+
+// ─── Lease Renewal ──────────────────────────────────────────────────────────
+
+type RenewalStatus string
+
+const (
+	RenewalPending    RenewalStatus = "pending"
+	RenewalInProgress RenewalStatus = "in_progress"
+	RenewalOfferSent  RenewalStatus = "offer_sent"
+	RenewalAccepted   RenewalStatus = "accepted"
+	RenewalRejected   RenewalStatus = "rejected"
+	RenewalExpired    RenewalStatus = "expired"
+)
+
+type TenantRenewalResponse string
+
+const (
+	ResponsePending      TenantRenewalResponse = "pending"
+	ResponseAccepted     TenantRenewalResponse = "accepted"
+	ResponseRejected     TenantRenewalResponse = "rejected"
+	ResponseCounterOffer TenantRenewalResponse = "counter_offer"
+)
+
+type Language string
+
+const (
+	LangArabic  Language = "ar"
+	LangEnglish Language = "en"
+)
+
+type LeaseRenewalWorkflow struct {
+	ID                 uuid.UUID                `json:"id"`
+	CompanyID          uuid.UUID                `json:"company_id"`
+	LeaseID            uuid.UUID                `json:"lease_id"`
+	RenewalDate        time.Time                `json:"renewal_date"`
+	RenewalStatus      RenewalStatus            `json:"renewal_status"`
+	DaysBeforeExpiry   int                      `json:"days_before_expiry"`
+	ProposedRentAmount *float64                 `json:"proposed_rent_amount,omitempty"`
+	ProposedTerms      map[string]interface{}   `json:"proposed_terms,omitempty"`
+	TenantResponse     TenantRenewalResponse    `json:"tenant_response"`
+	TenantCounterOffer *float64                 `json:"tenant_counter_offer,omitempty"`
+	CounterOfferDate   *time.Time               `json:"counter_offer_date,omitempty"`
+	CreatedAt          time.Time                `json:"created_at"`
+	UpdatedAt          time.Time                `json:"updated_at"`
+}
+
+type RenewalCommunicationTemplate struct {
+	ID           uuid.UUID `json:"id"`
+	CompanyID    uuid.UUID `json:"company_id"`
+	TemplateName string    `json:"template_name"`
+	EmailSubject string    `json:"email_subject"`
+	EmailBody    string    `json:"email_body"`
+	WhatsAppMsg  string    `json:"whatsapp_message"`
+	Language     Language  `json:"language"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+type RenewalCommunicationLog struct {
+	ID                  uuid.UUID          `json:"id"`
+	RenewalID           uuid.UUID          `json:"renewal_id"`
+	CommunicationType   CommunicationType  `json:"communication_type"`
+	TemplateID          *uuid.UUID         `json:"template_id,omitempty"`
+	SentDate            *time.Time         `json:"sent_date,omitempty"`
+	DeliveryStatus      DeliveryStatus     `json:"delivery_status"`
+	TenantResponseDate  *time.Time         `json:"tenant_response_date,omitempty"`
+	ResponseText        string             `json:"response_text"`
+	CreatedAt           time.Time          `json:"created_at"`
+}
