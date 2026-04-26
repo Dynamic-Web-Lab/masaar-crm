@@ -664,3 +664,46 @@ type BankIntegration struct {
 	CreatedBy            *uuid.UUID `json:"created_by"`
 	UpdatedBy            *uuid.UUID `json:"updated_by"`
 }
+
+// ─── Payment Reminders ────────────────────────────────────────────────────────
+
+type ReminderType string
+
+const (
+	Reminder30Days  ReminderType = "30_days"
+	Reminder15Days  ReminderType = "15_days"
+	Reminder7Days   ReminderType = "7_days"
+	Reminder1DayLate ReminderType = "1_day_late"
+	Reminder5DaysLate ReminderType = "5_days_late"
+	Reminder10DaysLate ReminderType = "10_days_late"
+)
+
+type DeliveryMethod string
+
+const (
+	DeliveryWhatsApp DeliveryMethod = "whatsapp"
+	DeliveryEmail    DeliveryMethod = "email"
+	DeliverySMS      DeliveryMethod = "sms"
+)
+
+type DeliveryStatus string
+
+const (
+	DeliveryPending DeliveryStatus = "pending"
+	DeliverySent    DeliveryStatus = "sent"
+	DeliveryFailed  DeliveryStatus = "failed"
+)
+
+type PaymentReminder struct {
+	ID             uuid.UUID      `json:"id"`
+	CompanyID      uuid.UUID      `json:"company_id"`
+	PaymentID      uuid.UUID      `json:"payment_id"`
+	ReminderType   ReminderType   `json:"reminder_type"`
+	ReminderDate   time.Time      `json:"reminder_date"`
+	SentAt         *time.Time     `json:"sent_at"`
+	DeliveryMethod DeliveryMethod `json:"delivery_method"`
+	DeliveryStatus DeliveryStatus `json:"delivery_status"`
+	DeliveryError  string         `json:"delivery_error"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+}
