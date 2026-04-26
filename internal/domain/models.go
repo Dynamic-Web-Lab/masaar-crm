@@ -471,3 +471,89 @@ type Tenant struct {
 	CreatedBy               *uuid.UUID         `json:"created_by"`
 	UpdatedBy               *uuid.UUID         `json:"updated_by"`
 }
+
+// ─── Lease Management ──────────────────────────────────────────────────────
+
+type PaymentFrequency string
+
+const (
+	FrequencyMonthly      PaymentFrequency = "monthly"
+	FrequencyQuarterly    PaymentFrequency = "quarterly"
+	FrequencySemiAnnual   PaymentFrequency = "semi_annual"
+	FrequencyAnnual       PaymentFrequency = "annual"
+)
+
+type LeaseStatus string
+
+const (
+	LeaseStatusActive      LeaseStatus = "active"
+	LeaseStatusRenewed     LeaseStatus = "renewed"
+	LeaseStatusTerminated  LeaseStatus = "terminated"
+	LeaseStatusExpired     LeaseStatus = "expired"
+)
+
+type LeaseTemplate struct {
+	ID                          uuid.UUID         `json:"id"`
+	CompanyID                   uuid.UUID         `json:"company_id"`
+	Name                        string            `json:"name"`
+	Description                 string            `json:"description"`
+	IsDefault                   bool              `json:"is_default"`
+	PaymentFrequency            PaymentFrequency  `json:"payment_frequency"`
+	PaymentDayOfMonth           int               `json:"payment_day_of_month"`
+	AutoGeneratePayments        bool              `json:"auto_generate_payments"`
+	DefaultSecurityDepositPct   float64           `json:"default_security_deposit_percent"`
+	DefaultUtilityCharges       float64           `json:"default_utility_charges"`
+	DefaultLateFeePercent       float64           `json:"default_late_fee_percent"`
+	DefaultLeaseDurationMonths  int               `json:"default_lease_duration_months"`
+	DefaultNoticePeriodDays     int               `json:"default_notice_period_days"`
+	DefaultRenewalDurationMonths int              `json:"default_renewal_duration_months"`
+	TemplateDocumentURL         string            `json:"template_document_url"`
+	TermsConditions             string            `json:"terms_conditions"`
+	Status                      string            `json:"status"`
+	CreatedAt                   time.Time         `json:"created_at"`
+	UpdatedAt                   time.Time         `json:"updated_at"`
+	CreatedBy                   *uuid.UUID        `json:"created_by"`
+	UpdatedBy                   *uuid.UUID        `json:"updated_by"`
+}
+
+type Lease struct {
+	ID                      uuid.UUID         `json:"id"`
+	CompanyID               uuid.UUID         `json:"company_id"`
+	PropertyID              uuid.UUID         `json:"property_id"`
+	TenantID                uuid.UUID         `json:"tenant_id"`
+	TemplateID              *uuid.UUID        `json:"template_id"`
+	StartDate               time.Time         `json:"start_date"`
+	EndDate                 time.Time         `json:"end_date"`
+	RenewalStartDate        *time.Time        `json:"renewal_start_date"`
+	RenewalEndDate          *time.Time        `json:"renewal_end_date"`
+	MonthlyRent             float64           `json:"monthly_rent"`
+	Currency                string            `json:"currency"`
+	SecurityDeposit         float64           `json:"security_deposit"`
+	UtilityCharges          float64           `json:"utility_charges"`
+	LateFeePct              float64           `json:"late_fee_percent"`
+	PaymentFrequency        PaymentFrequency  `json:"payment_frequency"`
+	PaymentDayOfMonth       int               `json:"payment_day_of_month"`
+	AutoGeneratePayments    bool              `json:"auto_generate_payments"`
+	LastGeneratedPaymentDt  *time.Time        `json:"last_generated_payment_date"`
+	NoticePeriodDays        int               `json:"notice_period_days"`
+	MoveOutDate             *time.Time        `json:"move_out_date"`
+	MoveOutInspectionDate   *time.Time        `json:"move_out_inspection_date"`
+	LeaseDocumentURL        string            `json:"lease_document_url"`
+	SignedByLandlordDate    *time.Time        `json:"signed_by_landlord_date"`
+	SignedByTenantDate      *time.Time        `json:"signed_by_tenant_date"`
+	EjariNumber             string            `json:"ejari_number"`
+	EjariURL                string            `json:"ejari_url"`
+	Status                  LeaseStatus       `json:"status"`
+	TerminationReason       string            `json:"termination_reason"`
+	TerminationDate         *time.Time        `json:"termination_date"`
+	Notes                   string            `json:"notes"`
+	CreatedAt               time.Time         `json:"created_at"`
+	UpdatedAt               time.Time         `json:"updated_at"`
+	CreatedBy               *uuid.UUID        `json:"created_by"`
+	UpdatedBy               *uuid.UUID        `json:"updated_by"`
+
+	// Joined
+	Property *RentalProperty `json:"property,omitempty"`
+	Tenant   *Tenant         `json:"tenant,omitempty"`
+	Template *LeaseTemplate  `json:"template,omitempty"`
+}

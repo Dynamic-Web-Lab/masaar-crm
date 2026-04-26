@@ -83,6 +83,8 @@ func main() {
 	commHistRepo := repo.NewCommunicationHistoryRepo(pool)
 	rentalPropertyRepo := repo.NewRentalPropertyRepo(pool)
 	tenantRepo := repo.NewTenantRepo(pool)
+	leaseTemplateRepo := repo.NewLeaseTemplateRepo(pool)
+	leaseRepo := repo.NewLeaseRepo(pool)
 
 	// ── Email service (optional SMTP integration) ────────────────────────────
 	emailService := email.NewService(&email.Config{
@@ -149,6 +151,8 @@ func main() {
 		Email:        handler.NewEmailHandler(emailService, emailRepo),
 		RentalProperty: handler.NewRentalPropertyHandler(rentalPropertyRepo),
 		Tenant:         handler.NewTenantHandler(tenantRepo),
+		LeaseTemplate:  handler.NewLeaseTemplateHandler(leaseTemplateRepo),
+		Lease:          handler.NewLeaseHandler(leaseRepo),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────

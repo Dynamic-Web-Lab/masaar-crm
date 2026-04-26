@@ -232,6 +232,75 @@ export interface Tenant {
   updated_by: string | null
 }
 
+// ─── Lease Management ────────────────────────────────────────────────────────
+
+export type PaymentFrequency = 'monthly' | 'quarterly' | 'semi_annual' | 'annual'
+export type LeaseStatus = 'active' | 'renewed' | 'terminated' | 'expired'
+
+export interface LeaseTemplate {
+  id: string
+  company_id: string
+  name: string
+  description: string
+  is_default: boolean
+  payment_frequency: PaymentFrequency
+  payment_day_of_month: number
+  auto_generate_payments: boolean
+  default_security_deposit_percent: number
+  default_utility_charges: number
+  default_late_fee_percent: number
+  default_lease_duration_months: number
+  default_notice_period_days: number
+  default_renewal_duration_months: number
+  template_document_url: string
+  terms_conditions: string
+  status: string
+  created_at: string
+  updated_at: string
+  created_by: string | null
+  updated_by: string | null
+}
+
+export interface Lease {
+  id: string
+  company_id: string
+  property_id: string
+  tenant_id: string
+  template_id: string | null
+  start_date: string
+  end_date: string
+  renewal_start_date: string | null
+  renewal_end_date: string | null
+  monthly_rent: number
+  currency: string
+  security_deposit: number
+  utility_charges: number
+  late_fee_percent: number
+  payment_frequency: PaymentFrequency
+  payment_day_of_month: number
+  auto_generate_payments: boolean
+  last_generated_payment_date: string | null
+  notice_period_days: number
+  move_out_date: string | null
+  move_out_inspection_date: string | null
+  lease_document_url: string
+  signed_by_landlord_date: string | null
+  signed_by_tenant_date: string | null
+  ejari_number: string
+  ejari_url: string
+  status: LeaseStatus
+  termination_reason: string
+  termination_date: string | null
+  notes: string
+  created_at: string
+  updated_at: string
+  created_by: string | null
+  updated_by: string | null
+  property?: RentalProperty
+  tenant?: Tenant
+  template?: LeaseTemplate
+}
+
 // ─── WebSocket Events ─────────────────────────────────────────────────────────
 
 export interface WSEvent {
