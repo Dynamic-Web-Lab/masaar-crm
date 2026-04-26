@@ -178,4 +178,52 @@ export const api = {
     markRead: (id: string) =>
       request(`/api/v1/notifications/${id}/read`, { method: 'PATCH' }),
   },
+
+  // ─── Rental Properties ────────────────────────────────────────────────────────
+
+  rentalProperties: {
+    list: (params: { page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/rental-properties?${q}`)
+    },
+    get: (id: string) => request(`/api/v1/rental-properties/${id}`),
+    create: (data: unknown) =>
+      request('/api/v1/rental-properties', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) =>
+      request(`/api/v1/rental-properties/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request(`/api/v1/rental-properties/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Tenants ──────────────────────────────────────────────────────────────────
+
+  tenants: {
+    list: (params: { page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/tenants?${q}`)
+    },
+    get: (id: string) => request(`/api/v1/tenants/${id}`),
+    create: (data: unknown) =>
+      request('/api/v1/tenants', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) =>
+      request(`/api/v1/tenants/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request(`/api/v1/tenants/${id}`, { method: 'DELETE' }),
+    verify: (id: string, verificationNotes: string) =>
+      request(`/api/v1/tenants/${id}/verify`, {
+        method: 'POST',
+        body: JSON.stringify({ verification_notes: verificationNotes }),
+      }),
+  },
+
+  // ─── Messages ─────────────────────────────────────────────────────────────────
+
+  messages: {
+    suggestAction: (data: unknown) =>
+      request('/api/v1/messages/suggest-action', { method: 'POST', body: JSON.stringify(data) }),
+  },
 }

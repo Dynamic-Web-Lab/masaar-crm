@@ -337,3 +337,137 @@ type CompanySettings struct {
 	UpdatedAt       time.Time  `json:"updated_at"`
 	UpdatedBy       *uuid.UUID `json:"updated_by"`
 }
+
+// ─── Rental Properties ────────────────────────────────────────────────────────
+
+type PropertyType string
+
+const (
+	PropertyTypeVilla       PropertyType = "villa"
+	PropertyTypeApartment   PropertyType = "apartment"
+	PropertyTypeTownhouse   PropertyType = "townhouse"
+	PropertyTypeCommercial  PropertyType = "commercial"
+)
+
+type PropertyStatus string
+
+const (
+	PropertyStatusActive      PropertyStatus = "active"
+	PropertyStatusInactive    PropertyStatus = "inactive"
+	PropertyStatusSold        PropertyStatus = "sold"
+	PropertyStatusMaintenance PropertyStatus = "maintenance"
+)
+
+type OccupancyStatus string
+
+const (
+	OccupancyVacant      OccupancyStatus = "vacant"
+	OccupancyOccupied    OccupancyStatus = "occupied"
+	OccupancyMaintenance OccupancyStatus = "maintenance"
+)
+
+type RentalProperty struct {
+	ID                  uuid.UUID       `json:"id"`
+	CompanyID           uuid.UUID       `json:"company_id"`
+	Name                string          `json:"name"`
+	Description         string          `json:"description"`
+	PropertyType        PropertyType    `json:"property_type"`
+	UnitsCount          int             `json:"units_count"`
+	Area                string          `json:"area"`
+	StreetAddress       string          `json:"street_address"`
+	BuildingNumber      string          `json:"building_number"`
+	UnitNumber          string          `json:"unit_number"`
+	City                string          `json:"city"`
+	Emirate             string          `json:"emirate"`
+	PostalCode          string          `json:"postal_code"`
+	TotalSqft           float64         `json:"total_sqft"`
+	Bedrooms            int             `json:"bedrooms"`
+	Bathrooms           int             `json:"bathrooms"`
+	ParkingSpaces       int             `json:"parking_spaces"`
+	Amenities           []string        `json:"amenities"`
+	PurchasePrice       float64         `json:"purchase_price"`
+	PurchaseDate        *time.Time      `json:"purchase_date"`
+	MarketValue         float64         `json:"market_value"`
+	Currency            string          `json:"currency"`
+	Status              PropertyStatus  `json:"status"`
+	OccupancyStatus     OccupancyStatus `json:"occupancy_status"`
+	TotalOccupiedUnits  int             `json:"total_occupied_units"`
+	PropertyDeedURL     string          `json:"property_deed_url"`
+	TitleDeedNumber     string          `json:"title_deed_number"`
+	MunicipalityRegNum  string          `json:"municipality_registration"`
+	CreatedAt           time.Time       `json:"created_at"`
+	UpdatedAt           time.Time       `json:"updated_at"`
+	CreatedBy           *uuid.UUID      `json:"created_by"`
+	UpdatedBy           *uuid.UUID      `json:"updated_by"`
+}
+
+// ─── Tenants ──────────────────────────────────────────────────────────────────
+
+type IDType string
+
+const (
+	IDTypeEmiratiID     IDType = "emirati_id"
+	IDTypePassport      IDType = "passport"
+	IDTypeDrivingLicense IDType = "driving_license"
+	IDTypeTradeLicense  IDType = "trade_license"
+)
+
+type EmploymentStatus string
+
+const (
+	EmploymentEmployed      EmploymentStatus = "employed"
+	EmploymentSelfEmployed  EmploymentStatus = "self_employed"
+	EmploymentRetired       EmploymentStatus = "retired"
+	EmploymentStudent       EmploymentStatus = "student"
+)
+
+type TenantStatus string
+
+const (
+	TenantStatusActive      TenantStatus = "active"
+	TenantStatusInactive    TenantStatus = "inactive"
+	TenantStatusBlacklisted TenantStatus = "blacklisted"
+)
+
+type VerificationStatus string
+
+const (
+	VerificationPending  VerificationStatus = "pending"
+	VerificationVerified VerificationStatus = "verified"
+	VerificationRejected VerificationStatus = "rejected"
+)
+
+type Tenant struct {
+	ID                      uuid.UUID          `json:"id"`
+	CompanyID               uuid.UUID          `json:"company_id"`
+	FullNameEN              string             `json:"full_name_en"`
+	FullNameAR              string             `json:"full_name_ar"`
+	Email                   string             `json:"email"`
+	Phone                   string             `json:"phone"`
+	PhoneWA                 string             `json:"phone_wa"`
+	IDType                  IDType             `json:"id_type"`
+	IDNumber                string             `json:"id_number"`
+	IDExpiryDate            *time.Time         `json:"id_expiry_date"`
+	IDDocumentURL           string             `json:"id_document_url"`
+	IsVerified              bool               `json:"is_verified"`
+	VerificationStatus      VerificationStatus `json:"verification_status"`
+	VerificationDate        *time.Time         `json:"verification_date"`
+	VerifiedBy              *uuid.UUID         `json:"verified_by"`
+	VerificationNotes       string             `json:"verification_notes"`
+	EmploymentStatus        EmploymentStatus   `json:"employment_status"`
+	EmployerName            string             `json:"employer_name"`
+	AnnualIncome            float64            `json:"annual_income"`
+	IncomeCurrency          string             `json:"income_currency"`
+	SalaryCertificateURL    string             `json:"salary_certificate_url"`
+	Nationality             string             `json:"nationality"`
+	CountryOfOrigin         string             `json:"country_of_origin"`
+	PermanentAddress        string             `json:"permanent_address"`
+	EmergencyContactName    string             `json:"emergency_contact_name"`
+	EmergencyContactPhone   string             `json:"emergency_contact_phone"`
+	Status                  TenantStatus       `json:"status"`
+	Notes                   string             `json:"notes"`
+	CreatedAt               time.Time          `json:"created_at"`
+	UpdatedAt               time.Time          `json:"updated_at"`
+	CreatedBy               *uuid.UUID         `json:"created_by"`
+	UpdatedBy               *uuid.UUID         `json:"updated_by"`
+}

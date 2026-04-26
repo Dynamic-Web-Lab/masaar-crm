@@ -32,6 +32,8 @@ type Handlers struct {
 	Property          *handler.PropertyHandler
 	Settings          *handler.SettingsHandler
 	Email             *handler.EmailHandler
+	RentalProperty    *handler.RentalPropertyHandler
+	Tenant            *handler.TenantHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -256,6 +258,42 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Get("/emails/history",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.Email.GetEmailHistory,
+	)
+
+	// Rental Properties — agents: create+view+update; admin: all; viewers: read-only
+	v1.Get("/rental-properties", h.RentalProperty.List)
+	v1.Get("/rental-properties/:id", h.RentalProperty.Get)
+	v1.Post("/rental-properties",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.RentalProperty.Create,
+	)
+	v1.Patch("/rental-properties/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.RentalProperty.Update,
+	)
+	v1.Delete("/rental-properties/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.RentalProperty.Delete,
+	)
+
+	// Tenants — agents: create+view+update; admin: all; viewers: read-only
+	v1.Get("/tenants", h.Tenant.List)
+	v1.Get("/tenants/:id", h.Tenant.Get)
+	v1.Post("/tenants",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Tenant.Create,
+	)
+	v1.Patch("/tenants/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Tenant.Update,
+	)
+	v1.Delete("/tenants/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Tenant.Delete,
+	)
+	v1.Post("/tenants/:id/verify",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Tenant.Verify,
 	)
 
 	// Health

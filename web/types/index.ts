@@ -149,6 +149,89 @@ export interface Notification {
   created_at: string
 }
 
+// ─── Rental Property ──────────────────────────────────────────────────────────
+
+export type PropertyType = 'villa' | 'apartment' | 'townhouse' | 'commercial'
+export type PropertyStatus = 'active' | 'inactive' | 'sold' | 'maintenance'
+export type OccupancyStatus = 'vacant' | 'occupied' | 'maintenance'
+
+export interface RentalProperty {
+  id: string
+  company_id: string
+  name: string
+  description: string
+  property_type: PropertyType
+  units_count: number
+  area: string
+  street_address: string
+  building_number: string
+  unit_number: string
+  city: string
+  emirate: string
+  postal_code: string
+  total_sqft: number
+  bedrooms: number
+  bathrooms: number
+  parking_spaces: number
+  amenities: string[]
+  purchase_price: number
+  purchase_date: string | null
+  market_value: number
+  currency: string
+  status: PropertyStatus
+  occupancy_status: OccupancyStatus
+  total_occupied_units: number
+  property_deed_url: string
+  title_deed_number: string
+  municipality_registration: string
+  created_at: string
+  updated_at: string
+  created_by: string | null
+  updated_by: string | null
+}
+
+// ─── Tenant ───────────────────────────────────────────────────────────────────
+
+export type IDType = 'emirati_id' | 'passport' | 'driving_license' | 'trade_license'
+export type EmploymentStatus = 'employed' | 'self_employed' | 'retired' | 'student'
+export type TenantStatus = 'active' | 'inactive' | 'blacklisted'
+export type VerificationStatus = 'pending' | 'verified' | 'rejected'
+
+export interface Tenant {
+  id: string
+  company_id: string
+  full_name_en: string
+  full_name_ar: string
+  email: string
+  phone: string
+  phone_wa: string
+  id_type: IDType
+  id_number: string
+  id_expiry_date: string | null
+  id_document_url: string
+  is_verified: boolean
+  verification_status: VerificationStatus
+  verification_date: string | null
+  verified_by: string | null
+  verification_notes: string
+  employment_status: EmploymentStatus
+  employer_name: string
+  annual_income: number
+  income_currency: string
+  salary_certificate_url: string
+  nationality: string
+  country_of_origin: string
+  permanent_address: string
+  emergency_contact_name: string
+  emergency_contact_phone: string
+  status: TenantStatus
+  notes: string
+  created_at: string
+  updated_at: string
+  created_by: string | null
+  updated_by: string | null
+}
+
 // ─── WebSocket Events ─────────────────────────────────────────────────────────
 
 export interface WSEvent {
