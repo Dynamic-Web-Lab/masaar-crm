@@ -226,4 +226,40 @@ export const api = {
     suggestAction: (data: unknown) =>
       request('/api/v1/messages/suggest-action', { method: 'POST', body: JSON.stringify(data) }),
   },
+
+  // ─── Lease Templates ──────────────────────────────────────────────────────────
+
+  leaseTemplates: {
+    list: (params: { page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/lease-templates?${q}`)
+    },
+    get: (id: string) => request(`/api/v1/lease-templates/${id}`),
+    create: (data: unknown) =>
+      request('/api/v1/lease-templates', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) =>
+      request(`/api/v1/lease-templates/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request(`/api/v1/lease-templates/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Leases ────────────────────────────────────────────────────────────────────
+
+  leases: {
+    list: (params: { page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/leases?${q}`)
+    },
+    get: (id: string) => request(`/api/v1/leases/${id}`),
+    create: (data: unknown) =>
+      request('/api/v1/leases', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) =>
+      request(`/api/v1/leases/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request(`/api/v1/leases/${id}`, { method: 'DELETE' }),
+  },
 }
