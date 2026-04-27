@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
+import { isLoggedIn } from '@/lib/auth'
 import { useAuthStore } from '@/store/auth'
 import { useLang } from '@/context/LangContext'
 import type { LoginResponse } from '@/types'
@@ -17,7 +18,7 @@ export default function LoginPage() {
 
   useEffect(() => { init() }, [init])
   useEffect(() => {
-    if (token) router.replace('/pipeline')
+    if (token && isLoggedIn()) router.replace('/pipeline')
   }, [token, router])
 
   const handleSubmit = async (e: React.FormEvent) => {

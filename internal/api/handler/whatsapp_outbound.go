@@ -66,7 +66,7 @@ func (h *WhatsAppOutboundHandler) SendMessage(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uuid.UUID)
 	outbound := &domain.WhatsAppOutbound{
 		ThreadID:      threadID,
-		ToNumber:      thread.WAAccountID, // Contact's WhatsApp number stored in thread
+		ToNumber:      thread.Contact.PhoneWA,
 		MessageBody:   req.Message,
 		Status:        domain.OutboundPending,
 		CreatedBy:     &userID,
@@ -142,7 +142,7 @@ func (h *WhatsAppOutboundHandler) SendTemplate(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(uuid.UUID)
 	outbound := &domain.WhatsAppOutbound{
 		ThreadID:    threadID,
-		ToNumber:    thread.WAAccountID,
+		ToNumber:    thread.Contact.PhoneWA,
 		MessageBody: req.TemplateName, // Template name in body for reference
 		Status:      domain.OutboundPending,
 		CreatedBy:   &userID,

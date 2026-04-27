@@ -31,13 +31,6 @@ func NewSettingsHandler(apiSettingsRepo *repo.SettingsRepo, companySettingsRepo 
 // @Router /api/v1/settings/bos24 [get]
 // @Security Bearer
 func (h *SettingsHandler) GetBOS24Settings(c *fiber.Ctx) error {
-	userRole := c.Locals("role").(domain.Role)
-	if userRole != domain.RoleAdmin {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "admin access required",
-		})
-	}
-
 	setting, err := h.apiSettingsRepo.Get(c.Context(), "bos24_api_token")
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -62,13 +55,6 @@ func (h *SettingsHandler) GetBOS24Settings(c *fiber.Ctx) error {
 // @Router /api/v1/settings/bos24 [patch]
 // @Security Bearer
 func (h *SettingsHandler) UpdateBOS24Settings(c *fiber.Ctx) error {
-	userRole := c.Locals("role").(domain.Role)
-	if userRole != domain.RoleAdmin {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "admin access required",
-		})
-	}
-
 	var req UpdateBOS24Request
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
@@ -103,13 +89,6 @@ func (h *SettingsHandler) UpdateBOS24Settings(c *fiber.Ctx) error {
 // @Router /api/v1/settings/company [get]
 // @Security Bearer
 func (h *SettingsHandler) GetCompanySettings(c *fiber.Ctx) error {
-	userRole := c.Locals("role").(domain.Role)
-	if userRole != domain.RoleAdmin {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "admin access required",
-		})
-	}
-
 	settings, err := h.companySettingsRepo.Get(c.Context())
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -134,13 +113,6 @@ func (h *SettingsHandler) GetCompanySettings(c *fiber.Ctx) error {
 // @Router /api/v1/settings/company [patch]
 // @Security Bearer
 func (h *SettingsHandler) UpdateCompanySettings(c *fiber.Ctx) error {
-	userRole := c.Locals("role").(domain.Role)
-	if userRole != domain.RoleAdmin {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "admin access required",
-		})
-	}
-
 	var req domain.CompanySettings
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})

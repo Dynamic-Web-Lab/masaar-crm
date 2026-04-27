@@ -93,8 +93,12 @@ func (h *PaymentHandler) Create(c *fiber.Ctx) error {
 	if p.LeaseID == uuid.Nil || p.Amount <= 0 || p.PaymentMethod == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "lease_id, amount > 0, and payment_method are required"})
 	}
+	const maxPaymentAED = 10_000_000
+	if p.Amount > maxPaymentAED {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "amount exceeds maximum allowed (10,000,000 AED)"})
+	}
 
-	userID, _ := uuid.Parse(c.Locals("user_id").(string))
+	userID := c.Locals("user_id").(uuid.UUID)
 	p.CreatedBy = &userID
 	p.UpdatedBy = &userID
 
@@ -138,7 +142,7 @@ func (h *PaymentHandler) Update(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	userID, _ := uuid.Parse(c.Locals("user_id").(string))
+	userID := c.Locals("user_id").(uuid.UUID)
 	p.UpdatedBy = &userID
 
 	if err := h.payments.Update(c.Context(), p); err != nil {

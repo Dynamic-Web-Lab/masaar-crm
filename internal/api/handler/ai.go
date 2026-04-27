@@ -1,11 +1,19 @@
 package handler
 
 import (
+	"context"
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/maidulcu/masaar-crm/internal/ai"
+	"github.com/maidulcu/masaar-crm/internal/domain"
 	"github.com/maidulcu/masaar-crm/internal/repo"
 )
+
+// ollamaTimeout caps Ollama inference calls. Model inference can legitimately
+// take 30-60 s on CPU; 90 s is generous but prevents goroutine leaks.
+const ollamaTimeout = 90 * time.Second
 
 type AIHandler struct {
 	ollama   *ai.Client
@@ -25,17 +33,20 @@ func (h *AIHandler) ScoreLead(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
 
-	lead, err := h.leads.GetByID(c.Context(), id)
+	ctx, cancel := context.WithTimeout(c.Context(), ollamaTimeout)
+	defer cancel()
+
+	lead, err := h.leads.GetByID(ctx, id)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "lead not found"})
 	}
 
-	contact, err := h.contacts.GetByID(c.Context(), lead.ContactID)
+	contact, err := h.contacts.GetByID(ctx, lead.ContactID)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "contact not found"})
 	}
 
-	result, err := h.ollama.ScoreLead(c.Context(), contact.FullName, lead.Notes, string(lead.Source))
+	result, err := h.ollama.ScoreLead(ctx, contact.FullName, lead.Notes, string(lead.Source))
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
 	}
@@ -50,7 +61,10 @@ func (h *AIHandler) DraftReply(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid thread_id"})
 	}
 
-	msgs, err := h.wa.GetMessages(c.Context(), threadID, 20)
+	ctx, cancel := context.WithTimeout(c.Context(), ollamaTimeout)
+	defer cancel()
+
+	msgs, err := h.wa.GetMessages(ctx, threadID, 20)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "thread not found"})
 	}
@@ -64,17 +78,17 @@ func (h *AIHandler) DraftReply(c *fiber.Ctx) error {
 		bodies = append(bodies, prefix+": "+m.Body)
 	}
 
-	threads, err := h.wa.ListThreads(c.Context(), "", 1, 1)
+	threads, err := h.wa.ListThreads(ctx, "", 1, 1)
 	if err != nil || len(threads) == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "thread not found"})
 	}
 
-	summary, err := h.ollama.SummarizeThread(c.Context(), bodies)
+	summary, err := h.ollama.SummarizeThread(ctx, bodies)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
 	}
 
-	contact, _ := h.contacts.GetByID(c.Context(), threads[0].ContactID)
+	contact, _ := h.contacts.GetByID(ctx, threads[0].ContactID)
 
 	lang := "en"
 	name := ""
@@ -83,7 +97,7 @@ func (h *AIHandler) DraftReply(c *fiber.Ctx) error {
 		name = contact.FullName
 	}
 
-	draft, err := h.ollama.DraftReply(c.Context(), name, lang, summary)
+	draft, err := h.ollama.DraftReply(ctx, name, lang, summary)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
 	}
@@ -111,7 +125,10 @@ func (h *AIHandler) SummarizeThread(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid thread_id"})
 	}
 
-	msgs, err := h.wa.GetMessages(c.Context(), threadID, 50)
+	ctx, cancel := context.WithTimeout(c.Context(), ollamaTimeout)
+	defer cancel()
+
+	msgs, err := h.wa.GetMessages(ctx, threadID, 50)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "thread not found"})
 	}
@@ -121,7 +138,7 @@ func (h *AIHandler) SummarizeThread(c *fiber.Ctx) error {
 		bodies = append(bodies, m.Body)
 	}
 
-	summary, err := h.ollama.SummarizeThread(c.Context(), bodies)
+	summary, err := h.ollama.SummarizeThread(ctx, bodies)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
 	}

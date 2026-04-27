@@ -94,7 +94,7 @@ func (h *RentalPropertyHandler) Create(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name and property_type are required"})
 	}
 
-	userID, _ := uuid.Parse(c.Locals("user_id").(string))
+	userID := c.Locals("user_id").(uuid.UUID)
 	p.CreatedBy = &userID
 	p.UpdatedBy = &userID
 
@@ -138,7 +138,7 @@ func (h *RentalPropertyHandler) Update(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	userID, _ := uuid.Parse(c.Locals("user_id").(string))
+	userID := c.Locals("user_id").(uuid.UUID)
 	p.UpdatedBy = &userID
 
 	if err := h.properties.Update(c.Context(), p); err != nil {

@@ -159,13 +159,6 @@ func (h *MessageHandler) AutoCreateLead(c *fiber.Ctx) error {
 		})
 	}
 
-	userRole := c.Locals("role").(domain.Role)
-	if userRole != domain.RoleAdmin && userRole != domain.RoleAgent {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "agent access required",
-		})
-	}
-
 	var req AutoCreateLeadRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})

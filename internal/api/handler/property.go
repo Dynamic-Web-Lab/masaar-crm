@@ -1,11 +1,15 @@
 package handler
 
 import (
+	"context"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/maidulcu/masaar-crm/internal/bos24"
 )
+
+const bos24Timeout = 15 * time.Second
 
 type PropertyHandler struct {
 	bos24Client *bos24.Client
@@ -51,7 +55,10 @@ func (h *PropertyHandler) SearchProperties(c *fiber.Ctx) error {
 		limit = 20
 	}
 
-	result, err := h.bos24Client.SearchProperties(c.Context(), req.Query, limit)
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+
+	result, err := h.bos24Client.SearchProperties(ctx, req.Query, limit)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 			"error": "failed to search properties: " + err.Error(),
@@ -95,14 +102,18 @@ func (h *PropertyHandler) GetTransactions(c *fiber.Ctx) error {
 		filters["trans_type"] = transType
 	}
 	if minPrice := c.Query("min_price"); minPrice != "" {
-		if price, err := strconv.ParseFloat(minPrice, 64); err == nil {
-			filters["min_price"] = price
+		price, err := strconv.ParseFloat(minPrice, 64)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "min_price must be a number"})
 		}
+		filters["min_price"] = price
 	}
 	if maxPrice := c.Query("max_price"); maxPrice != "" {
-		if price, err := strconv.ParseFloat(maxPrice, 64); err == nil {
-			filters["max_price"] = price
+		price, err := strconv.ParseFloat(maxPrice, 64)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "max_price must be a number"})
 		}
+		filters["max_price"] = price
 	}
 	if limit := c.Query("limit"); limit != "" {
 		if l, err := strconv.Atoi(limit); err == nil && l > 0 {
@@ -110,7 +121,10 @@ func (h *PropertyHandler) GetTransactions(c *fiber.Ctx) error {
 		}
 	}
 
-	result, err := h.bos24Client.GetTransactions(c.Context(), filters)
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+
+	result, err := h.bos24Client.GetTransactions(ctx, filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 			"error": "failed to get transactions: " + err.Error(),
@@ -153,7 +167,10 @@ func (h *PropertyHandler) GetBuildings(c *fiber.Ctx) error {
 		}
 	}
 
-	result, err := h.bos24Client.SearchBuildings(c.Context(), query, limit)
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+
+	result, err := h.bos24Client.SearchBuildings(ctx, query, limit)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 			"error": "failed to search buildings: " + err.Error(),
@@ -190,7 +207,10 @@ func (h *PropertyHandler) GetBuildingByID(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid building ID"})
 	}
 
-	result, err := h.bos24Client.GetBuilding(c.Context(), buildingID)
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+
+	result, err := h.bos24Client.GetBuilding(ctx, buildingID)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 			"error": "failed to get building: " + err.Error(),
@@ -254,7 +274,10 @@ func (h *PropertyHandler) GetNearbySchools(c *fiber.Ctx) error {
 		}
 	}
 
-	result, err := h.bos24Client.GetNearbySchools(c.Context(), lat, lng, radius, limit)
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+
+	result, err := h.bos24Client.GetNearbySchools(ctx, lat, lng, radius, limit)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 			"error": "failed to get schools: " + err.Error(),
@@ -293,6 +316,9 @@ func (h *PropertyHandler) GetYieldAnalysis(c *fiber.Ctx) error {
 		})
 	}
 
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+
 	// Get rental stats
 	rentalFilters := map[string]interface{}{
 		"area": area,
@@ -301,7 +327,7 @@ func (h *PropertyHandler) GetYieldAnalysis(c *fiber.Ctx) error {
 		rentalFilters["property_type"] = propertyType
 	}
 
-	rentalStats, err := h.bos24Client.GetEjariStats(c.Context(), rentalFilters)
+	rentalStats, err := h.bos24Client.GetEjariStats(ctx, rentalFilters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 			"error": "failed to get rental stats: " + err.Error(),
@@ -316,7 +342,7 @@ func (h *PropertyHandler) GetYieldAnalysis(c *fiber.Ctx) error {
 		salesFilters["property_type"] = propertyType
 	}
 
-	salesStats, err := h.bos24Client.GetTransactionStats(c.Context(), salesFilters)
+	salesStats, err := h.bos24Client.GetTransactionStats(ctx, salesFilters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 			"error": "failed to get sales stats: " + err.Error(),
@@ -364,6 +390,9 @@ func (h *PropertyHandler) GetComparables(c *fiber.Ctx) error {
 		})
 	}
 
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+
 	filters := map[string]interface{}{
 		"area": area,
 	}
@@ -371,7 +400,7 @@ func (h *PropertyHandler) GetComparables(c *fiber.Ctx) error {
 		filters["property_type"] = propertyType
 	}
 
-	transactions, err := h.bos24Client.GetTransactions(c.Context(), filters)
+	transactions, err := h.bos24Client.GetTransactions(ctx, filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 			"error": "failed to get comparables: " + err.Error(),
@@ -421,6 +450,9 @@ func (h *PropertyHandler) GetMarketTrends(c *fiber.Ctx) error {
 		})
 	}
 
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+
 	filters := map[string]interface{}{
 		"area": area,
 	}
@@ -429,7 +461,7 @@ func (h *PropertyHandler) GetMarketTrends(c *fiber.Ctx) error {
 	}
 
 	// Get transaction stats for trends
-	stats, err := h.bos24Client.GetTransactionStats(c.Context(), filters)
+	stats, err := h.bos24Client.GetTransactionStats(ctx, filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 			"error": "failed to get market trends: " + err.Error(),
@@ -437,7 +469,7 @@ func (h *PropertyHandler) GetMarketTrends(c *fiber.Ctx) error {
 	}
 
 	// Get rental stats too
-	rentalStats, err := h.bos24Client.GetEjariStats(c.Context(), filters)
+	rentalStats, err := h.bos24Client.GetEjariStats(ctx, filters)
 	if err != nil {
 		// Don't fail if rental stats unavailable
 		rentalStats = map[string]interface{}{}
