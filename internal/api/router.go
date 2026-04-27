@@ -59,6 +59,15 @@ var loginLimiter = limiter.New(limiter.Config{
 	},
 })
 
+// apiLimiter caps general authenticated API usage to 100 requests/min per IP.
+var apiLimiter = limiter.New(limiter.Config{
+	Max:        100,
+	Expiration: 1 * time.Minute,
+	LimitReached: func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "rate limit exceeded"})
+	},
+})
+
 func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config, rdb *redis.Client) {
 	// ── Public routes ────────────────────────────────────────────────────────
 	app.Post("/api/v1/auth/login", loginLimiter, h.Auth.Login)
@@ -86,6 +95,7 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 
 	// ── Authenticated API ────────────────────────────────────────────────────
 	v1 := app.Group("/api/v1",
+		apiLimiter,
 		middleware.JWT(cfg.JWTSecret),
 		middleware.CheckBlacklist(rdb),
 		middleware.ExtractClaims(cfg.CompanyID),
