@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"crypto/subtle"
 	"log"
 	"strconv"
 
@@ -14,11 +15,11 @@ import (
 )
 
 type WhatsAppHandler struct {
-	wa            *repo.WhatsAppRepo
-	contacts      *repo.ContactRepo
+	wa             *repo.WhatsAppRepo
+	contacts       *repo.ContactRepo
 	taggingService *ai.TaggingService
-	hub           *ws.Hub
-	config        *config.Config
+	hub            *ws.Hub
+	config         *config.Config
 }
 
 func NewWhatsAppHandler(wa *repo.WhatsAppRepo, contacts *repo.ContactRepo, taggingService *ai.TaggingService, hub *ws.Hub, cfg *config.Config) *WhatsAppHandler {
@@ -31,7 +32,7 @@ func (h *WhatsAppHandler) Verify(c *fiber.Ctx) error {
 	token := c.Query("hub.verify_token")
 	challenge := c.Query("hub.challenge")
 
-	if mode == "subscribe" && token == h.config.WAVerifyToken {
+	if mode == "subscribe" && subtle.ConstantTimeCompare([]byte(token), []byte(h.config.WAVerifyToken)) == 1 {
 		return c.SendString(challenge)
 	}
 	return c.SendStatus(fiber.StatusForbidden)

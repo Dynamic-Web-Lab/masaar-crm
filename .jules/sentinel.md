@@ -32,3 +32,4 @@
 **Vulnerability:** JWT token blacklist checking was failing open when Redis failed, allowing revoked tokens access.
 **Learning:** Security controls like token revocation checks must fail closed on infrastructure errors to prevent bypasses.
 **Prevention:** Explicitly check for errors on infrastructure dependencies (like Redis `Exists`) and return 500 Internal Server Error when they occur.
+## 2025-05-24 - [Webhook Token Timing Attack]\n**Vulnerability:** Meta webhook token verification used a standard string equality check (`==`), which is vulnerable to timing attacks.\n**Learning:** Standard string comparisons fail early on a mismatch, potentially leaking the expected token character by character based on response times.\n**Prevention:** Use `crypto/subtle.ConstantTimeCompare` for verifying secrets, signatures, and tokens.
