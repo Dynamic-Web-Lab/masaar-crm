@@ -1,0 +1,146 @@
+---
+# Masaar Backend ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: masaar-config
+  namespace: masaar
+data:
+  PORT: "8080"
+  APP_ENV: "production"
+  OLLAMA_BASE_URL: "http://ollama:11434"
+  OLLAMA_MODEL: "llama3"
+  DATABASE_URL: "postgres://masaar:change-me@postgres:5432/masaar?sslmode=disable"
+  REDIS_URL: "redis://redis:6379"
+  WA_API_VERSION: "v19.0"
+  WA_BASE_URL: "https://graph.instagram.com"
+
+---
+# Masaar Backend Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: masaar-secret
+  namespace: masaar
+type: Opaque
+data:
+  JWT_SECRET: Y2hhbmdlLW1lLXRvLXJhbmRvbS1zdHJpbmctYXQtbGVhc3QtMzItY2hhcnM=  # base64 encoded
+  WA_VERIFY_TOKEN: bWFzYWFyLXdlYmhvb2stdG9rZW4=  # masaar-webhook-token
+  WA_PHONE_NUMBER_ID: ""
+  WA_ACCESS_TOKEN: ""
+  SMTP_HOST: ""
+  SMTP_PORT: "587"
+  SMTP_USER: ""
+  SMTP_PASSWORD: ""
+  BOS24_TOKEN: ""
+
+---
+# Masaar Backend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: masaar
+  namespace: masaar
+  labels:
+    app: masaar
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: masaar
+  template:
+    metadata:
+      labels:
+        app: masaar
+    spec:
+      containers:
+      - name: masaar
+        image: masaar-crm:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+        envFrom:
+        - configMapRef:
+            name: masaar-config
+        - secretRef:
+            name: masaar-secret
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "2000m"
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - masaar
+              topologyKey: kubernetes.io/hostname
+
+---
+# Masaar Backend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: masaar
+  namespace: masaar
+spec:
+  selector:
+    app: masaar
+  ports:
+  - port: 80
+    targetPort: 8080
+    name: http
+  type: ClusterIP
+
+---
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: masaar-hpa
+  namespace: masaar
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: masaar
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

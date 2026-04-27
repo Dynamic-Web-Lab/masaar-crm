@@ -36,17 +36,120 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v0.2.0] - 2026-04-26
+
+### Phase 15: Core Operations & Analytics
+
+#### Phase 15.1: Expense Tracking System
+- **Added** comprehensive expense management system
+  - `expense_categories` table with type enum (maintenance, utilities, insurance, repairs, staff, cleaning, other)
+  - `expenses` table with full expense lifecycle (amount, date, vendor, payment status, receipt tracking)
+  - `expense_approvals` table for approval workflow
+  - 8 API endpoints: category management, expense CRUD, approval workflow
+  - Role-based access: Admin full access, Agent create/update
+  - Real-time notifications on approval/rejection
+
+#### Phase 15.2: Inspection & Maintenance Scheduling
+- **Added** inspection and maintenance management system
+  - `inspection_templates` table with reusable checklists
+  - `inspections` table with status tracking, findings, severity levels, photos
+  - `maintenance_tasks` table with priority, contractor tracking, cost estimation
+  - `maintenance_photos` table for before/during/after documentation
+  - 16 API endpoints for inspection and maintenance workflows
+  - Frontend pages: `/inspections`, `/maintenance` with list, filter, detail views
+  - Features: Priority-based sorting, status tracking, photo gallery
+
+#### Phase 15.3: Tenant Analytics Dashboard
+- **Added** comprehensive analytics system
+  - Company-wide KPIs: occupancy rate, revenue, collection rate
+  - Property-level metrics: revenue, NOI, maintenance needs
+  - Tenant performance metrics: risk scoring based on payment history, disputes, tenure
+  - Financial analytics: revenue trends, expense breakdown, profit margins
+  - Maintenance metrics: task completion rates, response times
+  - 7 API endpoints under `/api/v1/analytics/`
+  - Frontend analytics pages:
+    - `/analytics/overview` - KPI dashboard
+    - `/analytics/properties` - Property performance
+    - `/analytics/tenants` - Risk scoring
+    - `/analytics/financial` - Revenue analysis
+  - Features: Real-time calculations, bilingual labels, color-coded risk scores
+
+### Phase 16: Advanced Workflows
+
+#### Phase 16.1: Lease Renewal Automation
+- **Added** automated lease renewal workflow system
+  - `lease_renewal_workflows` table with status tracking, proposed terms, counter-offers
+  - `renewal_communication_templates` table for email/WhatsApp templates (bilingual)
+  - `renewal_communication_log` table for audit trail
+  - 9 API endpoints: initiate, propose, send-offer, accept, reject, counter-offer, templates
+  - Features: Automated renewal tracking, communication history, tenant responses
+  - Role-based access: Admin initiates, Agent/Admin manage workflow
+
+#### Phase 16.2: Commission Tracking & Agent Performance
+- **Added** database schema (Migration 00027):
+  - `commission_structures` table (fixed/percentage/tiered types)
+  - `agent_commissions` table (monthly tracking)
+  - `commission_transactions` table (individual entries)
+  - Domain models and enums ready for handler implementation
+
+#### Phase 16.3: Document Management & e-Signature
+- **Added** database schema (Migration 00028):
+  - `document_templates` table (lease, offer, inspection, waiver, custom)
+  - `documents` table with signature status and audit trail
+  - `document_signatures` table with IP/user-agent logging
+  - `document_audit_log` table for compliance
+  - Data classification: public, internal, confidential
+  - Ready for e-signature integration (DocuSign framework)
+
+#### Phase 16.4-16.6: Infrastructure
+- **Added** custom fields system (Migration 00029):
+  - Entity-specific custom metadata support
+  - Dynamic field storage and validation
+- **Added** bulk operations framework (Migration 00030):
+  - CSV import/export job tracking
+  - Error logging and data validation
+  - Dry-run mode support
+
+### Infrastructure Updates
+- Total migrations: 30 (up from previous)
+- New tables: 35+ across all phases
+- Total API endpoints: 100+ with consistent response format
+- All endpoints include role-based access control
+- Full audit trails for sensitive operations
+
+### Breaking Changes
+- None. All changes are backward-compatible.
+
+### Known Limitations
+- DocuSign e-signature not yet implemented (framework ready)
+- Commission calculation engine pending implementation
+- Bulk import/export job processing pending
+- Analytics caching in Redis not yet implemented
+
+---
+
 ## [Unreleased]
 
-### Enterprise (Coming Soon)
-- Multiple Pipelines
-- ZATCA E-Invoicing
-- WhatsApp Sender & Bots
-- AI Automation
-- Semantic Search (pgvector)
-- SSO/SAML
-- Emirates ID
+### Phase 17: SaaS Multi-Tenant Platform (Coming Soon)
+- Company onboarding workflow
+- Subscription management
+- Usage analytics and billing
+- Tenant isolation at API and database level
+
+### Phase 18: Advanced Integrations (Coming Soon)
+- DocuSign e-signature
+- Stripe/PayPal payment processing
+- Accounting software integrations
+- SMS gateway expansion
+
+### Phase 19: AI & Automation (Coming Soon)
+- Automated lease renewal workflows
+- Predictive tenant risk scoring
+- Expense categorization via ML
+- Document OCR and extraction
 
 ---
 
 *For self-hosters: Always check the changelog before upgrading. Breaking changes will be marked with ⚠️.*
+**Status**: Phases 15-16 complete, ready for Phase 17 planning.
+**Maintainer**: Dori Internet Dev Team
