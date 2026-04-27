@@ -1,0 +1,81 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+README.md
+DEPLOYMENT.md
+DEPLOYMENT_CHECKLIST.md
+OPERATIONS.md
+GIT_AUTOMATION.md
+DOCKER_BEST_PRACTICES.md
+CLAUDE.md
+COMPLETE_SETUP_GUIDE.md
+LICENSE
+
+# Development
+.env
+.env.local
+.env.*.local
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+*.out
+
+# Dependencies (will be reinstalled)
+node_modules/
+vendor/
+
+# Build artifacts (not needed in runtime)
+web/.next
+web/out
+web/dist
+web/.turbo
+
+# Tests (not needed in production)
+*.test.js
+*.test.ts
+*.test.tsx
+__tests__/
+
+# Local development
+docker-compose.local.yml
+.env.development
+.env.test
+
+# Temporary files
+*.tmp
+*.temp
+/tmp/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.circleci/
+
+# Performance monitoring (optional)
+prof/
+pprof/
+
+# Docker files (not needed in image)
+docker/
+Dockerfile*
+.dockerignore
+
+# Misc
+.DS_Store
+.AppleDouble
+.LSOverride
+*.swp
+.vscode
+.idea
