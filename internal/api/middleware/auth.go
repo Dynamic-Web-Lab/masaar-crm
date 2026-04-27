@@ -61,9 +61,9 @@ func BearerToken(c *fiber.Ctx) string {
 	return ""
 }
 
-// ExtractClaims reads the JWT sub claim and sets user_id (uuid.UUID) and
-// company_id (string) in Fiber locals so downstream handlers can use them
-// without repeating the JWT assertion boilerplate.
+// ExtractClaims reads JWT claims and sets user_id (uuid.UUID), company_id (string),
+// and role (domain.Role) in Fiber locals so handlers can access them without
+// repeating assertion boilerplate.
 func ExtractClaims(companyID string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		claims := ClaimsFromCtx(c)
@@ -74,6 +74,9 @@ func ExtractClaims(companyID string) fiber.Handler {
 		}
 		c.Locals("user_id", userID)
 		c.Locals("company_id", companyID)
+		if roleStr, ok := claims["role"].(string); ok {
+			c.Locals("role", domain.Role(roleStr))
+		}
 		return c.Next()
 	}
 }

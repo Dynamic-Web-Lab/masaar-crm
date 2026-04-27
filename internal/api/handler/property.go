@@ -95,14 +95,18 @@ func (h *PropertyHandler) GetTransactions(c *fiber.Ctx) error {
 		filters["trans_type"] = transType
 	}
 	if minPrice := c.Query("min_price"); minPrice != "" {
-		if price, err := strconv.ParseFloat(minPrice, 64); err == nil {
-			filters["min_price"] = price
+		price, err := strconv.ParseFloat(minPrice, 64)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "min_price must be a number"})
 		}
+		filters["min_price"] = price
 	}
 	if maxPrice := c.Query("max_price"); maxPrice != "" {
-		if price, err := strconv.ParseFloat(maxPrice, 64); err == nil {
-			filters["max_price"] = price
+		price, err := strconv.ParseFloat(maxPrice, 64)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "max_price must be a number"})
 		}
+		filters["max_price"] = price
 	}
 	if limit := c.Query("limit"); limit != "" {
 		if l, err := strconv.Atoi(limit); err == nil && l > 0 {
