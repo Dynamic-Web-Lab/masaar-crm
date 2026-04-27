@@ -1,7 +1,7 @@
 'use client'
 import { create } from 'zustand'
 import type { AuthUser } from '@/types'
-import { getUser, getToken, saveSession, clearSession, updateUser } from '@/lib/auth'
+import { getUser, getToken, saveSession, clearSession, updateUser, isLoggedIn } from '@/lib/auth'
 
 interface AuthState {
   user: AuthUser | null
@@ -17,7 +17,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   token: null,
 
   init: () => {
-    set({ user: getUser(), token: getToken() })
+    if (isLoggedIn()) {
+      set({ user: getUser(), token: getToken() })
+    } else {
+      clearSession()
+      set({ user: null, token: null })
+    }
   },
 
   setSession: (token, refreshToken, user) => {
