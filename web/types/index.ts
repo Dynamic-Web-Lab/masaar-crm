@@ -372,6 +372,53 @@ export interface BankIntegration {
   updated_by: string | null
 }
 
+// ─── Bank Statements & Payment Confirmations ───────────────────────────────
+
+export type FileFormat = 'csv' | 'pdf' | 'xlsx'
+export type ProcessingStatus = 'pending' | 'processing' | 'completed' | 'failed'
+export type DataClassification = 'public' | 'internal' | 'confidential'
+
+export interface BankStatement {
+  id: string
+  company_id: string
+  bank_integration_id: string
+  file_name: string
+  file_size_bytes: number
+  file_url: string
+  file_format: FileFormat
+  uploaded_by: string
+  upload_date: string
+  processing_status: ProcessingStatus
+  transactions_imported: number
+  import_error: string | null
+  data_classification: DataClassification
+  retention_until: string | null
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
+export type ConfirmationDeliveryStatus = 'pending' | 'sent' | 'failed' | 'bounced'
+export type ConfirmationDeliveryMethod = 'email' | 'whatsapp' | 'sms'
+
+export interface PaymentConfirmation {
+  id: string
+  company_id: string
+  payment_id: string
+  confirmation_number: string
+  tenant_email: string
+  tenant_phone: string | null
+  sent_at: string | null
+  delivery_status: ConfirmationDeliveryStatus
+  delivery_method: ConfirmationDeliveryMethod
+  pdf_url: string | null
+  data_classification: DataClassification
+  retention_until: string | null
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
 // ─── WebSocket Events ─────────────────────────────────────────────────────────
 
 export interface WSEvent {

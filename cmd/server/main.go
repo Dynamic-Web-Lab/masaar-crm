@@ -87,6 +87,16 @@ func main() {
 	leaseRepo := repo.NewLeaseRepo(pool)
 	paymentRepo := repo.NewPaymentRepo(pool)
 	bankIntegrationRepo := repo.NewBankIntegrationRepo(pool)
+	paymentReminderRepo := repo.NewPaymentReminderRepo(pool)
+	bankStatementRepo := repo.NewBankStatementRepo(pool)
+	paymentConfirmationRepo := repo.NewPaymentConfirmationRepo(pool)
+	expenseRepo := repo.NewExpenseRepository(pool)
+	inspectionTemplateRepo := repo.NewInspectionTemplateRepo(pool)
+	inspectionRepo := repo.NewInspectionRepo(pool)
+	maintenanceRepo := repo.NewMaintenanceTaskRepo(pool)
+	leaseRenewalRepo := repo.NewLeaseRenewalRepo(pool)
+	renewalTemplateRepo := repo.NewRenewalTemplateRepo(pool)
+	renewalCommLogRepo := repo.NewRenewalCommunicationLogRepo(pool)
 
 	// ── Email service (optional SMTP integration) ────────────────────────────
 	emailService := email.NewService(&email.Config{
@@ -134,6 +144,18 @@ func main() {
 		log.Println("BuyOrSell24 integration enabled")
 	}
 
+	// ── Payment Reminder Service ──────────────────────────────────────────────
+	paymentReminderService := ai.NewPaymentReminderService(
+		paymentRepo, paymentReminderRepo, leaseRepo, tenantRepo, contactRepo,
+		emailService, whatsappSender, hub,
+	)
+
+	// ── Payment Confirmation Service ───────────────────────────────────────────
+	paymentConfirmationService := ai.NewPaymentConfirmationService(
+		paymentRepo, paymentConfirmationRepo, leaseRepo, tenantRepo, rentalPropertyRepo,
+		companySettingsRepo, emailService,
+	)
+
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	handlers := &api.Handlers{
 		Auth:         handler.NewAuthHandler(userRepo, rdb, cfg),
@@ -157,6 +179,13 @@ func main() {
 		Lease:           handler.NewLeaseHandler(leaseRepo),
 		Payment:         handler.NewPaymentHandler(paymentRepo),
 		BankIntegration: handler.NewBankIntegrationHandler(bankIntegrationRepo),
+		BankStatement:     handler.NewBankStatementHandler(bankStatementRepo),
+		PaymentConfirmation: handler.NewPaymentConfirmationHandler(paymentConfirmationRepo, paymentConfirmationService),
+		Analytics:       handler.NewAnalyticsHandler(repo.NewAnalyticsRepository(pool)),
+		Expense:         handler.NewExpenseHandler(expenseRepo),
+		Inspection:      handler.NewInspectionHandler(inspectionTemplateRepo, inspectionRepo),
+		Maintenance:     handler.NewMaintenanceTaskHandler(maintenanceRepo),
+		LeaseRenewal:    handler.NewLeaseRenewalHandler(leaseRenewalRepo, renewalTemplateRepo, renewalCommLogRepo),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
@@ -185,6 +214,53 @@ func main() {
 	}))
 
 	api.RegisterRoutes(app, handlers, hub, cfg, rdb)
+
+	// ── Background Jobs ──────────────────────────────────────────────────────
+	companyRepo := repo.NewCompanyRepo(pool)
+
+	go func() {
+		ticker := time.NewTicker(12 * time.Hour)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+			log.Println("Running payment reminder generation job...")
+			companies, err := companyRepo.List(ctx)
+			if err != nil {
+				log.Printf("Error fetching companies: %v", err)
+				cancel()
+				continue
+			}
+			for _, company := range companies {
+				if err := paymentReminderService.GenerateReminders(ctx, company.ID); err != nil {
+					log.Printf("Error generating reminders for company %s: %v", company.ID, err)
+				}
+			}
+			cancel()
+		}
+	}()
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+			log.Println("Running payment reminder delivery job...")
+			companies, err := companyRepo.List(ctx)
+			if err != nil {
+				log.Printf("Error fetching companies: %v", err)
+				cancel()
+				continue
+			}
+			for _, company := range companies {
+				if err := paymentReminderService.SendPendingReminders(ctx, company.ID); err != nil {
+					log.Printf("Error sending reminders for company %s: %v", company.ID, err)
+				}
+			}
+			cancel()
+		}
+	}()
 
 	// ── Graceful shutdown ────────────────────────────────────────────────────
 	quit := make(chan os.Signal, 1)
