@@ -6,6 +6,7 @@ import (
 	jwtware "github.com/gofiber/contrib/jwt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/maidulcu/masaar-crm/internal/domain"
 	"github.com/redis/go-redis/v9"
 )
@@ -58,6 +59,26 @@ func BearerToken(c *fiber.Ctx) string {
 		return parts[1]
 	}
 	return ""
+}
+
+// ExtractClaims reads JWT claims and sets user_id (uuid.UUID), company_id (string),
+// and role (domain.Role) in Fiber locals so handlers can access them without
+// repeating assertion boilerplate.
+func ExtractClaims(companyID string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		claims := ClaimsFromCtx(c)
+		sub, _ := claims["sub"].(string)
+		userID, err := uuid.Parse(sub)
+		if err != nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid token subject"})
+		}
+		c.Locals("user_id", userID)
+		c.Locals("company_id", companyID)
+		if roleStr, ok := claims["role"].(string); ok {
+			c.Locals("role", domain.Role(roleStr))
+		}
+		return c.Next()
+	}
 }
 
 // CheckBlacklist verifies that the current access token has not been revoked.

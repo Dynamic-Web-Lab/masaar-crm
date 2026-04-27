@@ -5,7 +5,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/maidulcu/masaar-crm/internal/api/middleware"
 	"github.com/maidulcu/masaar-crm/internal/domain"
 	"github.com/maidulcu/masaar-crm/internal/repo"
 )
@@ -13,10 +12,11 @@ import (
 type DealHandler struct {
 	deals    *repo.DealRepo
 	invoices *repo.InvoiceRepo
+	audit    *repo.AuditLogRepo
 }
 
-func NewDealHandler(deals *repo.DealRepo, invoices *repo.InvoiceRepo) *DealHandler {
-	return &DealHandler{deals: deals, invoices: invoices}
+func NewDealHandler(deals *repo.DealRepo, invoices *repo.InvoiceRepo, audit *repo.AuditLogRepo) *DealHandler {
+	return &DealHandler{deals: deals, invoices: invoices, audit: audit}
 }
 
 // List godoc
@@ -101,14 +101,12 @@ func (h *DealHandler) Create(c *fiber.Ctx) error {
 		deal.Probability = 50
 	}
 
-	// Set owner from JWT
-	if sub, ok := middleware.ClaimsFromCtx(c)["sub"].(string); ok {
-		deal.OwnerID, _ = uuid.Parse(sub)
-	}
+	deal.OwnerID = c.Locals("user_id").(uuid.UUID)
 
 	if err := h.deals.Create(c.Context(), &deal); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
+	h.audit.Log(c.Context(), deal.OwnerID, repo.AuditCreate, repo.AuditDeal, deal.ID, deal)
 	return c.Status(fiber.StatusCreated).JSON(deal)
 }
 

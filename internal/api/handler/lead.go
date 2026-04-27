@@ -12,15 +12,16 @@ import (
 )
 
 type LeadHandler struct {
-	leads             *repo.LeadRepo
-	contacts          *repo.ContactRepo
-	commHistRepo      *repo.CommunicationHistoryRepo
-	scoringService    *ai.ScoringService
-	hub               *ws.Hub
+	leads          *repo.LeadRepo
+	contacts       *repo.ContactRepo
+	commHistRepo   *repo.CommunicationHistoryRepo
+	scoringService *ai.ScoringService
+	hub            *ws.Hub
+	audit          *repo.AuditLogRepo
 }
 
-func NewLeadHandler(leads *repo.LeadRepo, contacts *repo.ContactRepo, commHistRepo *repo.CommunicationHistoryRepo, scoringService *ai.ScoringService, hub *ws.Hub) *LeadHandler {
-	return &LeadHandler{leads: leads, contacts: contacts, commHistRepo: commHistRepo, scoringService: scoringService, hub: hub}
+func NewLeadHandler(leads *repo.LeadRepo, contacts *repo.ContactRepo, commHistRepo *repo.CommunicationHistoryRepo, scoringService *ai.ScoringService, hub *ws.Hub, audit *repo.AuditLogRepo) *LeadHandler {
+	return &LeadHandler{leads: leads, contacts: contacts, commHistRepo: commHistRepo, scoringService: scoringService, hub: hub, audit: audit}
 }
 
 // KanbanBoard godoc
@@ -74,6 +75,8 @@ func (h *LeadHandler) Create(c *fiber.Ctx) error {
 		Payload: lead,
 	})
 
+	actorID := c.Locals("user_id").(uuid.UUID)
+	h.audit.Log(c.Context(), actorID, repo.AuditCreate, repo.AuditLead, lead.ID, lead)
 	return c.Status(fiber.StatusCreated).JSON(lead)
 }
 

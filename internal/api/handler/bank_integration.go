@@ -94,7 +94,7 @@ func (h *BankIntegrationHandler) Create(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "bank_name, account_number, and integration_type are required"})
 	}
 
-	userID, _ := uuid.Parse(c.Locals("user_id").(string))
+	userID := c.Locals("user_id").(uuid.UUID)
 	bi.CreatedBy = &userID
 	bi.UpdatedBy = &userID
 
@@ -138,7 +138,7 @@ func (h *BankIntegrationHandler) Update(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	userID, _ := uuid.Parse(c.Locals("user_id").(string))
+	userID := c.Locals("user_id").(uuid.UUID)
 	bi.UpdatedBy = &userID
 
 	if err := h.integrations.Update(c.Context(), bi); err != nil {

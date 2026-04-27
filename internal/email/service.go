@@ -86,65 +86,104 @@ type InvoiceData struct {
 	IssuedDate  string
 	DueDate     string
 	ContactName string
+	// Lang controls the template language: "ar" renders Arabic RTL,
+	// anything else (or empty) renders English LTR.
+	Lang string
 }
 
+// isArabic is available inside the template for conditional rendering.
+func (d InvoiceData) IsArabic() bool { return d.Lang == "ar" }
+
 func (s *Service) RenderInvoiceTemplate(data InvoiceData) (string, error) {
-	tmpl := `
+	const tmpl = `
 <!DOCTYPE html>
-<html>
+<html lang="{{if .IsArabic}}ar{{else}}en{{end}}" dir="{{if .IsArabic}}rtl{{else}}ltr{{end}}">
 <head>
-    <style>
-        body { font-family: Arial, sans-serif; color: #333; }
-        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
-        .header { border-bottom: 2px solid #0066cc; padding-bottom: 20px; margin-bottom: 30px; }
-        .logo { font-size: 24px; font-weight: bold; color: #0066cc; }
-        .invoice-details { margin-bottom: 30px; }
-        .invoice-details p { margin: 5px 0; }
-        .items { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-        .items th { background-color: #f5f5f5; padding: 10px; text-align: left; font-weight: bold; border-bottom: 1px solid #ddd; }
-        .items td { padding: 10px; border-bottom: 1px solid #ddd; }
-        .total-row { font-weight: bold; background-color: #f9f9f9; }
-        .vat-row { font-weight: bold; color: #0066cc; }
-        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
-    </style>
+<meta charset="utf-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@400;600;700&display=swap');
+  body {
+    font-family: {{if .IsArabic}}'Cairo', Arial{{else}}'Inter', Arial{{end}}, sans-serif;
+    color: #333; margin: 0; padding: 0; background: #f9f9f9;
+  }
+  .container { max-width: 680px; margin: 32px auto; background: #fff; border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 40px; }
+  .header { display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 2px solid #0066cc; padding-bottom: 20px; margin-bottom: 28px; }
+  .logo { font-size: 22px; font-weight: 700; color: #0066cc; }
+  .invoice-tag { font-size: 13px; color: #888; }
+  .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; margin-bottom: 28px; font-size: 14px; }
+  .meta-label { color: #888; }
+  .meta-value { font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 14px; }
+  th { background: #f5f7fa; padding: 10px 14px; font-weight: 600;
+    text-align: {{if .IsArabic}}right{{else}}left{{end}}; border-bottom: 1px solid #e0e0e0; }
+  td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0;
+    text-align: {{if .IsArabic}}right{{else}}left{{end}}; }
+  .amount { text-align: {{if .IsArabic}}left{{else}}right{{end}} !important; }
+  .row-vat td { color: #0066cc; font-weight: 600; }
+  .row-total td { background: #f5f7fa; font-weight: 700; font-size: 15px; }
+  .footer { margin-top: 36px; padding-top: 20px; border-top: 1px solid #eee;
+    font-size: 12px; color: #999; text-align: center; }
+</style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="logo">Masaar CRM</div>
-        </div>
+<div class="container">
 
-        <div class="invoice-details">
-            <p><strong>Invoice #:</strong> {{.InvoiceNo}}</p>
-            <p><strong>Date:</strong> {{.IssuedDate}}</p>
-            <p><strong>Due Date:</strong> {{.DueDate}}</p>
-            <p><strong>Client:</strong> {{.ContactName}}</p>
-        </div>
+  <div class="header">
+    <div class="logo">{{if .IsArabic}}مسار CRM{{else}}Masaar CRM{{end}}</div>
+    <div class="invoice-tag">{{if .IsArabic}}فاتورة ضريبية{{else}}TAX INVOICE{{end}}</div>
+  </div>
 
-        <table class="items">
-            <tr>
-                <th>Description</th>
-                <th style="text-align: right;">Amount</th>
-            </tr>
-            <tr>
-                <td>{{.DealTitle}}</td>
-                <td style="text-align: right;">AED {{printf "%.2f" .Amount}}</td>
-            </tr>
-            <tr class="vat-row">
-                <td>VAT (5%)</td>
-                <td style="text-align: right;">AED {{printf "%.2f" .VATAmount}}</td>
-            </tr>
-            <tr class="total-row">
-                <td>Total</td>
-                <td style="text-align: right;">AED {{printf "%.2f" .Total}}</td>
-            </tr>
-        </table>
+  <div class="meta">
+    <span class="meta-label">{{if .IsArabic}}رقم الفاتورة{{else}}Invoice No.{{end}}</span>
+    <span class="meta-value">{{.InvoiceNo}}</span>
 
-        <div class="footer">
-            <p>Thank you for your business. Please retain this invoice for your records.</p>
-            <p>&copy; {{.IssuedDate}} Masaar CRM. All rights reserved.</p>
-        </div>
-    </div>
+    <span class="meta-label">{{if .IsArabic}}العميل{{else}}Client{{end}}</span>
+    <span class="meta-value">{{.ContactName}}</span>
+
+    <span class="meta-label">{{if .IsArabic}}تاريخ الإصدار{{else}}Date{{end}}</span>
+    <span class="meta-value">{{.IssuedDate}}</span>
+
+    <span class="meta-label">{{if .IsArabic}}تاريخ الاستحقاق{{else}}Due Date{{end}}</span>
+    <span class="meta-value">{{.DueDate}}</span>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>{{if .IsArabic}}الوصف{{else}}Description{{end}}</th>
+        <th class="amount">{{if .IsArabic}}المبلغ (درهم){{else}}Amount (AED){{end}}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>{{.DealTitle}}</td>
+        <td class="amount">{{printf "%.2f" .Amount}}</td>
+      </tr>
+      <tr class="row-vat">
+        <td>{{if .IsArabic}}ضريبة القيمة المضافة (5٪){{else}}VAT (5%){{end}}</td>
+        <td class="amount">{{printf "%.2f" .VATAmount}}</td>
+      </tr>
+      <tr class="row-total">
+        <td>{{if .IsArabic}}الإجمالي{{else}}Total{{end}}</td>
+        <td class="amount">{{printf "%.2f" .Total}}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="footer">
+    {{if .IsArabic}}
+      <p>شكراً لتعاملكم معنا. يُرجى الاحتفاظ بهذه الفاتورة لسجلاتكم.</p>
+      <p>هذه الفاتورة صادرة وفق أنظمة ضريبة القيمة المضافة الإماراتية.</p>
+    {{else}}
+      <p>Thank you for your business. Please retain this invoice for your records.</p>
+      <p>This invoice is issued in compliance with UAE VAT regulations.</p>
+    {{end}}
+    <p>&copy; {{.IssuedDate}} Masaar CRM</p>
+  </div>
+
+</div>
 </body>
 </html>
 `
@@ -155,10 +194,8 @@ func (s *Service) RenderInvoiceTemplate(data InvoiceData) (string, error) {
 	}
 
 	var buf bytes.Buffer
-	err = t.Execute(&buf, data)
-	if err != nil {
+	if err = t.Execute(&buf, data); err != nil {
 		return "", err
 	}
-
 	return buf.String(), nil
 }

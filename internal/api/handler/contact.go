@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"regexp"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -9,12 +10,16 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/repo"
 )
 
+// e164Re validates E.164 phone format: +[country code][number], 7-15 digits total.
+var e164Re = regexp.MustCompile(`^\+[1-9]\d{6,14}$`)
+
 type ContactHandler struct {
 	contacts *repo.ContactRepo
+	audit    *repo.AuditLogRepo
 }
 
-func NewContactHandler(contacts *repo.ContactRepo) *ContactHandler {
-	return &ContactHandler{contacts: contacts}
+func NewContactHandler(contacts *repo.ContactRepo, audit *repo.AuditLogRepo) *ContactHandler {
+	return &ContactHandler{contacts: contacts, audit: audit}
 }
 
 // List godoc
@@ -89,13 +94,18 @@ func (h *ContactHandler) Create(c *fiber.Ctx) error {
 	if contact.PhoneWA == "" || contact.FullName == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "phone_wa and full_name are required"})
 	}
+	if !e164Re.MatchString(contact.PhoneWA) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "phone_wa must be in E.164 format (e.g. +971501234567)"})
+	}
 	if contact.Language == "" {
-		contact.Language = "en"
+		contact.Language = "ar"
 	}
 
 	if err := h.contacts.Create(c.Context(), &contact); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
+	actorID := c.Locals("user_id").(uuid.UUID)
+	h.audit.Log(c.Context(), actorID, repo.AuditCreate, repo.AuditContact, contact.ID, contact)
 	return c.Status(fiber.StatusCreated).JSON(contact)
 }
 
@@ -147,6 +157,8 @@ func (h *ContactHandler) Update(c *fiber.Ctx) error {
 	if err := h.contacts.Update(c.Context(), existing); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
+	actorID := c.Locals("user_id").(uuid.UUID)
+	h.audit.Log(c.Context(), actorID, repo.AuditUpdate, repo.AuditContact, existing.ID, existing)
 	return c.JSON(existing)
 }
 
@@ -167,5 +179,7 @@ func (h *ContactHandler) Delete(c *fiber.Ctx) error {
 	if err := h.contacts.Delete(c.Context(), id); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
+	actorID := c.Locals("user_id").(uuid.UUID)
+	h.audit.Log(c.Context(), actorID, repo.AuditDelete, repo.AuditContact, id, nil)
 	return c.SendStatus(fiber.StatusNoContent)
 }

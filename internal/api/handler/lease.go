@@ -94,7 +94,7 @@ func (h *LeaseHandler) Create(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "property_id, tenant_id, monthly_rent > 0, and payment_frequency are required"})
 	}
 
-	userID, _ := uuid.Parse(c.Locals("user_id").(string))
+	userID := c.Locals("user_id").(uuid.UUID)
 	l.CreatedBy = &userID
 	l.UpdatedBy = &userID
 
@@ -138,7 +138,7 @@ func (h *LeaseHandler) Update(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	userID, _ := uuid.Parse(c.Locals("user_id").(string))
+	userID := c.Locals("user_id").(uuid.UUID)
 	l.UpdatedBy = &userID
 
 	if err := h.leases.Update(c.Context(), l); err != nil {
