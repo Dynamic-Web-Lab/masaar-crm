@@ -38,6 +38,13 @@ type Handlers struct {
 	Lease             *handler.LeaseHandler
 	Payment           *handler.PaymentHandler
 	BankIntegration   *handler.BankIntegrationHandler
+	BankStatement     *handler.BankStatementHandler
+	PaymentConfirmation *handler.PaymentConfirmationHandler
+	Analytics         *handler.AnalyticsHandler
+	Expense           *handler.ExpenseHandler
+	Inspection        *handler.InspectionHandler
+	Maintenance       *handler.MaintenanceTaskHandler
+	LeaseRenewal      *handler.LeaseRenewalHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -59,6 +66,15 @@ var loginLimiter = limiter.New(limiter.Config{
 	},
 })
 
+// apiLimiter caps general authenticated API usage to 100 requests/min per IP.
+var apiLimiter = limiter.New(limiter.Config{
+	Max:        100,
+	Expiration: 1 * time.Minute,
+	LimitReached: func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "rate limit exceeded"})
+	},
+})
+
 func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config, rdb *redis.Client) {
 	// ── Public routes ────────────────────────────────────────────────────────
 	app.Post("/api/v1/auth/login", loginLimiter, h.Auth.Login)
@@ -77,10 +93,20 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	})
 
 	// Personal notifications
-	app.Get("/ws/notifications", middleware.JWT(cfg.JWTSecret), middleware.CheckBlacklist(rdb), fiberws.New(hub.Handler()))
+	app.Get("/ws/notifications",
+		middleware.JWT(cfg.JWTSecret),
+		middleware.CheckBlacklist(rdb),
+		middleware.ExtractClaims(cfg.CompanyID),
+		fiberws.New(hub.Handler()),
+	)
 
 	// ── Authenticated API ────────────────────────────────────────────────────
-	v1 := app.Group("/api/v1", middleware.JWT(cfg.JWTSecret), middleware.CheckBlacklist(rdb))
+	v1 := app.Group("/api/v1",
+		apiLimiter,
+		middleware.JWT(cfg.JWTSecret),
+		middleware.CheckBlacklist(rdb),
+		middleware.ExtractClaims(cfg.CompanyID),
+	)
 
 	v1.Delete("/auth/logout", h.Auth.Logout)
 
@@ -362,6 +388,153 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Delete("/bank-integrations/:id",
 		middleware.RequireRole(domain.RoleAdmin),
 		h.BankIntegration.Delete,
+	)
+
+	// Bank Statements — agents: upload+view; admin: all
+	v1.Get("/bank-statements",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.BankStatement.List,
+	)
+	v1.Get("/bank-statements/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.BankStatement.Get,
+	)
+	v1.Post("/bank-statements/upload",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.BankStatement.Upload,
+	)
+	v1.Delete("/bank-statements/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.BankStatement.Delete,
+	)
+
+	// Payment Confirmations — agents: view+send; admin: all
+	v1.Get("/payments/:payment_id/confirmation",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.PaymentConfirmation.GetByPayment,
+	)
+	v1.Post("/payments/:payment_id/send-confirmation",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.PaymentConfirmation.Send,
+	)
+
+	// Analytics — read-only; all authenticated users
+	v1.Get("/analytics/tenant-overview", h.Analytics.GetTenantOverview)
+	v1.Get("/analytics/properties", h.Analytics.ListPropertiesAnalytics)
+	v1.Get("/analytics/properties/:propertyID", h.Analytics.GetPropertyAnalytics)
+	v1.Get("/analytics/tenants", h.Analytics.ListTenantsPerformance)
+	v1.Get("/analytics/tenants/:tenantID", h.Analytics.GetTenantPerformance)
+	v1.Get("/analytics/financial", h.Analytics.GetFinancialAnalytics)
+	v1.Get("/analytics/maintenance", h.Analytics.GetMaintenanceAnalytics)
+
+	// Expenses — agents: create+view+update; admin: all
+	v1.Get("/expense-categories",
+		h.Expense.ListCategories,
+	)
+	v1.Post("/expense-categories",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Expense.CreateCategory,
+	)
+	v1.Get("/expenses", h.Expense.ListExpenses)
+	v1.Get("/expenses/:id", h.Expense.GetExpense)
+	v1.Post("/expenses",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Expense.CreateExpense,
+	)
+	v1.Patch("/expenses/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Expense.UpdateExpense,
+	)
+	v1.Delete("/expenses/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Expense.DeleteExpense,
+	)
+	v1.Post("/expenses/:id/approve",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Expense.ApproveExpense,
+	)
+
+	// Inspection Templates — admin: create/update; all: list
+	v1.Get("/inspection-templates", h.Inspection.ListTemplates)
+	v1.Post("/inspection-templates",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Inspection.CreateTemplate,
+	)
+
+	// Inspections — agents: create+view+update; admin: all
+	v1.Get("/inspections", h.Inspection.ListInspections)
+	v1.Get("/inspections/:id", h.Inspection.GetInspection)
+	v1.Post("/inspections",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Inspection.CreateInspection,
+	)
+	v1.Patch("/inspections/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Inspection.UpdateInspection,
+	)
+	v1.Post("/inspections/:id/complete",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Inspection.CompleteInspection,
+	)
+
+	// Maintenance Tasks — agents: create+view+update; admin: all
+	v1.Get("/maintenance-tasks", h.Maintenance.List)
+	v1.Get("/maintenance-tasks/:id", h.Maintenance.Get)
+	v1.Post("/maintenance-tasks",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Maintenance.Create,
+	)
+	v1.Patch("/maintenance-tasks/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Maintenance.Update,
+	)
+	v1.Post("/maintenance-tasks/:id/complete",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Maintenance.Complete,
+	)
+	v1.Post("/maintenance-tasks/:id/photos",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Maintenance.AddPhoto,
+	)
+	v1.Get("/maintenance-tasks/:id/photos", h.Maintenance.GetPhotos)
+	v1.Delete("/maintenance-tasks/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Maintenance.Delete,
+	)
+
+	// Lease Renewals
+	v1.Get("/lease-renewals", h.LeaseRenewal.List)
+	v1.Get("/lease-renewals/:id", h.LeaseRenewal.Get)
+	v1.Post("/lease-renewals/:lease_id/initiate",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.LeaseRenewal.Initiate,
+	)
+	v1.Put("/lease-renewals/:id/propose",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.LeaseRenewal.Propose,
+	)
+	v1.Post("/lease-renewals/:id/send-offer",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.LeaseRenewal.SendOffer,
+	)
+	v1.Put("/lease-renewals/:id/accept",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.LeaseRenewal.Accept,
+	)
+	v1.Put("/lease-renewals/:id/reject",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.LeaseRenewal.Reject,
+	)
+	v1.Post("/lease-renewals/:id/counter-offer",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.LeaseRenewal.CounterOffer,
+	)
+
+	// Renewal Templates
+	v1.Get("/renewal-templates", h.LeaseRenewal.ListTemplates)
+	v1.Post("/renewal-templates",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.LeaseRenewal.CreateTemplate,
 	)
 
 	// Health

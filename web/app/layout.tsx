@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { LangProvider } from '@/context/LangContext'
 import { ToastProvider } from '@/components/ui/Toast'
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary'
 
 export const metadata: Metadata = {
   title: 'Masaar CRM',
@@ -10,7 +11,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" dir="ltr">
+    // suppressHydrationWarning because LangContext updates dir/lang client-side
+    // based on localStorage; the default matches the UAE-first Arabic default.
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -20,11 +23,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="bg-gray-50 text-gray-900 antialiased">
-        <LangProvider>
-          <ToastProvider>
-            {children}
-          </ToastProvider>
-        </LangProvider>
+        <ErrorBoundary>
+          <LangProvider>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </LangProvider>
+        </ErrorBoundary>
       </body>
     </html>
   )

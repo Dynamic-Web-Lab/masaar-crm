@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: masaar
+  labels:
+    name: masaar
+    app: masaar-crm

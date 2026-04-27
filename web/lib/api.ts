@@ -298,4 +298,144 @@ export const api = {
     delete: (id: string) =>
       request(`/api/v1/bank-integrations/${id}`, { method: 'DELETE' }),
   },
+
+  // ─── Bank Statements ──────────────────────────────────────────────────────
+
+  bankStatements: {
+    list: (params: { page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/bank-statements?${q}`)
+    },
+    get: (id: string) => request(`/api/v1/bank-statements/${id}`),
+    upload: (file: File, bankIntegrationId: string) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('bank_integration_id', bankIntegrationId)
+      const token = getToken()
+      return fetch(`${BASE}/api/v1/bank-statements/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      }).then(async (res) => {
+        if (!res.ok) throw new Error((await res.json()).error || 'Upload failed')
+        return res.json()
+      })
+    },
+    delete: (id: string) =>
+      request(`/api/v1/bank-statements/${id}`, { method: 'DELETE' }),
+  },
+
+  // ─── Payment Confirmations ────────────────────────────────────────────────
+
+  paymentConfirmations: {
+    getByPayment: (paymentId: string) =>
+      request(`/api/v1/payments/${paymentId}/confirmation`),
+    send: (paymentId: string) =>
+      request(`/api/v1/payments/${paymentId}/send-confirmation`, { method: 'POST' }),
+  },
+
+  // ─── Analytics ────────────────────────────────────────────────────────────
+
+  analytics: {
+    getTenantOverview: () =>
+      request('/api/v1/analytics/tenant-overview'),
+    listProperties: (params: { limit?: number; offset?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.limit) q.set('limit', String(params.limit))
+      if (params.offset) q.set('offset', String(params.offset))
+      return request(`/api/v1/analytics/properties?${q}`)
+    },
+    getProperty: (propertyId: string) =>
+      request(`/api/v1/analytics/properties/${propertyId}`),
+    listTenants: (params: { limit?: number; offset?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.limit) q.set('limit', String(params.limit))
+      if (params.offset) q.set('offset', String(params.offset))
+      return request(`/api/v1/analytics/tenants?${q}`)
+    },
+    getTenant: (tenantId: string) =>
+      request(`/api/v1/analytics/tenants/${tenantId}`),
+    getFinancial: (startDate?: string, endDate?: string) => {
+      const q = new URLSearchParams()
+      if (startDate) q.set('startDate', startDate)
+      if (endDate) q.set('endDate', endDate)
+      return request(`/api/v1/analytics/financial?${q}`)
+    },
+    getMaintenance: () =>
+      request('/api/v1/analytics/maintenance'),
+  },
+
+  // ─── Inspections ───────────────────────────────────────────────────────────
+
+  inspection: {
+    list: (limit?: number, offset?: number) => {
+      const q = new URLSearchParams()
+      if (limit) q.set('limit', String(limit))
+      if (offset) q.set('offset', String(offset))
+      return request(`/api/v1/inspections?${q}`)
+    },
+    get: (id: string) =>
+      request(`/api/v1/inspections/${id}`),
+    create: (data: any) =>
+      request('/api/v1/inspections', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: any) =>
+      request(`/api/v1/inspections/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    complete: (id: string) =>
+      request(`/api/v1/inspections/${id}/complete`, { method: 'POST' }),
+    listTemplates: () =>
+      request('/api/v1/inspection-templates'),
+    createTemplate: (data: any) =>
+      request('/api/v1/inspection-templates', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
+
+  // ─── Maintenance Tasks ───────────────────────────────────────────────────────
+
+  maintenance: {
+    list: (limit?: number, offset?: number, status?: string) => {
+      const q = new URLSearchParams()
+      if (limit) q.set('limit', String(limit))
+      if (offset) q.set('offset', String(offset))
+      if (status) q.set('status', status)
+      return request(`/api/v1/maintenance-tasks?${q}`)
+    },
+    get: (id: string) =>
+      request(`/api/v1/maintenance-tasks/${id}`),
+    create: (data: any) =>
+      request('/api/v1/maintenance-tasks', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: any) =>
+      request(`/api/v1/maintenance-tasks/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    complete: (id: string, data?: any) =>
+      request(`/api/v1/maintenance-tasks/${id}/complete`, {
+        method: 'POST',
+        body: data ? JSON.stringify(data) : undefined,
+      }),
+    addPhoto: (id: string, photoUrl: string, stage: string) =>
+      request(`/api/v1/maintenance-tasks/${id}/photos`, {
+        method: 'POST',
+        body: JSON.stringify({ photo_url: photoUrl, photo_stage: stage }),
+      }),
+    getPhotos: (id: string) =>
+      request(`/api/v1/maintenance-tasks/${id}/photos`),
+    delete: (id: string) =>
+      request(`/api/v1/maintenance-tasks/${id}`, { method: 'DELETE' }),
+  },
 }
+
+export default api

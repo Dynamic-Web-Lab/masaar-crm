@@ -6,6 +6,15 @@ import (
 	"github.com/google/uuid"
 )
 
+// ─── Audit Log ───────────────────────────────────────────────────────────────
+
+const (
+	AuditEntityContact = "contact"
+	AuditEntityLead    = "lead"
+	AuditEntityDeal    = "deal"
+	AuditEntityInvoice = "invoice"
+)
+
 // ─── User ────────────────────────────────────────────────────────────────────
 
 type Role string
@@ -663,4 +672,639 @@ type BankIntegration struct {
 	UpdatedAt            time.Time `json:"updated_at"`
 	CreatedBy            *uuid.UUID `json:"created_by"`
 	UpdatedBy            *uuid.UUID `json:"updated_by"`
+}
+
+// ─── Payment Reminders ────────────────────────────────────────────────────────
+
+type ReminderType string
+
+const (
+	Reminder30Days  ReminderType = "30_days"
+	Reminder15Days  ReminderType = "15_days"
+	Reminder7Days   ReminderType = "7_days"
+	Reminder1DayLate ReminderType = "1_day_late"
+	Reminder5DaysLate ReminderType = "5_days_late"
+	Reminder10DaysLate ReminderType = "10_days_late"
+)
+
+type DeliveryMethod string
+
+const (
+	DeliveryWhatsApp DeliveryMethod = "whatsapp"
+	DeliveryEmail    DeliveryMethod = "email"
+	DeliverySMS      DeliveryMethod = "sms"
+)
+
+type DeliveryStatus string
+
+const (
+	DeliveryPending DeliveryStatus = "pending"
+	DeliverySent    DeliveryStatus = "sent"
+	DeliveryFailed  DeliveryStatus = "failed"
+)
+
+type PaymentReminder struct {
+	ID             uuid.UUID      `json:"id"`
+	CompanyID      uuid.UUID      `json:"company_id"`
+	PaymentID      uuid.UUID      `json:"payment_id"`
+	ReminderType   ReminderType   `json:"reminder_type"`
+	ReminderDate   time.Time      `json:"reminder_date"`
+	SentAt         *time.Time     `json:"sent_at"`
+	DeliveryMethod DeliveryMethod `json:"delivery_method"`
+	DeliveryStatus DeliveryStatus `json:"delivery_status"`
+	DeliveryError  string         `json:"delivery_error"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+}
+
+// ─── Bank Statements & Payment Confirmations ───────────────────────────────
+
+type FileFormat string
+
+const (
+	FormatCSV  FileFormat = "csv"
+	FormatPDF  FileFormat = "pdf"
+	FormatXLSX FileFormat = "xlsx"
+)
+
+type ProcessingStatus string
+
+const (
+	StatusPending    ProcessingStatus = "pending"
+	StatusProcessing ProcessingStatus = "processing"
+	StatusCompleted  ProcessingStatus = "completed"
+	StatusFailed     ProcessingStatus = "failed"
+)
+
+type DataClassification string
+
+const (
+	ClassPublic      DataClassification = "public"
+	ClassInternal    DataClassification = "internal"
+	ClassConfidential DataClassification = "confidential"
+)
+
+type BankStatement struct {
+	ID                  uuid.UUID          `json:"id"`
+	CompanyID           uuid.UUID          `json:"company_id"`
+	BankIntegrationID   uuid.UUID          `json:"bank_integration_id"`
+	FileName            string             `json:"file_name"`
+	FileSizeBytes       int                `json:"file_size_bytes"`
+	FileURL             string             `json:"file_url"`
+	FileFormat          FileFormat         `json:"file_format"`
+	UploadedBy          uuid.UUID          `json:"uploaded_by"`
+	UploadDate          time.Time          `json:"upload_date"`
+	ProcessingStatus    ProcessingStatus   `json:"processing_status"`
+	TransactionsImported int               `json:"transactions_imported"`
+	ImportError         string             `json:"import_error"`
+	DataClassification  DataClassification `json:"data_classification"`
+	RetentionUntil      *time.Time         `json:"retention_until"`
+	CreatedAt           time.Time          `json:"created_at"`
+	UpdatedAt           time.Time          `json:"updated_at"`
+	DeletedAt           *time.Time         `json:"deleted_at"`
+}
+
+type ConfirmationDeliveryStatus string
+
+const (
+	ConfPending  ConfirmationDeliveryStatus = "pending"
+	ConfSent     ConfirmationDeliveryStatus = "sent"
+	ConfFailed   ConfirmationDeliveryStatus = "failed"
+	ConfBounced  ConfirmationDeliveryStatus = "bounced"
+)
+
+type ConfirmationDeliveryMethod string
+
+const (
+	ConfDeliveryEmail    ConfirmationDeliveryMethod = "email"
+	ConfDeliveryWhatsApp ConfirmationDeliveryMethod = "whatsapp"
+	ConfDeliverySMS      ConfirmationDeliveryMethod = "sms"
+)
+
+type PaymentConfirmation struct {
+	ID                 uuid.UUID                      `json:"id"`
+	CompanyID          uuid.UUID                      `json:"company_id"`
+	PaymentID          uuid.UUID                      `json:"payment_id"`
+	ConfirmationNumber string                         `json:"confirmation_number"`
+	TenantEmail        string                         `json:"tenant_email"`
+	TenantPhone        *string                        `json:"tenant_phone"`
+	SentAt             *time.Time                     `json:"sent_at"`
+	DeliveryStatus     ConfirmationDeliveryStatus     `json:"delivery_status"`
+	DeliveryMethod     ConfirmationDeliveryMethod     `json:"delivery_method"`
+	PDFURL             *string                        `json:"pdf_url"`
+	DataClassification DataClassification            `json:"data_classification"`
+	RetentionUntil     *time.Time                     `json:"retention_until"`
+	CreatedAt          time.Time                      `json:"created_at"`
+	UpdatedAt          time.Time                      `json:"updated_at"`
+	DeletedAt          *time.Time                     `json:"deleted_at"`
+}
+
+// ─── Analytics ────────────────────────────────────────────────────────────────
+
+type TenantAnalytics struct {
+	TotalTenants        int     `json:"total_tenants"`
+	ActiveTenants       int     `json:"active_tenants"`
+	InactiveTenants     int     `json:"inactive_tenants"`
+	VacantUnits         int     `json:"vacant_units"`
+	OccupiedUnits       int     `json:"occupied_units"`
+	OccupancyRate       float64 `json:"occupancy_rate"`
+	AverageRentPerUnit  float64 `json:"average_rent_per_unit"`
+	TotalMonthlyRevenue float64 `json:"total_monthly_revenue"`
+	CollectionRate      float64 `json:"collection_rate"`
+	OverduePayments     int     `json:"overdue_payments"`
+	OverdueDuesAmount   float64 `json:"overdue_dues_amount"`
+	UpcomingRenewals    int     `json:"upcoming_renewals"`
+	TenantChurnRate     float64 `json:"tenant_churn_rate"`
+}
+
+type PropertyAnalytics struct {
+	PropertyID          uuid.UUID `json:"property_id"`
+	PropertyName        string    `json:"property_name"`
+	PropertyType        string    `json:"property_type"`
+	Area                string    `json:"area"`
+	TotalUnits          int       `json:"total_units"`
+	OccupiedUnits       int       `json:"occupied_units"`
+	VacantUnits         int       `json:"vacant_units"`
+	OccupancyRate       float64   `json:"occupancy_rate"`
+	MonthlyRevenue      float64   `json:"monthly_revenue"`
+	OperatingExpenses   float64   `json:"operating_expenses"`
+	NetOperatingIncome  float64   `json:"net_operating_income"`
+	MaintenanceNeeded   int       `json:"maintenance_needed"`
+	ActiveLeases        int       `json:"active_leases"`
+	ExpiringLeases      int       `json:"expiring_leases"`
+}
+
+type TenantPerformanceMetrics struct {
+	TenantID        uuid.UUID `json:"tenant_id"`
+	TenantName      string    `json:"tenant_name"`
+	RentalHistory   int       `json:"rental_history"`
+	AverageStay     float64   `json:"average_stay"`
+	PaymentOnTimeRate float64 `json:"payment_on_time_rate"`
+	DisputeCount    int       `json:"dispute_count"`
+	RiskScore       int       `json:"risk_score"`
+	Status          string    `json:"status"`
+}
+
+type FinancialAnalytics struct {
+	Period              string  `json:"period"`
+	TotalRevenue        float64 `json:"total_revenue"`
+	TotalExpenses       float64 `json:"total_expenses"`
+	NetProfit           float64 `json:"net_profit"`
+	ProfitMargin        float64 `json:"profit_margin"`
+	RentCollected       float64 `json:"rent_collected"`
+	RentPending         float64 `json:"rent_pending"`
+	UtilitiesExpense    float64 `json:"utilities_expense"`
+	MaintenanceExpense  float64 `json:"maintenance_expense"`
+	OtherExpenses       float64 `json:"other_expenses"`
+}
+
+type MaintenanceAnalytics struct {
+	TotalTasks          int     `json:"total_tasks"`
+	CompletedTasks      int     `json:"completed_tasks"`
+	PendingTasks        int     `json:"pending_tasks"`
+	AvgCompletionDays   float64 `json:"avg_completion_days"`
+	HighPriorityTasks   int     `json:"high_priority_tasks"`
+	CompletionRate      float64 `json:"completion_rate"`
+}
+
+// ─── Expenses ──────────────────────────────────────────────────────────────
+
+type ExpenseCategoryType string
+
+const (
+	ExpenseCategoryMaintenance ExpenseCategoryType = "property_maintenance"
+	ExpenseCategoryUtilities   ExpenseCategoryType = "utilities"
+	ExpenseCategoryInsurance   ExpenseCategoryType = "insurance"
+	ExpenseCategoryCleaning    ExpenseCategoryType = "cleaning"
+	ExpenseCategoryRepairs     ExpenseCategoryType = "repairs"
+	ExpenseCategoryStaff       ExpenseCategoryType = "staff"
+	ExpenseCategoryOther       ExpenseCategoryType = "other"
+)
+
+type ExpensePaymentMethod string
+
+const (
+	ExpensePaymentCash         ExpensePaymentMethod = "cash"
+	ExpensePaymentTransfer     ExpensePaymentMethod = "bank_transfer"
+	ExpensePaymentCard         ExpensePaymentMethod = "credit_card"
+	ExpensePaymentCheck        ExpensePaymentMethod = "check"
+	ExpensePaymentOther        ExpensePaymentMethod = "other"
+)
+
+type ExpensePaymentStatus string
+
+const (
+	ExpensePaymentPending  ExpensePaymentStatus = "pending"
+	ExpensePaymentPaid     ExpensePaymentStatus = "paid"
+	ExpensePaymentRefunded ExpensePaymentStatus = "refunded"
+)
+
+type ExpenseApprovalStatus string
+
+const (
+	ExpenseApprovalPending  ExpenseApprovalStatus = "pending"
+	ExpenseApprovalApproved ExpenseApprovalStatus = "approved"
+	ExpenseApprovalRejected ExpenseApprovalStatus = "rejected"
+)
+
+type ExpenseCategory struct {
+	ID           uuid.UUID                `json:"id"`
+	CompanyID    uuid.UUID                `json:"company_id"`
+	CategoryName string                   `json:"category_name"`
+	CategoryType ExpenseCategoryType      `json:"category_type"`
+	Description  string                   `json:"description"`
+	CreatedAt    time.Time                `json:"created_at"`
+}
+
+type Expense struct {
+	ID             uuid.UUID              `json:"id"`
+	CompanyID      uuid.UUID              `json:"company_id"`
+	CategoryID     uuid.UUID              `json:"category_id"`
+	PropertyID     *uuid.UUID             `json:"property_id,omitempty"`
+	TenantID       *uuid.UUID             `json:"tenant_id,omitempty"`
+	Amount         float64                `json:"amount"`
+	Currency       string                 `json:"currency"`
+	ExpenseDate    time.Time              `json:"expense_date"`
+	Description    string                 `json:"description"`
+	VendorName     string                 `json:"vendor_name"`
+	VendorContact  string                 `json:"vendor_contact"`
+	PaymentMethod  ExpensePaymentMethod   `json:"payment_method"`
+	PaymentStatus  ExpensePaymentStatus   `json:"payment_status"`
+	ReceiptURL     string                 `json:"receipt_url"`
+	Notes          string                 `json:"notes"`
+	CreatedBy      uuid.UUID              `json:"created_by"`
+	CreatedAt      time.Time              `json:"created_at"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+	DeletedAt      *time.Time             `json:"deleted_at,omitempty"`
+
+	// Joined
+	Category *ExpenseCategory `json:"category,omitempty"`
+}
+
+type ExpenseApproval struct {
+	ID                 uuid.UUID             `json:"id"`
+	ExpenseID          uuid.UUID             `json:"expense_id"`
+	ApprovalStatus     ExpenseApprovalStatus `json:"approval_status"`
+	ApprovedBy         *uuid.UUID            `json:"approved_by,omitempty"`
+	ApprovalComments   string                `json:"approval_comments"`
+	ApprovalDate       *time.Time            `json:"approval_date,omitempty"`
+	CreatedAt          time.Time             `json:"created_at"`
+}
+
+// ─── Inspection & Maintenance ────────────────────────────────────────────────
+
+type InspectionType string
+
+const (
+	InspectionGeneral         InspectionType = "general"
+	InspectionPreLease        InspectionType = "pre_lease"
+	InspectionEndLease        InspectionType = "end_lease"
+	InspectionDamageAssessment InspectionType = "damage_assessment"
+	InspectionSafety         InspectionType = "safety"
+)
+
+type InspectionStatus string
+
+const (
+	InspectionScheduled InspectionStatus = "scheduled"
+	InspectionInProgress InspectionStatus = "in_progress"
+	InspectionCompleted InspectionStatus = "completed"
+	InspectionCancelled InspectionStatus = "cancelled"
+)
+
+type SeverityLevel string
+
+const (
+	SeverityGreen  SeverityLevel = "green"
+	SeverityYellow SeverityLevel = "yellow"
+	SeverityRed    SeverityLevel = "red"
+)
+
+type ChecklistItem struct {
+	ID          string `json:"id"`
+	Description string `json:"description"`
+	Critical    bool   `json:"critical"`
+}
+
+type ChecklistResult struct {
+	Status string `json:"status"` // pass/fail
+	Notes  string `json:"notes,omitempty"`
+}
+
+type InspectionTemplate struct {
+	ID                       uuid.UUID        `json:"id"`
+	CompanyID                uuid.UUID        `json:"company_id"`
+	TemplateName             string           `json:"template_name"`
+	InspectionType           InspectionType   `json:"inspection_type"`
+	ChecklistItems           []ChecklistItem  `json:"checklist_items,omitempty"`
+	EstimatedDurationMinutes int              `json:"estimated_duration_minutes"`
+	CreatedAt                time.Time        `json:"created_at"`
+}
+
+type Inspection struct {
+	ID               uuid.UUID                      `json:"id"`
+	CompanyID        uuid.UUID                      `json:"company_id"`
+	PropertyID       uuid.UUID                      `json:"property_id"`
+	TemplateID       *uuid.UUID                     `json:"template_id,omitempty"`
+	InspectionType   string                         `json:"inspection_type"`
+	ScheduledDate    time.Time                      `json:"scheduled_date"`
+	CompletedDate    *time.Time                     `json:"completed_date,omitempty"`
+	InspectorID      *uuid.UUID                     `json:"inspector_id,omitempty"`
+	TenantID         *uuid.UUID                     `json:"tenant_id,omitempty"`
+	Status           InspectionStatus               `json:"status"`
+	Findings         string                         `json:"findings"`
+	SeverityLevel    SeverityLevel                  `json:"severity_level"`
+	PhotosURLs       []string                       `json:"photos_urls,omitempty"`
+	ChecklistResults map[string]ChecklistResult     `json:"checklist_results,omitempty"`
+	CreatedBy        uuid.UUID                      `json:"created_by"`
+	CreatedAt        time.Time                      `json:"created_at"`
+	UpdatedAt        time.Time                      `json:"updated_at"`
+}
+
+type MaintenanceType string
+
+const (
+	MaintenancePlumbing    MaintenanceType = "plumbing"
+	MaintenanceElectrical  MaintenanceType = "electrical"
+	MaintenanceHVAC        MaintenanceType = "hvac"
+	MaintenanceFlooring    MaintenanceType = "flooring"
+	MaintenancePainting    MaintenanceType = "painting"
+	MaintenanceStructural  MaintenanceType = "structural"
+	MaintenanceOther       MaintenanceType = "other"
+)
+
+type TaskPriority string
+
+const (
+	PriorityLow    TaskPriority = "low"
+	PriorityMedium TaskPriority = "medium"
+	PriorityHigh   TaskPriority = "high"
+	PriorityUrgent TaskPriority = "urgent"
+)
+
+type MaintenanceStatus string
+
+const (
+	MaintenancePending     MaintenanceStatus = "pending"
+	MaintenanceScheduled   MaintenanceStatus = "scheduled"
+	MaintenanceInProgress  MaintenanceStatus = "in_progress"
+	MaintenanceCompleted   MaintenanceStatus = "completed"
+	MaintenanceCancelled   MaintenanceStatus = "cancelled"
+)
+
+type MaintenanceTask struct {
+	ID               uuid.UUID           `json:"id"`
+	CompanyID        uuid.UUID           `json:"company_id"`
+	PropertyID       uuid.UUID           `json:"property_id"`
+	InspectionID     *uuid.UUID          `json:"inspection_id,omitempty"`
+	MaintenanceType  MaintenanceType     `json:"maintenance_type"`
+	Description      string              `json:"description"`
+	Priority         TaskPriority        `json:"priority"`
+	ScheduledDate    *time.Time          `json:"scheduled_date,omitempty"`
+	DueDate          *time.Time          `json:"due_date,omitempty"`
+	CompletionDate   *time.Time          `json:"completion_date,omitempty"`
+	ContractorName   string              `json:"contractor_name"`
+	ContractorContact string             `json:"contractor_contact"`
+	EstimatedCost    *float64            `json:"estimated_cost,omitempty"`
+	ActualCost       *float64            `json:"actual_cost,omitempty"`
+	Status           MaintenanceStatus   `json:"status"`
+	AssignedTo       *uuid.UUID          `json:"assigned_to,omitempty"`
+	Notes            string              `json:"notes"`
+	CreatedBy        uuid.UUID           `json:"created_by"`
+	CreatedAt        time.Time           `json:"created_at"`
+	UpdatedAt        time.Time           `json:"updated_at"`
+	DeletedAt        *time.Time          `json:"deleted_at,omitempty"`
+}
+
+type MaintenancePhoto struct {
+	ID          uuid.UUID `json:"id"`
+	TaskID      uuid.UUID `json:"task_id"`
+	PhotoURL    string    `json:"photo_url"`
+	UploadedAt  time.Time `json:"uploaded_at"`
+	PhotoStage  string    `json:"photo_stage"` // before/during/after
+}
+
+// ─── Lease Renewal ──────────────────────────────────────────────────────────
+
+type RenewalStatus string
+
+const (
+	RenewalPending    RenewalStatus = "pending"
+	RenewalInProgress RenewalStatus = "in_progress"
+	RenewalOfferSent  RenewalStatus = "offer_sent"
+	RenewalAccepted   RenewalStatus = "accepted"
+	RenewalRejected   RenewalStatus = "rejected"
+	RenewalExpired    RenewalStatus = "expired"
+)
+
+type TenantRenewalResponse string
+
+const (
+	ResponsePending      TenantRenewalResponse = "pending"
+	ResponseAccepted     TenantRenewalResponse = "accepted"
+	ResponseRejected     TenantRenewalResponse = "rejected"
+	ResponseCounterOffer TenantRenewalResponse = "counter_offer"
+)
+
+type Language string
+
+const (
+	LangArabic  Language = "ar"
+	LangEnglish Language = "en"
+)
+
+// ─── Commission Tracking ────────────────────────────────────────────────────
+
+type CommissionType string
+
+const (
+	CommissionFixed      CommissionType = "fixed_amount"
+	CommissionPercentage CommissionType = "percentage"
+	CommissionTiered     CommissionType = "tiered"
+)
+
+type ApplicableToType string
+
+const (
+	ApplicableDeals  ApplicableToType = "deals"
+	ApplicableLeases ApplicableToType = "leases"
+	ApplicableBoth   ApplicableToType = "both"
+)
+
+type CommissionStatusType string
+
+const (
+	CommissionStatusPending   CommissionStatusType = "pending"
+	CommissionStatusApproved  CommissionStatusType = "approved"
+	CommissionStatusPaid      CommissionStatusType = "paid"
+	CommissionStatusDisputed  CommissionStatusType = "disputed"
+)
+
+type CommissionTransactionType string
+
+const (
+	TransactionDealCommission  CommissionTransactionType = "deal_commission"
+	TransactionLeaseCommission CommissionTransactionType = "lease_commission"
+	TransactionBonus           CommissionTransactionType = "bonus"
+	TransactionDeduction       CommissionTransactionType = "deduction"
+)
+
+type CommissionStructure struct {
+	ID              uuid.UUID          `json:"id"`
+	CompanyID       uuid.UUID          `json:"company_id"`
+	StructureName   string             `json:"structure_name"`
+	CommissionType  CommissionType     `json:"commission_type"`
+	ApplicableTo    ApplicableToType   `json:"applicable_to"`
+	EffectiveFrom   *time.Time         `json:"effective_from,omitempty"`
+	EffectiveTo     *time.Time         `json:"effective_to,omitempty"`
+	Rules           map[string]interface{} `json:"rules,omitempty"`
+	CreatedAt       time.Time          `json:"created_at"`
+}
+
+type AgentCommission struct {
+	ID                    uuid.UUID                `json:"id"`
+	CompanyID             uuid.UUID                `json:"company_id"`
+	AgentID               uuid.UUID                `json:"agent_id"`
+	CommissionPeriodStart time.Time                `json:"commission_period_start"`
+	CommissionPeriodEnd   time.Time                `json:"commission_period_end"`
+	CommissionStructureID *uuid.UUID               `json:"commission_structure_id,omitempty"`
+	DealsCount            int                      `json:"deals_count"`
+	DealsRevenue          float64                  `json:"deals_revenue"`
+	LeasesCount           int                      `json:"leases_count"`
+	LeasesRevenue         float64                  `json:"leases_revenue"`
+	TotalCommission       float64                  `json:"total_commission"`
+	Status                CommissionStatusType    `json:"status"`
+	ApprovalDate          *time.Time               `json:"approval_date,omitempty"`
+	PaymentDate           *time.Time               `json:"payment_date,omitempty"`
+	PaymentReference      string                  `json:"payment_reference"`
+	Notes                 string                  `json:"notes"`
+	CreatedAt             time.Time               `json:"created_at"`
+	UpdatedAt             time.Time               `json:"updated_at"`
+}
+
+type CommissionTransaction struct {
+	ID                  uuid.UUID                    `json:"id"`
+	CommissionID        uuid.UUID                    `json:"commission_id"`
+	DealID              *uuid.UUID                   `json:"deal_id,omitempty"`
+	LeaseID             *uuid.UUID                   `json:"lease_id,omitempty"`
+	TransactionAmount   float64                      `json:"transaction_amount"`
+	TransactionType     CommissionTransactionType    `json:"transaction_type"`
+	CreatedAt           time.Time                    `json:"created_at"`
+}
+
+type LeaseRenewalWorkflow struct {
+	ID                 uuid.UUID                `json:"id"`
+	CompanyID          uuid.UUID                `json:"company_id"`
+	LeaseID            uuid.UUID                `json:"lease_id"`
+	RenewalDate        time.Time                `json:"renewal_date"`
+	RenewalStatus      RenewalStatus            `json:"renewal_status"`
+	DaysBeforeExpiry   int                      `json:"days_before_expiry"`
+	ProposedRentAmount *float64                 `json:"proposed_rent_amount,omitempty"`
+	ProposedTerms      map[string]interface{}   `json:"proposed_terms,omitempty"`
+	TenantResponse     TenantRenewalResponse    `json:"tenant_response"`
+	TenantCounterOffer *float64                 `json:"tenant_counter_offer,omitempty"`
+	CounterOfferDate   *time.Time               `json:"counter_offer_date,omitempty"`
+	CreatedAt          time.Time                `json:"created_at"`
+	UpdatedAt          time.Time                `json:"updated_at"`
+}
+
+type RenewalCommunicationTemplate struct {
+	ID           uuid.UUID `json:"id"`
+	CompanyID    uuid.UUID `json:"company_id"`
+	TemplateName string    `json:"template_name"`
+	EmailSubject string    `json:"email_subject"`
+	EmailBody    string    `json:"email_body"`
+	WhatsAppMsg  string    `json:"whatsapp_message"`
+	Language     Language  `json:"language"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+type RenewalCommunicationLog struct {
+	ID                  uuid.UUID          `json:"id"`
+	RenewalID           uuid.UUID          `json:"renewal_id"`
+	CommunicationType   CommunicationType  `json:"communication_type"`
+	TemplateID          *uuid.UUID         `json:"template_id,omitempty"`
+	SentDate            *time.Time         `json:"sent_date,omitempty"`
+	DeliveryStatus      DeliveryStatus     `json:"delivery_status"`
+	TenantResponseDate  *time.Time         `json:"tenant_response_date,omitempty"`
+	ResponseText        string             `json:"response_text"`
+	CreatedAt           time.Time          `json:"created_at"`
+}
+
+// ─── Document Management ────────────────────────────────────────────────────
+
+type DocumentType string
+
+const (
+	DocTypeLease         DocumentType = "lease"
+	DocTypeOffer         DocumentType = "offer"
+	DocTypeInspection    DocumentType = "inspection_report"
+	DocTypeWaiver        DocumentType = "maintenance_waiver"
+	DocTypeCustom        DocumentType = "custom"
+)
+
+type SignatureStatus string
+
+const (
+	SignatureNotRequired SignatureStatus = "not_required"
+	SignaturePending     SignatureStatus = "pending"
+	SignatureSigned      SignatureStatus = "signed"
+)
+
+type DocumentTemplate struct {
+	ID                 uuid.UUID                    `json:"id"`
+	CompanyID          uuid.UUID                    `json:"company_id"`
+	TemplateName       string                       `json:"template_name"`
+	DocumentType       DocumentType                 `json:"document_type"`
+	TemplateContent    string                       `json:"template_content"`
+	Language           Language                     `json:"language"`
+	SignatureRequired  bool                         `json:"signature_required"`
+	SignatureFields    []map[string]interface{}     `json:"signature_fields,omitempty"`
+	CreatedBy          uuid.UUID                    `json:"created_by"`
+	CreatedAt          time.Time                    `json:"created_at"`
+}
+
+type Document struct {
+	ID                   uuid.UUID               `json:"id"`
+	CompanyID            uuid.UUID               `json:"company_id"`
+	DocumentType         DocumentType            `json:"document_type"`
+	OriginalTemplateID   *uuid.UUID              `json:"original_template_id,omitempty"`
+	RelatedEntityType    string                  `json:"related_entity_type"`
+	RelatedEntityID      *uuid.UUID              `json:"related_entity_id,omitempty"`
+	DocumentTitle        string                  `json:"document_title"`
+	FileURL              string                  `json:"file_url"`
+	FileSizeBytes        int                     `json:"file_size_bytes,omitempty"`
+	ContentHash          string                  `json:"content_hash"`
+	SignatureStatus      SignatureStatus         `json:"signature_status"`
+	CreatedBy            uuid.UUID               `json:"created_by"`
+	CreatedAt            time.Time               `json:"created_at"`
+	UpdatedAt            time.Time               `json:"updated_at"`
+	DataClassification   DataClassification      `json:"data_classification"`
+	RetentionUntil       *time.Time              `json:"retention_until,omitempty"`
+	DeletedAt            *time.Time              `json:"deleted_at,omitempty"`
+}
+
+type DocumentSignature struct {
+	ID                  uuid.UUID       `json:"id"`
+	DocumentID          uuid.UUID       `json:"document_id"`
+	SignerName          string          `json:"signer_name"`
+	SignerEmail         string          `json:"signer_email"`
+	SignatureFieldName  string          `json:"signature_field_name"`
+	SignatureStatus     SignatureStatus `json:"signature_status"`
+	SignedAt            *time.Time      `json:"signed_at,omitempty"`
+	SignatureImageURL   string          `json:"signature_image_url"`
+	IPAddress           string          `json:"ip_address"`
+	UserAgent           string          `json:"user_agent"`
+	CreatedAt           time.Time       `json:"created_at"`
+}
+
+type DocumentAuditLog struct {
+	ID         uuid.UUID              `json:"id"`
+	DocumentID uuid.UUID              `json:"document_id"`
+	Action     string                 `json:"action"`
+	ActorID    *uuid.UUID             `json:"actor_id,omitempty"`
+	ActorName  string                 `json:"actor_name"`
+	OldValues  map[string]interface{} `json:"old_values,omitempty"`
+	NewValues  map[string]interface{} `json:"new_values,omitempty"`
+	CreatedAt  time.Time              `json:"created_at"`
 }

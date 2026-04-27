@@ -3,79 +3,47 @@
 .gitignore
 .gitattributes
 
-# Documentation
-*.md
-README.md
-DEPLOYMENT.md
-DEPLOYMENT_CHECKLIST.md
-OPERATIONS.md
-GIT_AUTOMATION.md
-DOCKER_BEST_PRACTICES.md
-CLAUDE.md
-COMPLETE_SETUP_GUIDE.md
-LICENSE
+# Docker
+Dockerfile
+docker/
+docker-compose*.yml
+.dockerignore
 
-# Development
-.env
+# Node/Frontend
+node_modules/
+npm-debug.log
+yarn-error.log
+.next/
+dist/
+build/
+
+# Go
+*.out
+*.test
+vendor/
 .env.local
-.env.*.local
-.vscode
-.idea
+
+# IDE
+.vscode/
+.idea/
 *.swp
 *.swo
+*.swn
 *~
 .DS_Store
-Thumbs.db
 
-# Logs
+# OS
+.env
+.env.*.local
 *.log
-logs/
-*.out
+temp/
+tmp/
 
-# Dependencies (will be reinstalled)
-node_modules/
-vendor/
-
-# Build artifacts (not needed in runtime)
-web/.next
-web/out
-web/dist
-web/.turbo
-
-# Tests (not needed in production)
-*.test.js
-*.test.ts
-*.test.tsx
-__tests__/
-
-# Local development
-docker-compose.local.yml
-.env.development
-.env.test
-
-# Temporary files
-*.tmp
-*.temp
-/tmp/
+# Development
+dev.log
+debug.log
 
 # CI/CD
 .github/
 .gitlab-ci.yml
 .circleci/
-
-# Performance monitoring (optional)
-prof/
-pprof/
-
-# Docker files (not needed in image)
-docker/
-Dockerfile*
-.dockerignore
-
-# Misc
-.DS_Store
-.AppleDouble
-.LSOverride
-*.swp
-.vscode
-.idea
