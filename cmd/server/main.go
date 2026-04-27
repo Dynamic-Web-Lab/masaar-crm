@@ -161,14 +161,14 @@ func main() {
 		Auth:         handler.NewAuthHandler(userRepo, rdb, cfg),
 		User:         handler.NewUserHandler(userRepo),
 		Stats:        handler.NewStatsHandler(statsRepo),
-		Contact:      handler.NewContactHandler(contactRepo),
-		Lead:             handler.NewLeadHandler(leadRepo, contactRepo, commHistRepo, scoringService, hub),
+		Contact:      handler.NewContactHandler(contactRepo, auditLogRepo),
+		Lead:             handler.NewLeadHandler(leadRepo, contactRepo, commHistRepo, scoringService, hub, auditLogRepo),
 		WhatsApp:         handler.NewWhatsAppHandler(waRepo, contactRepo, taggingService, hub, cfg),
 		WhatsAppOutbound: handler.NewWhatsAppOutboundHandler(whatsappSender, outboundRepo, waRepo),
 		AI:               handler.NewAIHandler(ollamaClient, contactRepo, leadRepo, waRepo),
 		Message:          handler.NewMessageHandler(ollamaClient, waRepo, contactRepo, leadRepo, commHistRepo, leadTagRepo, scoringService, hub),
 		Notification: handler.NewNotificationHandler(notificationRepo),
-		Deal:         handler.NewDealHandler(dealRepo, invoiceRepo),
+		Deal:         handler.NewDealHandler(dealRepo, invoiceRepo, auditLogRepo),
 		Invoice:      handler.NewInvoiceHandler(invoiceRepo, dealRepo, companySettingsRepo),
 		Property:     handler.NewPropertyHandler(bos24Client),
 		Settings:     handler.NewSettingsHandler(settingsRepo, companySettingsRepo),
@@ -208,9 +208,10 @@ func main() {
 		Format: "[${time}] ${status} ${method} ${path} ${latency}\n",
 	}))
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-		AllowMethods: "GET,POST,PATCH,DELETE,OPTIONS",
+		AllowOrigins:     cfg.AllowedOrigins,
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowMethods:     "GET,POST,PATCH,DELETE,OPTIONS",
+		AllowCredentials: cfg.AllowedOrigins != "*",
 	}))
 
 	api.RegisterRoutes(app, handlers, hub, cfg, rdb)

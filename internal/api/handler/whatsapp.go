@@ -4,6 +4,7 @@ import (
 	"crypto/subtle"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -137,6 +138,19 @@ func (h *WhatsAppHandler) GetThread(c *fiber.Ctx) error {
 
 // POST /webhooks/whatsapp — receive inbound messages
 func (h *WhatsAppHandler) Receive(c *fiber.Ctx) error {
+	// Validate Meta's HMAC-SHA256 signature when WA_APP_SECRET is configured.
+	if h.config.WAAppSecret != "" {
+		sig := c.Get("X-Hub-Signature-256")
+		if !strings.HasPrefix(sig, "sha256=") {
+			return c.SendStatus(fiber.StatusUnauthorized)
+		}
+		mac := hmac.New(sha256.New, []byte(h.config.WAAppSecret))
+		mac.Write(c.Body())
+		expected := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+		if !hmac.Equal([]byte(sig), []byte(expected)) {
+			return c.SendStatus(fiber.StatusUnauthorized)
+		}
+	}
 	var payload struct {
 		Object string `json:"object"`
 		Entry  []struct {

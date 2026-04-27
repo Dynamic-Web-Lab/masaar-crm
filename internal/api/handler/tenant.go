@@ -94,7 +94,7 @@ func (h *TenantHandler) Create(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "full_name_en and id_type are required"})
 	}
 
-	userID, _ := uuid.Parse(c.Locals("user_id").(string))
+	userID := c.Locals("user_id").(uuid.UUID)
 	t.CreatedBy = &userID
 	t.UpdatedBy = &userID
 
@@ -138,7 +138,7 @@ func (h *TenantHandler) Update(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	userID, _ := uuid.Parse(c.Locals("user_id").(string))
+	userID := c.Locals("user_id").(uuid.UUID)
 	t.UpdatedBy = &userID
 
 	if err := h.tenants.Update(c.Context(), t); err != nil {
@@ -200,7 +200,7 @@ func (h *TenantHandler) Verify(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	userID, _ := uuid.Parse(c.Locals("user_id").(string))
+	userID := c.Locals("user_id").(uuid.UUID)
 	t.IsVerified = true
 	t.VerificationStatus = domain.VerificationVerified
 	t.VerificationNotes = body.VerificationNotes

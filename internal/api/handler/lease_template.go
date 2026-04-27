@@ -94,7 +94,7 @@ func (h *LeaseTemplateHandler) Create(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name and payment_frequency are required"})
 	}
 
-	userID, _ := uuid.Parse(c.Locals("user_id").(string))
+	userID := c.Locals("user_id").(uuid.UUID)
 	t.CreatedBy = &userID
 	t.UpdatedBy = &userID
 
@@ -138,7 +138,7 @@ func (h *LeaseTemplateHandler) Update(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	userID, _ := uuid.Parse(c.Locals("user_id").(string))
+	userID := c.Locals("user_id").(uuid.UUID)
 	t.UpdatedBy = &userID
 
 	if err := h.templates.Update(c.Context(), t); err != nil {
