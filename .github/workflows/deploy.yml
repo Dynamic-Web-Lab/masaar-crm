@@ -8,13 +8,12 @@ jobs:
   deploy:
     name: Deploy to buyorsell24-prod
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
@@ -32,4 +31,3 @@ jobs:
             echo "==> Pruning old images..."
             docker image prune -f
             echo "==> Deploy complete!"
-
