@@ -3,6 +3,7 @@ module github.com/maidulcu/masaar-crm
 go 1.25.0
 
 require (
+	github.com/go-redis/redismock/v9 v9.2.0
 	github.com/gofiber/contrib/jwt v1.0.8
 	github.com/gofiber/fiber/v2 v2.52.4
 	github.com/gofiber/websocket/v2 v2.2.1
