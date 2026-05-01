@@ -33,3 +33,8 @@
 **Learning:** Security controls like token revocation checks must fail closed on infrastructure errors to prevent bypasses.
 **Prevention:** Explicitly check for errors on infrastructure dependencies (like Redis `Exists`) and return 500 Internal Server Error when they occur.
 ## 2025-05-24 - [Webhook Token Timing Attack]\n**Vulnerability:** Meta webhook token verification used a standard string equality check (`==`), which is vulnerable to timing attacks.\n**Learning:** Standard string comparisons fail early on a mismatch, potentially leaking the expected token character by character based on response times.\n**Prevention:** Use `crypto/subtle.ConstantTimeCompare` for verifying secrets, signatures, and tokens.
+
+## 2024-05-27 - [Fix Denial of Service in Bank Statement Upload]
+**Vulnerability:** The bank statement upload handler used string slicing `file.Filename[len(file.Filename)-4:]` to extract the file extension. If a user uploaded a file with a name shorter than 4 characters (e.g., `a.c`), it caused an index out-of-bounds panic, leading to a server crash (Denial of Service).
+**Learning:** Manual string manipulation for extracting parts of user-provided filenames is prone to edge cases and errors.
+**Prevention:** Always use standard library functions like `filepath.Ext(filename)` for safe and robust file extension extraction, and combine it with `strings.ToLower` for case-insensitive comparisons.

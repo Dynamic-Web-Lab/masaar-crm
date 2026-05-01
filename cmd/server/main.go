@@ -144,6 +144,8 @@ func main() {
 		log.Println("BuyOrSell24 integration enabled")
 	}
 
+	auditLogRepo := repo.NewAuditLogRepo(pool)
+
 	// ── Payment Reminder Service ──────────────────────────────────────────────
 	paymentReminderService := ai.NewPaymentReminderService(
 		paymentRepo, paymentReminderRepo, leaseRepo, tenantRepo, contactRepo,
@@ -158,34 +160,34 @@ func main() {
 
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	handlers := &api.Handlers{
-		Auth:         handler.NewAuthHandler(userRepo, rdb, cfg),
-		User:         handler.NewUserHandler(userRepo),
-		Stats:        handler.NewStatsHandler(statsRepo),
-		Contact:      handler.NewContactHandler(contactRepo, auditLogRepo),
-		Lead:             handler.NewLeadHandler(leadRepo, contactRepo, commHistRepo, scoringService, hub, auditLogRepo),
-		WhatsApp:         handler.NewWhatsAppHandler(waRepo, contactRepo, taggingService, hub, cfg),
-		WhatsAppOutbound: handler.NewWhatsAppOutboundHandler(whatsappSender, outboundRepo, waRepo),
-		AI:               handler.NewAIHandler(ollamaClient, contactRepo, leadRepo, waRepo),
-		Message:          handler.NewMessageHandler(ollamaClient, waRepo, contactRepo, leadRepo, commHistRepo, leadTagRepo, scoringService, hub),
-		Notification: handler.NewNotificationHandler(notificationRepo),
-		Deal:         handler.NewDealHandler(dealRepo, invoiceRepo, auditLogRepo),
-		Invoice:      handler.NewInvoiceHandler(invoiceRepo, dealRepo, companySettingsRepo),
-		Property:     handler.NewPropertyHandler(bos24Client),
-		Settings:     handler.NewSettingsHandler(settingsRepo, companySettingsRepo),
-		Email:        handler.NewEmailHandler(emailService, emailRepo),
-		RentalProperty: handler.NewRentalPropertyHandler(rentalPropertyRepo),
-		Tenant:         handler.NewTenantHandler(tenantRepo),
-		LeaseTemplate:   handler.NewLeaseTemplateHandler(leaseTemplateRepo),
-		Lease:           handler.NewLeaseHandler(leaseRepo),
-		Payment:         handler.NewPaymentHandler(paymentRepo),
-		BankIntegration: handler.NewBankIntegrationHandler(bankIntegrationRepo),
-		BankStatement:     handler.NewBankStatementHandler(bankStatementRepo),
+		Auth:                handler.NewAuthHandler(userRepo, rdb, cfg),
+		User:                handler.NewUserHandler(userRepo),
+		Stats:               handler.NewStatsHandler(statsRepo),
+		Contact:             handler.NewContactHandler(contactRepo, auditLogRepo),
+		Lead:                handler.NewLeadHandler(leadRepo, contactRepo, commHistRepo, scoringService, hub, auditLogRepo),
+		WhatsApp:            handler.NewWhatsAppHandler(waRepo, contactRepo, taggingService, hub, cfg),
+		WhatsAppOutbound:    handler.NewWhatsAppOutboundHandler(whatsappSender, outboundRepo, waRepo),
+		AI:                  handler.NewAIHandler(ollamaClient, contactRepo, leadRepo, waRepo),
+		Message:             handler.NewMessageHandler(ollamaClient, waRepo, contactRepo, leadRepo, commHistRepo, leadTagRepo, scoringService, hub),
+		Notification:        handler.NewNotificationHandler(notificationRepo),
+		Deal:                handler.NewDealHandler(dealRepo, invoiceRepo, auditLogRepo),
+		Invoice:             handler.NewInvoiceHandler(invoiceRepo, dealRepo, companySettingsRepo),
+		Property:            handler.NewPropertyHandler(bos24Client),
+		Settings:            handler.NewSettingsHandler(settingsRepo, companySettingsRepo),
+		Email:               handler.NewEmailHandler(emailService, emailRepo),
+		RentalProperty:      handler.NewRentalPropertyHandler(rentalPropertyRepo),
+		Tenant:              handler.NewTenantHandler(tenantRepo),
+		LeaseTemplate:       handler.NewLeaseTemplateHandler(leaseTemplateRepo),
+		Lease:               handler.NewLeaseHandler(leaseRepo),
+		Payment:             handler.NewPaymentHandler(paymentRepo),
+		BankIntegration:     handler.NewBankIntegrationHandler(bankIntegrationRepo),
+		BankStatement:       handler.NewBankStatementHandler(bankStatementRepo),
 		PaymentConfirmation: handler.NewPaymentConfirmationHandler(paymentConfirmationRepo, paymentConfirmationService),
-		Analytics:       handler.NewAnalyticsHandler(repo.NewAnalyticsRepository(pool)),
-		Expense:         handler.NewExpenseHandler(expenseRepo),
-		Inspection:      handler.NewInspectionHandler(inspectionTemplateRepo, inspectionRepo),
-		Maintenance:     handler.NewMaintenanceTaskHandler(maintenanceRepo),
-		LeaseRenewal:    handler.NewLeaseRenewalHandler(leaseRenewalRepo, renewalTemplateRepo, renewalCommLogRepo),
+		Analytics:           handler.NewAnalyticsHandler(repo.NewAnalyticsRepository(pool)),
+		Expense:             handler.NewExpenseHandler(expenseRepo),
+		Inspection:          handler.NewInspectionHandler(inspectionTemplateRepo, inspectionRepo),
+		Maintenance:         handler.NewMaintenanceTaskHandler(maintenanceRepo),
+		LeaseRenewal:        handler.NewLeaseRenewalHandler(leaseRenewalRepo, renewalTemplateRepo, renewalCommLogRepo),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────

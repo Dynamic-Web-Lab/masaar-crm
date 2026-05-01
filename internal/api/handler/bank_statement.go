@@ -2,7 +2,9 @@ package handler
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -108,14 +110,14 @@ func (h *BankStatementHandler) Upload(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid company_id"})
 	}
 
-	fileExt := file.Filename[len(file.Filename)-4:]
+	fileExt := strings.ToLower(filepath.Ext(file.Filename))
 	var format domain.FileFormat
 	switch fileExt {
 	case ".csv":
 		format = domain.FormatCSV
 	case ".pdf":
 		format = domain.FormatPDF
-	case "xlsx":
+	case ".xlsx":
 		format = domain.FormatXLSX
 	default:
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "unsupported file format"})
@@ -124,14 +126,14 @@ func (h *BankStatementHandler) Upload(c *fiber.Ctx) error {
 	fileURL := fmt.Sprintf("/uploads/bank-statements/%s-%s", companyID.String()[:8], file.Filename)
 
 	statement := &domain.BankStatement{
-		CompanyID:         companyID,
-		BankIntegrationID: integrationID,
-		FileName:          file.Filename,
-		FileSizeBytes:     int(file.Size),
-		FileURL:           fileURL,
-		FileFormat:        format,
-		UploadedBy:        userID,
-		ProcessingStatus:  domain.StatusPending,
+		CompanyID:          companyID,
+		BankIntegrationID:  integrationID,
+		FileName:           file.Filename,
+		FileSizeBytes:      int(file.Size),
+		FileURL:            fileURL,
+		FileFormat:         format,
+		UploadedBy:         userID,
+		ProcessingStatus:   domain.StatusPending,
 		DataClassification: domain.ClassConfidential,
 	}
 
