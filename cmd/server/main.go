@@ -122,14 +122,25 @@ func main() {
 	// ── WebSocket hub ────────────────────────────────────────────────────────
 	hub := ws.NewHub()
 
-	// ── AI client ────────────────────────────────────────────────────────────
-	ollamaClient := ai.NewClient(cfg.OllamaBaseURL, cfg.OllamaModel)
+	// ── AI client (Ollama local or Gemini cloud, based on AI_PROVIDER) ────────
+	var aiClient *ai.Client
+	switch cfg.AIProvider {
+	case "gemini":
+		if cfg.GeminiAPIKey == "" {
+			log.Fatal("AI_PROVIDER=gemini but GEMINI_API_KEY is not set")
+		}
+		aiClient = ai.NewGeminiClient(cfg.GeminiAPIKey, cfg.GeminiModel)
+		log.Printf("AI provider: Gemini (%s)", cfg.GeminiModel)
+	default:
+		aiClient = ai.NewClient(cfg.OllamaBaseURL, cfg.OllamaModel)
+		log.Printf("AI provider: Ollama (%s @ %s)", cfg.OllamaModel, cfg.OllamaBaseURL)
+	}
 
 	// ── Scoring service for automatic lead scoring ───────────────────────────
 	scoringService := ai.NewScoringService(leadRepo, commHistRepo, leadTagRepo)
 
 	// ── Tagging service for auto-tagging on messages ────────────────────────
-	taggingService := ai.NewTaggingService(ollamaClient, leadRepo, waRepo, leadTagRepo, contactRepo)
+	taggingService := ai.NewTaggingService(aiClient, leadRepo, waRepo, leadTagRepo, contactRepo)
 
 	// ── BuyOrSell24 client (optional real estate integration) ─────────────────
 	var bos24Client *bos24.Client
@@ -167,8 +178,8 @@ func main() {
 		Lead:                handler.NewLeadHandler(leadRepo, contactRepo, commHistRepo, scoringService, hub, auditLogRepo),
 		WhatsApp:            handler.NewWhatsAppHandler(waRepo, contactRepo, taggingService, hub, cfg),
 		WhatsAppOutbound:    handler.NewWhatsAppOutboundHandler(whatsappSender, outboundRepo, waRepo),
-		AI:                  handler.NewAIHandler(ollamaClient, contactRepo, leadRepo, waRepo),
-		Message:             handler.NewMessageHandler(ollamaClient, waRepo, contactRepo, leadRepo, commHistRepo, leadTagRepo, scoringService, hub),
+		AI:                  handler.NewAIHandler(aiClient, contactRepo, leadRepo, waRepo),
+		Message:             handler.NewMessageHandler(aiClient, waRepo, contactRepo, leadRepo, commHistRepo, leadTagRepo, scoringService, hub),
 		Notification:        handler.NewNotificationHandler(notificationRepo),
 		Deal:                handler.NewDealHandler(dealRepo, invoiceRepo, auditLogRepo),
 		Invoice:             handler.NewInvoiceHandler(invoiceRepo, dealRepo, companySettingsRepo),
