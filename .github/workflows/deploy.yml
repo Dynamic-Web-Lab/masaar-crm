@@ -21,19 +21,14 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             set -e
-
-            echo "==> Pulling latest code..."
             cd /root/masaar-crm
+            echo "==> Pulling latest code..."
             git fetch origin main
             git reset --hard origin/main
-
             echo "==> Rebuilding Docker images..."
             docker compose -f docker-compose.server.yml --env-file .env build
-
             echo "==> Restarting containers..."
             docker compose -f docker-compose.server.yml --env-file .env up -d
-
             echo "==> Pruning old images..."
             docker image prune -f
-
             echo "==> Deploy complete!"
