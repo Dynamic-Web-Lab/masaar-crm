@@ -11,8 +11,8 @@ CREATE TABLE api_settings (
 CREATE INDEX idx_api_settings_key ON api_settings(setting_key);
 
 -- Insert initial BuyOrSell24 API token setting (empty by default)
-INSERT INTO api_settings (id, setting_key, description)
-VALUES (uuid_generate_v4(), 'bos24_api_token', 'BuyOrSell24 Real Estate API Token (Dynamic Web Lab)');
+INSERT INTO api_settings (id, setting_key, setting_value, description)
+VALUES (uuid_generate_v4(), 'bos24_api_token', '', 'BuyOrSell24 Real Estate API Token (Dynamic Web Lab)');
 
 -- +goose Down
 DROP TABLE IF EXISTS api_settings;
