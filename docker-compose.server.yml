@@ -25,9 +25,6 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    environment:
-      DATABASE_URL: postgres://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@postgres:5432/$${POSTGRES_DB}?sslmode=disable
-      REDIS_URL: redis://buyorsell24-redis:6379
     depends_on:
       postgres:
         condition: service_healthy
