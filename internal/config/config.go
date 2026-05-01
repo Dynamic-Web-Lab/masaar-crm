@@ -31,9 +31,12 @@ type Config struct {
 	WABaseURL       string
 	WAAppSecret     string // used to validate X-Hub-Signature-256 on inbound webhooks
 
-	// Ollama
+	// AI provider — "ollama" (local) or "gemini" (Google Cloud)
+	AIProvider    string
 	OllamaBaseURL string
 	OllamaModel   string
+	GeminiAPIKey  string
+	GeminiModel   string
 
 	// BuyOrSell24 (Real Estate API)
 	BOS24Token string
@@ -74,8 +77,11 @@ func Load() *Config {
 		WAAccessToken:        getEnv("WA_ACCESS_TOKEN", ""),
 		WABaseURL:            getEnv("WA_BASE_URL", "https://graph.instagram.com"),
 		WAAppSecret:          getEnv("WA_APP_SECRET", ""),
+		AIProvider:           getEnv("AI_PROVIDER", "ollama"),
 		OllamaBaseURL:        getEnv("OLLAMA_BASE_URL", "http://localhost:11434"),
 		OllamaModel:          getEnv("OLLAMA_MODEL", "llama3"),
+		GeminiAPIKey:         getEnv("GEMINI_API_KEY", ""),
+		GeminiModel:          getEnv("GEMINI_MODEL", "gemini-2.0-flash"),
 		BOS24Token:           getEnv("BOS24_API_TOKEN", ""),
 		SMTPHost:             getEnv("SMTP_HOST", ""),
 		SMTPPort:             getEnv("SMTP_PORT", "587"),
