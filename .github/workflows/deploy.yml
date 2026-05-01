@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
@@ -31,4 +31,3 @@ jobs:
             echo "==> Pruning old images..."
             docker image prune -f
             echo "==> Deploy complete!"
-# Deploy
