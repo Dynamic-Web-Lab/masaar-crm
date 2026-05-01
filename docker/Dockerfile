@@ -28,7 +28,8 @@ WORKDIR /app
 # Copy binary and migrations from builder
 COPY --from=builder --chown=masaar:masaar /masaar .
 COPY --from=builder --chown=masaar:masaar /app/migrations ./migrations
-COPY --from=builder --chown=masaar:masaar /app/.env .env 2>/dev/null || true
+# Copy .env if it exists (create empty one if not)
+RUN if [ -f /app/.env ]; then cp --chown=masaar:masaar /app/.env .env; fi
 
 # Set permissions
 RUN chmod +x /app/masaar
