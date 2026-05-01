@@ -156,6 +156,7 @@ func main() {
 	}
 
 	auditLogRepo := repo.NewAuditLogRepo(pool)
+	apiKeyRepo := repo.NewApiKeyRepo(pool)
 
 	// ── Payment Reminder Service ──────────────────────────────────────────────
 	paymentReminderService := ai.NewPaymentReminderService(
@@ -199,6 +200,7 @@ func main() {
 		Inspection:          handler.NewInspectionHandler(inspectionTemplateRepo, inspectionRepo),
 		Maintenance:         handler.NewMaintenanceTaskHandler(maintenanceRepo),
 		LeaseRenewal:        handler.NewLeaseRenewalHandler(leaseRenewalRepo, renewalTemplateRepo, renewalCommLogRepo),
+		ApiKey:              handler.NewApiKeyHandler(apiKeyRepo),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
