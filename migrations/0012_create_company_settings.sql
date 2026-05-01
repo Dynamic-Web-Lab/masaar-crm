@@ -10,7 +10,7 @@ CREATE TABLE company_settings (
   bank_account VARCHAR(100),
   bank_iban VARCHAR(50),
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_by BIGINT REFERENCES users(id) ON DELETE SET NULL
+  updated_by UUID REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- Initialize with default values (must be filled by admin)
