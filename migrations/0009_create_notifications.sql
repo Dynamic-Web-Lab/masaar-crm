@@ -1,5 +1,5 @@
 -- +goose Up
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
     id         UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     type       TEXT        NOT NULL DEFAULT 'info',
