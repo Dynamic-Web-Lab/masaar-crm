@@ -32,3 +32,4 @@ jobs:
             docker image prune -f
             echo "==> Deploy complete!"
 # Deploy
+# Deploy test
