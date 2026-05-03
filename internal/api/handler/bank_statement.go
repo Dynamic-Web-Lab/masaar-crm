@@ -110,7 +110,9 @@ func (h *BankStatementHandler) Upload(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid company_id"})
 	}
 
-	fileExt := strings.ToLower(filepath.Ext(file.Filename))
+	// Always sanitize user-provided filenames to prevent path traversal and XSS
+	sanitizedFilename := filepath.Base(file.Filename)
+	fileExt := strings.ToLower(filepath.Ext(sanitizedFilename))
 	var format domain.FileFormat
 	switch fileExt {
 	case ".csv":
@@ -123,12 +125,12 @@ func (h *BankStatementHandler) Upload(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "unsupported file format"})
 	}
 
-	fileURL := fmt.Sprintf("/uploads/bank-statements/%s-%s", companyID.String()[:8], file.Filename)
+	fileURL := fmt.Sprintf("/uploads/bank-statements/%s-%s", companyID.String()[:8], sanitizedFilename)
 
 	statement := &domain.BankStatement{
 		CompanyID:          companyID,
 		BankIntegrationID:  integrationID,
-		FileName:           file.Filename,
+		FileName:           sanitizedFilename,
 		FileSizeBytes:      int(file.Size),
 		FileURL:            fileURL,
 		FileFormat:         format,
