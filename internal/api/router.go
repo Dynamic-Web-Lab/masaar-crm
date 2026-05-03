@@ -11,6 +11,7 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/api/middleware"
 	"github.com/maidulcu/masaar-crm/internal/config"
 	"github.com/maidulcu/masaar-crm/internal/domain"
+	"github.com/maidulcu/masaar-crm/internal/repo"
 	"github.com/maidulcu/masaar-crm/internal/ws"
 	"github.com/redis/go-redis/v9"
 	fiberswagger "github.com/swaggo/fiber-swagger"
@@ -46,6 +47,7 @@ type Handlers struct {
 	Maintenance       *handler.MaintenanceTaskHandler
 	LeaseRenewal      *handler.LeaseRenewalHandler
 	ApiKey            *handler.ApiKeyHandler
+	PublicLead        *handler.PublicLeadHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -76,7 +78,7 @@ var apiLimiter = limiter.New(limiter.Config{
 	},
 })
 
-func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config, rdb *redis.Client) {
+func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config, rdb *redis.Client, apiKeyRepo *repo.ApiKeyRepo) {
 	// ── Public routes ────────────────────────────────────────────────────────
 	app.Post("/api/v1/auth/login", loginLimiter, h.Auth.Login)
 	app.Post("/api/v1/auth/refresh", h.Auth.Refresh)
@@ -84,6 +86,14 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	// WhatsApp webhook — Meta calls this publicly
 	app.Get("/webhooks/whatsapp", h.WhatsApp.Verify)
 	app.Post("/webhooks/whatsapp", webhookLimiter, h.WhatsApp.Receive)
+
+	// Public lead intake — API key auth (scope: lead:create)
+	app.Post("/webhooks/leads",
+		webhookLimiter,
+		middleware.ValidateAPIKey(apiKeyRepo),
+		middleware.RequireAPIKeyScope("lead:create"),
+		h.PublicLead.SubmitLead,
+	)
 
 	// ── WebSocket — authenticated upgrade ────────────────────────────────────
 	app.Use("/ws", func(c *fiber.Ctx) error {

@@ -348,23 +348,42 @@ X-Hub-Signature-256: sha256=<hmac>
 // Validated automatically when WA_APP_SECRET is set`}</Pre>
               </div>
 
-              <div className="border border-yellow-200 bg-yellow-50 rounded-lg p-4">
+              <div className="border border-green-200 bg-green-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Badge color="yellow">Phase 2 — Coming Soon</Badge>
+                  <Badge color="green">Live</Badge>
                   <h4 className="font-semibold text-gray-900">Inbound — Public Lead Endpoint</h4>
                 </div>
                 <p className="text-sm text-gray-600 mb-2">
-                  Submit leads from any external source using an API key:
+                  Submit leads from any external source using an API key (scope: <Code>lead:create</Code>):
                 </p>
                 <Pre>{`POST /webhooks/leads
 Authorization: Bearer sk_live_...
+Content-Type: application/json
 
 {
-  "name": "Ahmed Al-Mansouri",
-  "phone": "+971501234567",
-  "source": "website_form",
-  "notes": "Interested in Marina apartments"
+  "name": "Ahmed Al-Mansouri",       // required
+  "phone": "+971501234567",          // required, E.164
+  "email": "ahmed@example.com",      // optional
+  "language": "ar",                  // optional (ar|en, default: ar)
+  "source": "web",                   // optional (web|referral|event, default: web)
+  "notes": "Interested in Marina",   // optional
+  "deal_value": 500000,              // optional
+  "property_type": "2BR",            // optional metadata
+  "area": "Marina"                   // optional metadata
+}
+
+// Response 201
+{
+  "lead_id": "uuid",
+  "contact_id": "uuid",
+  "stage": "new",
+  "source": "web",
+  "message": "Lead created successfully"
 }`}</Pre>
+                <p className="text-sm text-gray-600 mt-2">
+                  Contact is automatically created or matched by phone number.
+                  Rate limited at 300 req/min.
+                </p>
               </div>
 
               <div className="border border-gray-200 rounded-lg p-4 opacity-75">
@@ -477,7 +496,7 @@ POST /api/v1/leads
                 },
                 {
                   phase: 'Phase 2',
-                  status: 'in_progress',
+                  status: 'complete',
                   title: 'Public Lead Endpoint',
                   desc: 'POST /webhooks/leads — submit leads from any external source using API key auth. Auto-creates contact if not found.',
                 },
