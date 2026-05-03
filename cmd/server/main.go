@@ -201,6 +201,7 @@ func main() {
 		Maintenance:         handler.NewMaintenanceTaskHandler(maintenanceRepo),
 		LeaseRenewal:        handler.NewLeaseRenewalHandler(leaseRenewalRepo, renewalTemplateRepo, renewalCommLogRepo),
 		ApiKey:              handler.NewApiKeyHandler(apiKeyRepo),
+		PublicLead:          handler.NewPublicLeadHandler(contactRepo, leadRepo),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
@@ -229,7 +230,7 @@ func main() {
 		AllowCredentials: cfg.AllowedOrigins != "*",
 	}))
 
-	api.RegisterRoutes(app, handlers, hub, cfg, rdb)
+	api.RegisterRoutes(app, handlers, hub, cfg, rdb, apiKeyRepo)
 
 	// ── Background Jobs ──────────────────────────────────────────────────────
 	companyRepo := repo.NewCompanyRepo(pool)

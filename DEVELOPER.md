@@ -537,19 +537,32 @@ External CRM → webhook trigger → your middleware → POST /api/v1/contacts +
 
 ## Roadmap — What's Missing
 
-### Phase 2 — Public Lead Endpoint *(in development)*
+### Phase 2 — Public Lead Endpoint ✅ Live
 
-A public unauthenticated endpoint for external lead submission:
+Submit leads from any external source using an API key:
 
-```
+```http
 POST /webhooks/leads
-Authorization: Bearer sk_live_...   (API key, scope: lead:create)
+Authorization: Bearer sk_live_...
+Content-Type: application/json
+
+{
+  "name": "Ahmed Al-Mansouri",
+  "phone": "+971501234567",
+  "email": "ahmed@example.com",
+  "language": "ar",
+  "source": "web",
+  "notes": "Interested in Marina apartments",
+  "deal_value": 500000,
+  "property_type": "2BR",
+  "area": "Marina"
+}
 ```
 
-- Auto-creates contact if phone not found
-- Returns lead ID
-- Validates API key scope `lead:create`
-- Rate limited per API key
+- Requires API key with scope `lead:create`
+- Contact auto-created or matched by phone number
+- Rate limited at 300 req/min (same as WhatsApp webhook)
+- Returns `lead_id`, `contact_id`, `stage`, `source`
 
 ### Phase 3 — Outbound Webhooks *(planned)*
 
