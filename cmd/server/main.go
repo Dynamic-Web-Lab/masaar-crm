@@ -32,6 +32,17 @@ import (
 func main() {
 	cfg := config.Load()
 
+	// ── Startup validation ───────────────────────────────────────────────────
+	if cfg.JWTSecret == "change-me-in-production" || cfg.JWTSecret == "" {
+		if cfg.AppEnv == "production" {
+			log.Fatal("JWT_SECRET must be set to a strong random value in production")
+		}
+		log.Println("WARNING: JWT_SECRET is using default value — change before deploying to production")
+	}
+	if cfg.AppEnv == "production" && cfg.AllowedOrigins == "*" {
+		log.Fatal("ALLOWED_ORIGINS must not be '*' in production — set it to your frontend domain")
+	}
+
 	// ── Database ─────────────────────────────────────────────────────────────
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -215,10 +226,15 @@ func main() {
 		WriteTimeout: 30 * time.Second,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
+			msg := "internal server error"
 			if e, ok := err.(*fiber.Error); ok {
 				code = e.Code
+				msg = e.Message
 			}
-			return c.Status(code).JSON(fiber.Map{"error": err.Error()})
+			if code == fiber.StatusInternalServerError {
+				log.Printf("internal error: %v", err)
+			}
+			return c.Status(code).JSON(fiber.Map{"error": msg})
 		},
 	})
 
