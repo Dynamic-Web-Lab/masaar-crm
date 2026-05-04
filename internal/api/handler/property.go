@@ -2,22 +2,32 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/maidulcu/masaar-crm/internal/bos24"
+	"github.com/maidulcu/masaar-crm/internal/pdf"
+	"github.com/maidulcu/masaar-crm/internal/repo"
 )
 
 const bos24Timeout = 15 * time.Second
 
 type PropertyHandler struct {
-	bos24Client *bos24.Client
+	bos24Client  *bos24.Client
+	leadRepo     *repo.LeadRepo
+	contactRepo  *repo.ContactRepo
+	companyRepo  *repo.CompanySettingsRepo
 }
 
-func NewPropertyHandler(bos24Client *bos24.Client) *PropertyHandler {
+func NewPropertyHandler(bos24Client *bos24.Client, leadRepo *repo.LeadRepo, contactRepo *repo.ContactRepo, companyRepo *repo.CompanySettingsRepo) *PropertyHandler {
 	return &PropertyHandler{
 		bos24Client: bos24Client,
+		leadRepo:    leadRepo,
+		contactRepo: contactRepo,
+		companyRepo: companyRepo,
 	}
 }
 
@@ -956,7 +966,163 @@ func (h *PropertyHandler) GetMarketTrends(c *fiber.Ctx) error {
 	})
 }
 
+// GenerateReport godoc
+// @Summary      Generate property research report PDF
+// @Description  Assembles a branded client-ready PDF with market data, comparables, yield, and POIs.
+// @Tags         Properties
+// @Accept       json
+// @Produce      application/pdf
+// @Param        body  body  PropertyReportRequest  true  "Report parameters"
+// @Success      200   {file}    application/pdf
+// @Failure      400   {object}  object{error=string}
+// @Failure      503   {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/report/pdf [post]
+func (h *PropertyHandler) GenerateReport(c *fiber.Ctx) error {
+	var req PropertyReportRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+	if req.Area == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "area is required"})
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), 30*time.Second)
+	defer cancel()
+
+	data := pdf.PropertyReportData{
+		Area:         req.Area,
+		PropertyType: req.PropertyType,
+		Bedrooms:     req.Bedrooms,
+		BudgetMin:    req.BudgetMin,
+		BudgetMax:    req.BudgetMax,
+		Currency:     "AED",
+		ClientName:   req.ClientName,
+		AgentName:    req.AgentName,
+		GeneratedAt:  time.Now(),
+	}
+
+	// Auto-fill client name from lead if provided
+	if req.LeadID != "" && h.leadRepo != nil {
+		if lid, err := uuid.Parse(req.LeadID); err == nil {
+			if lead, err := h.leadRepo.GetByID(ctx, lid); err == nil {
+				if lead.Contact != nil && data.ClientName == "" {
+					data.ClientName = lead.Contact.FullName
+				}
+				if data.Area == "" {
+					data.Area = req.Area
+				}
+			}
+		}
+	}
+
+	// Company branding
+	if h.companyRepo != nil {
+		if co, err := h.companyRepo.Get(ctx); err == nil {
+			data.CompanyName = co.Name
+			data.CompanyAddress = co.BusinessAddress
+			data.CompanyPhone = co.BusinessPhone
+			data.CompanyEmail = co.BusinessEmail
+		}
+	}
+	if data.CompanyName == "" {
+		data.CompanyName = "Masaar CRM"
+	}
+
+	// Fetch BOS24 market data (all best-effort — report generates even if BOS24 is down)
+	if h.bos24Client != nil {
+		// Area summary
+		if req.AreaSlug != "" {
+			if summary, err := h.bos24Client.GetAreaSummary(ctx, req.AreaSlug); err == nil {
+				data.AreaSummary = summary
+			}
+		}
+
+		// Comparable transactions
+		filters := map[string]interface{}{
+			"area":  req.Area,
+			"limit": 12,
+		}
+		if req.PropertyType != "" {
+			filters["property_type"] = req.PropertyType
+		}
+		if comps, err := h.bos24Client.GetTransactions(ctx, filters); err == nil {
+			data.Comparables = comps
+		}
+
+		// Rental yield (investors)
+		if req.IncludeYield {
+			yFilters := map[string]interface{}{"area": req.Area}
+			if req.PropertyType != "" {
+				yFilters["property_type"] = req.PropertyType
+			}
+			if yield, err := h.bos24Client.GetEjariYield(ctx, yFilters); err == nil {
+				data.YieldData = yield
+			}
+		}
+
+		// Nearby POIs
+		if req.IncludePOIs && req.Lat != 0 && req.Lng != 0 {
+			if pois, err := h.bos24Client.GetPOIs(ctx, req.Lat, req.Lng, 2.0, "", 6); err == nil {
+				data.POIs = pois
+			}
+		}
+
+		// AI description
+		if len(req.PropertyDetails) > 0 {
+			if result, err := h.bos24Client.DescribeProperty(ctx, req.PropertyDetails); err == nil {
+				if desc, ok := result["description"].(string); ok {
+					data.AIDescription = desc
+				}
+			}
+		}
+	}
+
+	pdfBytes, err := pdf.GeneratePropertyReport(data)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to generate report"})
+	}
+
+	filename := fmt.Sprintf("property-report-%s-%s.pdf",
+		sanitizeFilename(req.Area),
+		time.Now().Format("2006-01-02"),
+	)
+	c.Set("Content-Type", "application/pdf")
+	c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	return c.Send(pdfBytes)
+}
+
+func sanitizeFilename(s string) string {
+	out := make([]byte, 0, len(s))
+	for i := 0; i < len(s); i++ {
+		b := s[i]
+		if (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') {
+			out = append(out, b)
+		} else {
+			out = append(out, '-')
+		}
+	}
+	return string(out)
+}
+
 // Request/Response types
+
+type PropertyReportRequest struct {
+	LeadID          string                 `json:"lead_id"`
+	ClientName      string                 `json:"client_name"`
+	AgentName       string                 `json:"agent_name"`
+	Area            string                 `json:"area"`
+	AreaSlug        string                 `json:"area_slug"`
+	PropertyType    string                 `json:"property_type"`
+	Bedrooms        string                 `json:"bedrooms"`
+	BudgetMin       float64                `json:"budget_min"`
+	BudgetMax       float64                `json:"budget_max"`
+	Lat             float64                `json:"lat"`
+	Lng             float64                `json:"lng"`
+	IncludeYield    bool                   `json:"include_yield"`
+	IncludePOIs     bool                   `json:"include_pois"`
+	PropertyDetails map[string]interface{} `json:"property_details"`
+}
 
 type SearchPropertiesRequest struct {
 	Query string `json:"query"`

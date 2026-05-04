@@ -346,6 +346,12 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	prop.Get("/comparables", h.Property.GetComparables)
 	prop.Get("/market-trends", h.Property.GetMarketTrends)
 
+	// Property research report PDF — PDF quota applied
+	prop.Post("/report/pdf",
+		middleware.CheckQuota(billingRepo, rdb, "pdf"),
+		h.Property.GenerateReport,
+	)
+
 	// Notifications — personal; no role restriction beyond auth
 	v1.Get("/notifications", h.Notification.List)
 	v1.Patch("/notifications/:id/read", h.Notification.MarkRead)
