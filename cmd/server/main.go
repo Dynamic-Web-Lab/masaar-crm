@@ -12,8 +12,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
-	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/maidulcu/masaar-crm/internal/api/middleware"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/maidulcu/masaar-crm/internal/ai"
 	"github.com/maidulcu/masaar-crm/internal/api"
@@ -240,9 +240,7 @@ func main() {
 
 	app.Use(helmet.New())
 	app.Use(recover.New())
-	app.Use(logger.New(logger.Config{
-		Format: "[${time}] ${status} ${method} ${path} ${latency}\n",
-	}))
+	app.Use(middleware.PIISafeLogger())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     cfg.AllowedOrigins,
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",

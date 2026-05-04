@@ -1,12 +1,16 @@
 package middleware
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/redis/go-redis/v9"
 )
 
 // ValidateAPIKey checks Authorization header for "Bearer sk_live_..." format.
@@ -45,6 +49,34 @@ func ValidateAPIKey(apiKeyRepo *repo.ApiKeyRepo) fiber.Handler {
 		c.Locals("api_key_scopes", apiKey.Scopes)
 		c.Locals("api_key_name", apiKey.Name)
 
+		return c.Next()
+	}
+}
+
+// APIKeyRateLimit enforces per-key rate limiting using a Redis sliding window.
+// maxReq requests are allowed per window duration; excess calls get HTTP 429.
+func APIKeyRateLimit(rdb *redis.Client, maxReq int, window time.Duration) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		keyID := c.Locals("api_key_id")
+		if keyID == nil {
+			return c.Next()
+		}
+		redisKey := fmt.Sprintf("ratelimit:apikey:%v", keyID)
+		ctx := context.Background()
+
+		count, err := rdb.Incr(ctx, redisKey).Result()
+		if err != nil {
+			return c.Next() // fail open — don't block on Redis errors
+		}
+		if count == 1 {
+			rdb.Expire(ctx, redisKey, window)
+		}
+		if count > int64(maxReq) {
+			c.Set("Retry-After", fmt.Sprintf("%.0f", window.Seconds()))
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"error": fmt.Sprintf("rate limit exceeded: max %d requests per %s", maxReq, window),
+			})
+		}
 		return c.Next()
 	}
 }
