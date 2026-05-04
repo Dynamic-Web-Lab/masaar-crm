@@ -88,6 +88,8 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	// ── Public routes ────────────────────────────────────────────────────────
 	app.Post("/api/v1/auth/login", loginLimiter, h.Auth.Login)
 	app.Post("/api/v1/auth/refresh", h.Auth.Refresh)
+	app.Post("/api/v1/auth/forgot-password", loginLimiter, h.Auth.ForgotPassword)
+	app.Post("/api/v1/auth/reset-password", h.Auth.ResetPassword)
 
 	// WhatsApp webhook — Meta calls this publicly
 	app.Get("/webhooks/whatsapp", h.WhatsApp.Verify)

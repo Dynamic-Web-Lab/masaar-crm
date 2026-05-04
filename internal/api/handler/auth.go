@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"unicode"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -11,20 +12,44 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/api/middleware"
 	"github.com/maidulcu/masaar-crm/internal/config"
 	"github.com/maidulcu/masaar-crm/internal/domain"
+	"github.com/maidulcu/masaar-crm/internal/email"
 	"github.com/maidulcu/masaar-crm/internal/repo"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
+
+func validatePasswordStrength(p string) string {
+	if len(p) < 8 {
+		return "password must be at least 8 characters"
+	}
+	var hasUpper, hasDigit bool
+	for _, r := range p {
+		switch {
+		case unicode.IsUpper(r):
+			hasUpper = true
+		case unicode.IsDigit(r):
+			hasDigit = true
+		}
+	}
+	if !hasUpper {
+		return "password must contain at least one uppercase letter"
+	}
+	if !hasDigit {
+		return "password must contain at least one digit"
+	}
+	return ""
+}
 
 type AuthHandler struct {
 	users  *repo.UserRepo
 	redis  *redis.Client
 	config *config.Config
 	audit  *repo.AuditLogRepo
+	email  *email.Service
 }
 
-func NewAuthHandler(users *repo.UserRepo, rdb *redis.Client, cfg *config.Config, audit *repo.AuditLogRepo) *AuthHandler {
-	return &AuthHandler{users: users, redis: rdb, config: cfg, audit: audit}
+func NewAuthHandler(users *repo.UserRepo, rdb *redis.Client, cfg *config.Config, audit *repo.AuditLogRepo, emailSvc *email.Service) *AuthHandler {
+	return &AuthHandler{users: users, redis: rdb, config: cfg, audit: audit, email: emailSvc}
 }
 
 // Login godoc
@@ -208,6 +233,98 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 		}
 	}
 
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// ForgotPassword godoc
+// @Summary      Request password reset
+// @Description  Sends a password-reset link to the registered email. Always returns 200 to prevent email enumeration.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{email=string}  true  "Registered email"
+// @Success      200   {object}  object{message=string}
+// @Router       /auth/forgot-password [post]
+func (h *AuthHandler) ForgotPassword(c *fiber.Ctx) error {
+	var body struct {
+		Email string `json:"email"`
+	}
+	if err := c.BodyParser(&body); err != nil || body.Email == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "email is required"})
+	}
+
+	// Always return success — never reveal whether email exists
+	const successMsg = "If that email is registered, a reset link has been sent"
+
+	user, err := h.users.FindByEmail(c.Context(), body.Email)
+	if err != nil {
+		return c.JSON(fiber.Map{"message": successMsg})
+	}
+
+	token, err := h.users.CreatePasswordResetToken(c.Context(), user.ID)
+	if err != nil {
+		return c.JSON(fiber.Map{"message": successMsg})
+	}
+
+	// Send email if configured — log token to server output as fallback for dev
+	if h.email != nil {
+		resetURL := fmt.Sprintf("%s/reset-password?token=%s", h.config.AppURL, token)
+		_ = h.email.Send(&domain.EmailHistory{
+			ToEmail: user.Email,
+			Subject: "Reset your Masaar CRM password",
+			Body: fmt.Sprintf(
+				"Click the link to reset your password (valid 1 hour):\n\n%s\n\nIf you did not request this, ignore this email.",
+				resetURL,
+			),
+			RelatedTo: "password_reset",
+		})
+	} else {
+		// Development fallback: log the token so it can be tested without SMTP
+		fmt.Printf("[DEV] password reset token for %s: %s\n", user.Email, token)
+	}
+
+	return c.JSON(fiber.Map{"message": successMsg})
+}
+
+// ResetPassword godoc
+// @Summary      Reset password using token
+// @Description  Consumes a one-time reset token and sets a new password.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{token=string,new_password=string}  true  "Reset token and new password"
+// @Success      204
+// @Failure      400   {object}  object{error=string}
+// @Failure      401   {object}  object{error=string}
+// @Router       /auth/reset-password [post]
+func (h *AuthHandler) ResetPassword(c *fiber.Ctx) error {
+	var body struct {
+		Token       string `json:"token"`
+		NewPassword string `json:"new_password"`
+	}
+	if err := c.BodyParser(&body); err != nil || body.Token == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "token and new_password are required"})
+	}
+	if msg := validatePasswordStrength(body.NewPassword); msg != "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": msg})
+	}
+
+	userID, err := h.users.ConsumePasswordResetToken(c.Context(), body.Token)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid, expired, or already-used reset token"})
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(body.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to hash password"})
+	}
+	if err := h.users.UpdatePassword(c.Context(), userID, string(hash)); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update password"})
+	}
+
+	h.audit.Log(c.Context(), userID, repo.AuditPasswordChange, repo.AuditUser, userID, fiber.Map{
+		"method": "password_reset",
+	})
 	return c.SendStatus(fiber.StatusNoContent)
 }
 

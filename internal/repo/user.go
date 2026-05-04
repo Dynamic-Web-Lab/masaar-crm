@@ -2,8 +2,12 @@ package repo
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -93,6 +97,61 @@ func (r *UserRepo) UpdatePassword(ctx context.Context, id uuid.UUID, passwordHas
 	const q = `UPDATE users SET password_hash = $1 WHERE id = $2`
 	_, err := r.db.Exec(ctx, q, passwordHash, id)
 	return err
+}
+
+// CreatePasswordResetToken generates a 32-byte random token, stores its SHA-256
+// hash in the DB (1-hour TTL), and returns the plaintext token to send by email.
+func (r *UserRepo) CreatePasswordResetToken(ctx context.Context, userID uuid.UUID) (string, error) {
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return "", fmt.Errorf("generate reset token: %w", err)
+	}
+	plaintext := hex.EncodeToString(raw)
+	sum := sha256.Sum256([]byte(plaintext))
+	hash := hex.EncodeToString(sum[:])
+
+	// Invalidate any previous tokens for this user first
+	_, _ = r.db.Exec(ctx, `DELETE FROM password_reset_tokens WHERE user_id = $1`, userID)
+
+	const q = `
+		INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+		VALUES ($1, $2, $3)
+	`
+	if _, err := r.db.Exec(ctx, q, userID, hash, time.Now().Add(time.Hour)); err != nil {
+		return "", fmt.Errorf("store reset token: %w", err)
+	}
+	return plaintext, nil
+}
+
+// ConsumePasswordResetToken validates the plaintext token, marks it used, and
+// returns the associated user_id. Returns an error if expired or already used.
+func (r *UserRepo) ConsumePasswordResetToken(ctx context.Context, plaintext string) (uuid.UUID, error) {
+	sum := sha256.Sum256([]byte(plaintext))
+	hash := hex.EncodeToString(sum[:])
+
+	var userID uuid.UUID
+	var expiresAt time.Time
+	var usedAt *time.Time
+
+	const q = `
+		SELECT user_id, expires_at, used_at
+		FROM password_reset_tokens
+		WHERE token_hash = $1
+	`
+	err := r.db.QueryRow(ctx, q, hash).Scan(&userID, &expiresAt, &usedAt)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("token not found")
+	}
+	if usedAt != nil {
+		return uuid.Nil, fmt.Errorf("token already used")
+	}
+	if time.Now().After(expiresAt) {
+		return uuid.Nil, fmt.Errorf("token expired")
+	}
+
+	// Mark as used
+	_, _ = r.db.Exec(ctx, `UPDATE password_reset_tokens SET used_at = NOW() WHERE token_hash = $1`, hash)
+	return userID, nil
 }
 
 func (r *UserRepo) UpdateLangPref(ctx context.Context, id uuid.UUID, lang string) error {
