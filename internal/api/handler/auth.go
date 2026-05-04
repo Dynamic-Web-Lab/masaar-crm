@@ -102,7 +102,11 @@ func (h *AuthHandler) Refresh(c *fiber.Ctx) error {
 	}
 
 	key := fmt.Sprintf("refresh:%s", body.RefreshToken)
-	userIDStr, err := h.redis.Get(context.Background(), key).Result()
+	ctx := context.Background()
+
+	// Single-use: delete the old token atomically before issuing a new one.
+	// If the same token is used twice (replay attack), the second call gets 401.
+	userIDStr, err := h.redis.GetDel(ctx, key).Result()
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid or expired refresh token"})
 	}
@@ -111,19 +115,29 @@ func (h *AuthHandler) Refresh(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid session"})
 	}
+
+	// Verify user still exists and is active (admin may have deleted the account)
 	user, err := h.users.FindByID(c.Context(), userID)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "user not found"})
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "account not found or deactivated"})
 	}
 
-	access, _, err := h.generateTokenPair(user)
+	// Issue a new token pair (rotated refresh token)
+	access, newRefresh, err := h.generateTokenPair(user)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "token generation failed"})
 	}
 
+	// Store rotated refresh token
+	ttl := time.Duration(h.config.JWTRefreshExpiryDays) * 24 * time.Hour
+	if err := h.redis.Set(ctx, fmt.Sprintf("refresh:%s", newRefresh), user.ID.String(), ttl).Err(); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "session error"})
+	}
+
 	return c.JSON(fiber.Map{
-		"access_token": access,
-		"expires_in":   h.config.JWTAccessExpiryMin * 60,
+		"access_token":  access,
+		"refresh_token": newRefresh,
+		"expires_in":    h.config.JWTAccessExpiryMin * 60,
 	})
 }
 
