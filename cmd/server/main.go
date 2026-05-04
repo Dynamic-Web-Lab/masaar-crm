@@ -18,6 +18,7 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/ai"
 	"github.com/maidulcu/masaar-crm/internal/api"
 	"github.com/maidulcu/masaar-crm/internal/api/handler"
+	"github.com/maidulcu/masaar-crm/internal/billing"
 	"github.com/maidulcu/masaar-crm/internal/bos24"
 	"github.com/maidulcu/masaar-crm/internal/config"
 	"github.com/maidulcu/masaar-crm/internal/email"
@@ -169,6 +170,21 @@ func main() {
 
 	auditLogRepo := repo.NewAuditLogRepo(pool)
 	apiKeyRepo := repo.NewApiKeyRepo(pool)
+	billingRepo := repo.NewBillingRepo(pool)
+
+	// ── Stripe billing (optional) ─────────────────────────────────────────────
+	stripeCfg := &billing.StripeConfig{
+		SecretKey:       cfg.StripeSecretKey,
+		WebhookSecret:   cfg.StripeWebhookSecret,
+		PriceIDStarter:  cfg.StripePriceIDStarter,
+		PriceIDPro:      cfg.StripePriceIDPro,
+		PriceIDBusiness: cfg.StripePriceIDBusiness,
+		AppURL:          cfg.AppURL,
+	}
+	billing.SetupStripe(stripeCfg)
+	if stripeCfg.IsEnabled() {
+		log.Println("Stripe billing enabled")
+	}
 	webhookRepo := repo.NewWebhookRepo(pool)
 	dispatcher := webhook.NewDispatcher(webhookRepo)
 
@@ -217,6 +233,7 @@ func main() {
 		ApiKey:              handler.NewApiKeyHandler(apiKeyRepo),
 		PublicLead:          handler.NewPublicLeadHandler(contactRepo, leadRepo, dispatcher),
 		WebhookSub:          handler.NewWebhookSubHandler(webhookRepo, dispatcher),
+		Billing:             handler.NewBillingHandler(billingRepo, companySettingsRepo, stripeCfg),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
@@ -248,7 +265,7 @@ func main() {
 		AllowCredentials: cfg.AllowedOrigins != "*",
 	}))
 
-	api.RegisterRoutes(app, handlers, hub, cfg, rdb, apiKeyRepo)
+	api.RegisterRoutes(app, handlers, hub, cfg, rdb, apiKeyRepo, billingRepo)
 
 	// ── Background Jobs ──────────────────────────────────────────────────────
 	companyRepo := repo.NewCompanyRepo(pool)

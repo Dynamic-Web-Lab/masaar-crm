@@ -80,6 +80,40 @@ Last updated: 2026-05-04
 
 ## Planned — Next Sprint 🗓
 
+### 0. Plans, Billing & Quota System ✅ (just shipped)
+Full subscription plan infrastructure with Stripe integration.
+
+**Plans:**
+| Plan | Price | BOS24/mo | AI/mo | PDFs/mo |
+|------|-------|----------|-------|---------|
+| Community | Free | 0 | 0 | 0 |
+| Starter | $29 | 200 | 100 | 10 |
+| Pro | $79 | 1,000 | 500 | Unlimited |
+| Business | $199 | Unlimited | Unlimited | Unlimited |
+
+**What's built:**
+- Migration `00036`: `plan`, `stripe_customer_id`, `stripe_sub_id`, `plan_expires_at` on `company_settings` + `usage_tracking` table
+- `internal/billing/plans.go` — plan definitions, quota check helpers
+- `internal/billing/stripe.go` — Stripe Checkout, Customer Portal, webhook parsing
+- `internal/repo/billing.go` — atomic usage increment (`INSERT ... ON CONFLICT DO UPDATE`), usage reads
+- `internal/api/middleware/quota.go` — `CheckQuota(resource)` + `CheckUserAIQuota()` (per-user daily AI cap)
+- `internal/api/handler/billing.go` — `GET /billing`, `POST /billing/checkout`, `POST /billing/portal`, `POST /webhooks/stripe`
+- Quota middleware wired to all BOS24 and AI routes
+- Billing page at `/settings/billing` — current plan card, usage meters with progress bars, plan comparison grid, Stripe Checkout redirect
+- Sidebar "Plans & Billing" link
+
+**Env vars needed for Stripe:**
+```bash
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRICE_STARTER=price_...
+STRIPE_PRICE_PRO=price_...
+STRIPE_PRICE_BUSINESS=price_...
+```
+*(Leave empty for self-hosted/community — works without Stripe)*
+
+---
+
 ### 1. BOS24 Dashboard Widgets (Frontend)
 Wire the new `/api/v1/properties/*` endpoints into interactive dashboard components.
 
@@ -177,7 +211,20 @@ Score 0–100 shown with actionable tips. Uses Gemini Vision for photo analysis.
 
 ## Partnership Ideas 🤝
 
-### Pause POS → BOS24 Inventory Sync
+### Pause POS Integration (maidulcu/pause — UAE POS)
+Both products are owned by the same developer — tight integration is the goal.
+
+**Direction A — Pause sale → Masaar CRM lead** (highest value, implement first)
+- Customer pays at Pause POS terminal
+- Pause POSTs to `POST /webhooks/pause/sale` (API key, scope `sale:sync`)
+- Masaar upserts contact + creates/updates a lead
+- Agent sees new lead in real time via WebSocket
+
+**Direction B — Pause inventory → BOS24 listing** (after push-to-BOS24 feature)
+- Unsold/surplus commercial stock in Pause auto-published to BOS24 as a listing
+- Needs Roadmap item 5 (push listings to BOS24) completed first
+
+**Pause POS → BOS24 Inventory Sync
 - UAE F&B/retail brands on Pause POS have unsold stock
 - Auto-sync surplus inventory listings to BOS24's marketplace
 - Mutual benefit: Pause gets B2B value-add, BOS24 gets commercial listings

@@ -49,6 +49,7 @@ type Handlers struct {
 	ApiKey            *handler.ApiKeyHandler
 	PublicLead        *handler.PublicLeadHandler
 	WebhookSub        *handler.WebhookSubHandler
+	Billing           *handler.BillingHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -84,7 +85,7 @@ func makeAPIKeyLimiter(rdb *redis.Client) fiber.Handler {
 	return middleware.APIKeyRateLimit(rdb, 300, time.Minute)
 }
 
-func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config, rdb *redis.Client, apiKeyRepo *repo.ApiKeyRepo) {
+func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config, rdb *redis.Client, apiKeyRepo *repo.ApiKeyRepo, billingRepo *repo.BillingRepo) {
 	// ── Public routes ────────────────────────────────────────────────────────
 	app.Post("/api/v1/auth/login", loginLimiter, h.Auth.Login)
 	app.Post("/api/v1/auth/refresh", h.Auth.Refresh)
@@ -94,6 +95,9 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	// WhatsApp webhook — Meta calls this publicly
 	app.Get("/webhooks/whatsapp", h.WhatsApp.Verify)
 	app.Post("/webhooks/whatsapp", webhookLimiter, h.WhatsApp.Receive)
+
+	// Stripe webhook — must be public (raw body, no JWT)
+	app.Post("/webhooks/stripe", h.Billing.StripeWebhook)
 
 	// Public lead intake — API key auth (scope: lead:create)
 	apiKeyLimiter := makeAPIKeyLimiter(rdb)
@@ -190,6 +194,18 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		h.WebhookSub.Test,
 	)
 
+	// Billing & plans — all authenticated users view; admin manages
+	v1.Get("/billing", h.Billing.GetBilling)
+	v1.Get("/billing/usage", h.Billing.GetUsage)
+	v1.Post("/billing/checkout",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Billing.CreateCheckout,
+	)
+	v1.Post("/billing/portal",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Billing.CreatePortal,
+	)
+
 	// Contacts — viewers: read-only; agents: create+update; admin: delete
 	v1.Get("/contacts", h.Contact.List)
 	v1.Get("/contacts/:id", h.Contact.Get)
@@ -255,28 +271,39 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		h.WhatsAppOutbound.GetOutboundMessages,
 	)
 
-	// AI (manual) — agents and admin only
+	// AI (manual) — agents and admin only, quota enforced
+	aiQuota := middleware.CheckQuota(billingRepo, rdb, "ai")
+	aiUserQuota := middleware.CheckUserAIQuota(billingRepo, rdb)
+
 	v1.Post("/ai/summarize/:thread_id",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		aiQuota, aiUserQuota,
 		h.AI.SummarizeThread,
 	)
 
 	// Message Analysis — agents and admin only (intent parsing, enrichment, auto-lead)
 	v1.Post("/messages/analyze",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		aiQuota, aiUserQuota,
 		h.Message.AnalyzeMessage,
 	)
 	v1.Post("/messages/suggest-action",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		aiQuota, aiUserQuota,
 		h.Message.SuggestNextAction,
 	)
 	v1.Post("/messages/auto-create-lead",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		aiQuota, aiUserQuota,
 		h.Message.AutoCreateLead,
 	)
 
-	// Real Estate Market Data (BuyOrSell24) — agents and admin only (optional integration)
-	prop := v1.Group("/properties", middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent))
+	// Real Estate Market Data (BuyOrSell24) — agents and admin only, quota enforced
+	bos24Quota := middleware.CheckQuota(billingRepo, rdb, "bos24")
+	prop := v1.Group("/properties",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		bos24Quota,
+	)
 
 	// AI search
 	prop.Post("/search", h.Property.SearchProperties)

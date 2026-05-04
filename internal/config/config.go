@@ -58,6 +58,13 @@ type Config struct {
 
 	// CORS — comma-separated allowed origins; defaults to * in development only
 	AllowedOrigins string
+
+	// Stripe billing (optional — leave empty for self-hosted/community)
+	StripeSecretKey       string
+	StripeWebhookSecret   string
+	StripePriceIDStarter  string
+	StripePriceIDPro      string
+	StripePriceIDBusiness string
 }
 
 func Load() *Config {
@@ -92,8 +99,13 @@ func Load() *Config {
 		SMTPFromName:         getEnv("SMTP_FROM_NAME", "Masaar CRM"),
 		AppEnv:               getEnv("APP_ENV", "development"),
 		AppURL:               getEnv("APP_URL", "http://localhost:3000"),
-		CompanyID:            getEnv("APP_COMPANY_ID", "00000000-0000-0000-0000-000000000001"),
-		AllowedOrigins:       getEnv("ALLOWED_ORIGINS", "*"),
+		CompanyID:             getEnv("APP_COMPANY_ID", "00000000-0000-0000-0000-000000000001"),
+		AllowedOrigins:        getEnv("ALLOWED_ORIGINS", "*"),
+		StripeSecretKey:       getEnv("STRIPE_SECRET_KEY", ""),
+		StripeWebhookSecret:   getEnv("STRIPE_WEBHOOK_SECRET", ""),
+		StripePriceIDStarter:  getEnv("STRIPE_PRICE_STARTER", ""),
+		StripePriceIDPro:      getEnv("STRIPE_PRICE_PRO", ""),
+		StripePriceIDBusiness: getEnv("STRIPE_PRICE_BUSINESS", ""),
 	}
 }
 
