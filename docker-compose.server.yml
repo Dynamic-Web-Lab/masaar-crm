@@ -23,8 +23,13 @@ services:
       dockerfile: docker/Dockerfile
     container_name: masaar-api
     restart: unless-stopped
-    env_file:
-      - .env
+    environment:
+      - DATABASE_URL=postgres://masaar:97798f1b1186c86f73473aae2c081222@masaar-postgres:5432/masaar?sslmode=disable
+      - REDIS_URL=redis://buyorsell24-redis:6379
+      - JWT_SECRET=e1c817e68bb83946a1a89a4c5de58262a3a5e0ca02563ef8a9c320de602a04b2
+      - APP_ENV=production
+      - ALLOWED_ORIGINS=https://masaar.dynamicweblab.com
+      - NEXT_PUBLIC_API_URL=https://masaar.dynamicweblab.com
     depends_on:
       postgres:
         condition: service_healthy
@@ -37,12 +42,14 @@ services:
       dockerfile: docker/Dockerfile.web
     container_name: masaar-web
     restart: unless-stopped
-    env_file:
-      - .env
+    environment:
+      - NEXT_PUBLIC_API_URL=https://masaar.dynamicweblab.com
     depends_on:
       - api
     networks:
       - buyorsell24_masaar_shared
+    ports:
+      - "3000:3000"
 
 networks:
   buyorsell24_masaar_shared:
