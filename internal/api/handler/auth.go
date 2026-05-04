@@ -48,14 +48,40 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
 	}
 
+	// Check lockout before touching the database
+	lockKey := fmt.Sprintf("lockout:%s", body.Email)
+	failKey := fmt.Sprintf("loginfail:%s", body.Email)
+	ctx := context.Background()
+
+	if locked, _ := h.redis.Exists(ctx, lockKey).Result(); locked > 0 {
+		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+			"error": "account temporarily locked due to too many failed attempts; try again in 15 minutes",
+		})
+	}
+
 	user, err := h.users.FindByEmail(c.Context(), body.Email)
 	if err != nil {
+		// Increment failure counter even on unknown email to prevent enumeration timing
+		h.redis.Incr(ctx, failKey)
+		h.redis.Expire(ctx, failKey, 15*time.Minute)
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid credentials"})
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(body.Password)); err != nil {
+		count, _ := h.redis.Incr(ctx, failKey).Result()
+		h.redis.Expire(ctx, failKey, 15*time.Minute)
+		if count >= 5 {
+			h.redis.Set(ctx, lockKey, "1", 15*time.Minute)
+			h.redis.Del(ctx, failKey)
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"error": "account locked for 15 minutes after too many failed attempts",
+			})
+		}
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid credentials"})
 	}
+
+	// Successful login — clear failure counter
+	h.redis.Del(ctx, failKey, lockKey)
 
 	access, refresh, err := h.generateTokenPair(user)
 	if err != nil {
