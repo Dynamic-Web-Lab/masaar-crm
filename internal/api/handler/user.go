@@ -38,10 +38,11 @@ func validatePasswordStrength(p string) string {
 
 type UserHandler struct {
 	users *repo.UserRepo
+	audit *repo.AuditLogRepo
 }
 
-func NewUserHandler(users *repo.UserRepo) *UserHandler {
-	return &UserHandler{users: users}
+func NewUserHandler(users *repo.UserRepo, audit *repo.AuditLogRepo) *UserHandler {
+	return &UserHandler{users: users, audit: audit}
 }
 
 // GetMe godoc
@@ -124,6 +125,7 @@ func (h *UserHandler) ChangePassword(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update password"})
 	}
 
+	h.audit.Log(c.Context(), userID, repo.AuditPasswordChange, repo.AuditUser, userID, nil)
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
