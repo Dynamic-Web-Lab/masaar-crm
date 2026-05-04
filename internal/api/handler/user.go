@@ -2,7 +2,6 @@ package handler
 
 import (
 	"strings"
-	"unicode"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -11,30 +10,6 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/repo"
 	"golang.org/x/crypto/bcrypt"
 )
-
-// validatePasswordStrength returns an error message if the password doesn't meet
-// minimum requirements: 8+ chars, at least one uppercase, one digit.
-func validatePasswordStrength(p string) string {
-	if len(p) < 8 {
-		return "password must be at least 8 characters"
-	}
-	var hasUpper, hasDigit bool
-	for _, r := range p {
-		switch {
-		case unicode.IsUpper(r):
-			hasUpper = true
-		case unicode.IsDigit(r):
-			hasDigit = true
-		}
-	}
-	if !hasUpper {
-		return "password must contain at least one uppercase letter"
-	}
-	if !hasDigit {
-		return "password must contain at least one digit"
-	}
-	return ""
-}
 
 type UserHandler struct {
 	users *repo.UserRepo
