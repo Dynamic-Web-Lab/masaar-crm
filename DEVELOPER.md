@@ -375,13 +375,77 @@ https://your-domain.com/webhooks/whatsapp
 
 **Rate limit:** 300 requests/minute per IP.
 
-### Outbound Webhooks — *Coming in Phase 3*
+### Outbound Webhooks
 
-Currently in development. Will push events to your registered URL when:
-- Lead is created
-- Lead stage changes
-- Payment received
-- Lease signed
+Register a URL and Masaar CRM will push signed events to it automatically:
+
+| Event | Trigger |
+|-------|---------|
+| `lead.created` | New lead added (via UI or API) |
+| `lead.stage_changed` | Lead moves in pipeline |
+| `lead.won` | Lead marked won |
+| `lead.lost` | Lead marked lost |
+| `payment.received` | Payment recorded |
+| `lease.signed` | Lease activated |
+| `contact.created` | New contact added |
+
+**Setup via API (Admin only):**
+
+```bash
+# Register a webhook
+curl -X POST https://crm.yourcompany.ae/api/v1/settings/webhooks \
+  -H "Authorization: Bearer JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"My App","url":"https://myapp.com/crm-events","events":"lead.created,lead.won"}'
+# Returns: {"id":"...","secret":"..."}  ← store secret, shown once
+
+# List registered webhooks
+GET /api/v1/settings/webhooks
+
+# Send a test ping
+POST /api/v1/settings/webhooks/:id/test
+
+# Remove a webhook
+DELETE /api/v1/settings/webhooks/:id
+```
+
+**Payload envelope:**
+
+```json
+{
+  "event": "lead.created",
+  "timestamp": "2025-01-15T10:30:00Z",
+  "data": {
+    "lead_id": "uuid",
+    "contact_id": "uuid",
+    "stage": "new",
+    "source": "web",
+    "deal_value": 500000
+  }
+}
+```
+
+**Signature verification:**
+
+Every request includes `X-Masaar-Signature: sha256=<hmac>`. Verify in your endpoint:
+
+```python
+import hmac, hashlib
+
+def verify(body: bytes, signature: str, secret: str) -> bool:
+    expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(f"sha256={expected}", signature)
+```
+
+```javascript
+const crypto = require('crypto');
+function verify(body, signature, secret) {
+  const expected = 'sha256=' + crypto.createHmac('sha256', secret).update(body).digest('hex');
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+}
+```
+
+Delivery retries: 3 attempts with 1s / 4s backoff. Failures tracked in `webhook_deliveries` table.
 
 ---
 
@@ -471,6 +535,7 @@ Migrations run automatically on startup via [goose](https://github.com/pressly/g
 | 00029 | `custom_fields` |
 | 00030 | `expenses`, `bulk_operations` |
 | 00031 | `api_keys` |
+| 00032 | `webhook_subscriptions`, `webhook_deliveries` |
 
 ---
 
@@ -478,34 +543,17 @@ Migrations run automatically on startup via [goose](https://github.com/pressly/g
 
 ### Connecting a Website Form
 
-> ⚠️ Phase 2 endpoint (`POST /webhooks/leads`) is not yet live.  
-> Use the authenticated API for now, or wait for Phase 2.
-
-**Current workaround — backend-to-backend via JWT:**
+Use the public lead endpoint with an API key — no user session required:
 
 ```bash
-# 1. Log in with a service account (agent role)
-curl -X POST https://crm.yourcompany.ae/api/v1/auth/login \
+# 1. Create an API key (admin, once)
+curl -X POST https://crm.yourcompany.ae/api/v1/settings/api-keys \
+  -H "Authorization: Bearer JWT_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"email":"bot@company.ae","password":"..."}'
+  -d '{"name":"Website Form","scopes":"lead:create"}'
+# Returns: {"key":"sk_live_..."}  ← store this once
 
-# 2. Create contact
-curl -X POST https://crm.yourcompany.ae/api/v1/contacts \
-  -H "Authorization: Bearer TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"full_name":"Ahmed","phone_wa":"+971501234567","language":"ar"}'
-
-# 3. Create lead
-curl -X POST https://crm.yourcompany.ae/api/v1/leads \
-  -H "Authorization: Bearer TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"contact_id":"UUID","source":"web","stage":"new"}'
-```
-
-**Future API key approach (Phase 2):**
-
-```bash
-# No login needed — use API key directly
+# 2. Submit leads from your form
 curl -X POST https://crm.yourcompany.ae/webhooks/leads \
   -H "Authorization: Bearer sk_live_..." \
   -H "Content-Type: application/json" \
@@ -513,8 +561,12 @@ curl -X POST https://crm.yourcompany.ae/webhooks/leads \
     "name": "Ahmed Al-Mansouri",
     "phone": "+971501234567",
     "email": "ahmed@example.com",
-    "source": "website_contact_form",
-    "notes": "Interested in Marina apartments"
+    "language": "ar",
+    "source": "web",
+    "notes": "Interested in Marina apartments",
+    "deal_value": 500000,
+    "property_type": "2BR",
+    "area": "Marina"
   }'
 ```
 
@@ -564,19 +616,15 @@ Content-Type: application/json
 - Rate limited at 300 req/min (same as WhatsApp webhook)
 - Returns `lead_id`, `contact_id`, `stage`, `source`
 
-### Phase 3 — Outbound Webhooks *(planned)*
+### Phase 3 — Outbound Webhooks ✅ Live
 
-Push real-time events to your registered URL when things happen in the CRM:
+Register URLs to receive signed events when CRM activity happens. See [Outbound Webhooks](#outbound-webhooks) above for full setup.
 
-| Event | Trigger |
-|-------|---------|
-| `lead.created` | New lead added |
-| `lead.stage_changed` | Lead moves in pipeline |
-| `lead.won` | Lead marked won |
-| `payment.received` | Payment recorded |
-| `lease.signed` | Lease activated |
-
-Configuration will be via admin settings. Events signed with HMAC-SHA256.
+Quick start:
+```bash
+POST /api/v1/settings/webhooks
+{"name":"Zapier","url":"https://hooks.zapier.com/...","events":"lead.created,lead.won"}
+```
 
 ### Phase 4 — OAuth 2.0 *(future)*
 

@@ -386,15 +386,26 @@ Content-Type: application/json
                 </p>
               </div>
 
-              <div className="border border-gray-200 rounded-lg p-4 opacity-75">
+              <div className="border border-green-200 bg-green-50 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Badge color="gray">Phase 3 — Planned</Badge>
+                  <Badge color="green">Phase 3 — Live</Badge>
                   <h4 className="font-semibold text-gray-900">Outbound — Event Webhooks</h4>
                 </div>
-                <p className="text-sm text-gray-600">
-                  Push events to your URL when things happen in the CRM:
-                  lead created, stage changed, payment received, lease signed.
-                  Events will be signed with HMAC-SHA256.
+                <p className="text-sm text-gray-600 mb-3">
+                  Push signed events to your URL when things happen in the CRM.
+                  Events: <code className="bg-green-100 px-1 rounded text-xs">lead.created</code>{' '}
+                  <code className="bg-green-100 px-1 rounded text-xs">lead.stage_changed</code>{' '}
+                  <code className="bg-green-100 px-1 rounded text-xs">lead.won</code>{' '}
+                  <code className="bg-green-100 px-1 rounded text-xs">lead.lost</code>{' '}
+                  <code className="bg-green-100 px-1 rounded text-xs">payment.received</code>
+                </p>
+                <Pre>{`POST /api/v1/settings/webhooks
+Authorization: Bearer <jwt>
+
+{"name":"My App","url":"https://...","events":"lead.created,lead.won"}
+// Response includes secret — store it to verify signatures`}</Pre>
+                <p className="text-xs text-gray-500 mt-2">
+                  All requests carry <Code>X-Masaar-Signature: sha256=hmac</Code>. 3 retries with 1s/4s backoff.
                 </p>
               </div>
             </div>
@@ -502,9 +513,9 @@ POST /api/v1/leads
                 },
                 {
                   phase: 'Phase 3',
-                  status: 'planned',
+                  status: 'complete',
                   title: 'Outbound Webhooks',
-                  desc: 'Push events (lead created, stage changed, payment received) to registered URLs. HMAC-signed.',
+                  desc: 'Push events (lead.created, lead.stage_changed, lead.won, payment.received) to registered URLs. HMAC-SHA256 signed. Manage via Admin Settings → Webhooks.',
                 },
                 {
                   phase: 'Phase 4',

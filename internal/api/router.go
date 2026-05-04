@@ -48,6 +48,7 @@ type Handlers struct {
 	LeaseRenewal      *handler.LeaseRenewalHandler
 	ApiKey            *handler.ApiKeyHandler
 	PublicLead        *handler.PublicLeadHandler
+	WebhookSub        *handler.WebhookSubHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -161,6 +162,21 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Delete("/settings/api-keys/:id",
 		middleware.RequireRole(domain.RoleAdmin),
 		h.ApiKey.RevokeApiKey,
+	)
+
+	// Outbound Webhooks — admin only
+	v1.Get("/settings/webhooks", h.WebhookSub.List)
+	v1.Post("/settings/webhooks",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.WebhookSub.Create,
+	)
+	v1.Delete("/settings/webhooks/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.WebhookSub.Delete,
+	)
+	v1.Post("/settings/webhooks/:id/test",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.WebhookSub.Test,
 	)
 
 	// Contacts — viewers: read-only; agents: create+update; admin: delete
