@@ -28,7 +28,7 @@ func NewLeadHandler(leads *repo.LeadRepo, contacts *repo.ContactRepo, commHistRe
 
 // KanbanBoard godoc
 // @Summary      Get Kanban board
-// @Description  Returns all leads grouped by stage for the Kanban pipeline view.
+// @Description  Returns all active leads grouped by stage for the Kanban pipeline view.
 // @Tags         Leads
 // @Produce      json
 // @Success      200  {object}  object  "Map of stage → []Lead"
@@ -40,6 +40,48 @@ func (h *LeadHandler) KanbanBoard(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.JSON(board)
+}
+
+// List godoc
+// @Summary      Search / list leads
+// @Description  Returns a flat list of leads with optional filtering. Supports search, stage, assigned_to, source, pagination.
+// @Tags         Leads
+// @Produce      json
+// @Param        q           query  string  false  "Search contact name or phone"
+// @Param        stage       query  string  false  "Filter by stage: new|contacted|qualified|proposal|won|lost"
+// @Param        assigned_to query  string  false  "Filter by agent UUID"
+// @Param        source      query  string  false  "Filter by source: web|whatsapp|referral|event"
+// @Param        limit       query  int     false  "Page size (default 50)"
+// @Param        offset      query  int     false  "Page offset (default 0)"
+// @Success      200  {array}   domain.Lead
+// @Security     BearerAuth
+// @Router       /leads/search [get]
+func (h *LeadHandler) List(c *fiber.Ctx) error {
+	f := repo.LeadFilter{
+		Query:  c.Query("q"),
+		Stage:  domain.LeadStage(c.Query("stage")),
+		Source: c.Query("source"),
+	}
+	if s := c.Query("assigned_to"); s != "" {
+		if id, err := uuid.Parse(s); err == nil {
+			f.AssignedTo = &id
+		}
+	}
+	if v, err := strconv.Atoi(c.Query("limit")); err == nil && v > 0 {
+		f.Limit = v
+	}
+	if v, err := strconv.Atoi(c.Query("offset")); err == nil && v >= 0 {
+		f.Offset = v
+	}
+
+	leads, err := h.leads.List(c.Context(), f)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	if leads == nil {
+		leads = []domain.Lead{}
+	}
+	return c.JSON(leads)
 }
 
 // Create godoc
@@ -95,12 +137,12 @@ func (h *LeadHandler) Create(c *fiber.Ctx) error {
 
 // UpdateStage godoc
 // @Summary      Move lead to stage
-// @Description  Updates the pipeline stage of a lead (drag-drop). Broadcasts lead.stage_changed event.
+// @Description  Updates the pipeline stage of a lead (drag-drop). Accepts optional closed_reason for won/lost.
 // @Tags         Leads
 // @Accept       json
 // @Produce      json
-// @Param        id    path      string                    true  "Lead UUID"
-// @Param        body  body      object{stage=string}      true  "New stage: new|contacted|qualified|proposal|won|lost"
+// @Param        id    path      string  true  "Lead UUID"
+// @Param        body  body      object{stage=string,closed_reason=string}  true  "New stage"
 // @Success      200   {object}  object{lead_id=string,stage=string}
 // @Failure      400   {object}  object{error=string}
 // @Security     BearerAuth
@@ -112,7 +154,8 @@ func (h *LeadHandler) UpdateStage(c *fiber.Ctx) error {
 	}
 
 	var body struct {
-		Stage domain.LeadStage `json:"stage"`
+		Stage        domain.LeadStage `json:"stage"`
+		ClosedReason string           `json:"closed_reason"`
 	}
 	if err := c.BodyParser(&body); err != nil || body.Stage == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "stage is required"})
@@ -130,11 +173,10 @@ func (h *LeadHandler) UpdateStage(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid stage"})
 	}
 
-	if err := h.leads.UpdateStage(c.Context(), id, body.Stage); err != nil {
+	if err := h.leads.UpdateStage(c.Context(), id, body.Stage, body.ClosedReason); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// Update lead score based on stage progression
 	if h.scoringService != nil {
 		h.scoringService.UpdateScoreOnStageChange(c.Context(), id, body.Stage)
 	}
@@ -171,7 +213,7 @@ func (h *LeadHandler) UpdateStage(c *fiber.Ctx) error {
 
 // UpdateNotes godoc
 // @Summary      Update lead notes
-// @Description  Replaces the notes text on a lead. Agents and admins only.
+// @Description  Replaces the notes text on a lead.
 // @Tags         Leads
 // @Accept       json
 // @Produce      json
@@ -201,6 +243,63 @@ func (h *LeadHandler) UpdateNotes(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"lead_id": id, "notes": body.Notes})
 }
 
+// Assign godoc
+// @Summary      Assign lead to agent
+// @Description  Assigns a lead to a user (agent or admin). Pass null user_id to unassign.
+// @Tags         Leads
+// @Accept       json
+// @Produce      json
+// @Param        id    path      string                   true  "Lead UUID"
+// @Param        body  body      object{user_id=string}   true  "Agent UUID or null"
+// @Success      200   {object}  object{lead_id=string,assigned_to=string}
+// @Failure      400   {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /leads/{id}/assign [patch]
+func (h *LeadHandler) Assign(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+
+	var body struct {
+		UserID *uuid.UUID `json:"user_id"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+
+	if err := h.leads.Assign(c.Context(), id, body.UserID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"lead_id": id, "assigned_to": body.UserID})
+}
+
+// Delete godoc
+// @Summary      Delete lead
+// @Description  Soft-deletes a lead (hidden from UI, data retained). Admin only.
+// @Tags         Leads
+// @Param        id  path  string  true  "Lead UUID"
+// @Success      204
+// @Failure      400  {object}  object{error=string}
+// @Failure      404  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /leads/{id} [delete]
+func (h *LeadHandler) Delete(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+
+	if err := h.leads.Delete(c.Context(), id); err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "lead not found"})
+	}
+
+	actorID := c.Locals("user_id").(uuid.UUID)
+	h.audit.Log(c.Context(), actorID, repo.AuditDelete, repo.AuditLead, id, nil)
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 // Get godoc
 // @Summary      Get lead
 // @Description  Returns a single lead with its contact joined.
@@ -208,7 +307,6 @@ func (h *LeadHandler) UpdateNotes(c *fiber.Ctx) error {
 // @Produce      json
 // @Param        id  path      string  true  "Lead UUID"
 // @Success      200  {object}  domain.Lead
-// @Failure      400  {object}  object{error=string}
 // @Failure      404  {object}  object{error=string}
 // @Security     BearerAuth
 // @Router       /leads/{id} [get]
@@ -222,7 +320,6 @@ func (h *LeadHandler) Get(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "lead not found"})
 	}
 
-	// Join contact
 	contact, _ := h.contacts.GetByID(c.Context(), lead.ContactID)
 	lead.Contact = contact
 

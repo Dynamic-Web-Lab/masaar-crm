@@ -79,6 +79,11 @@ var apiLimiter = limiter.New(limiter.Config{
 	},
 })
 
+// apiKeyLimiter caps each API key to 300 requests/min using Redis sliding window.
+func makeAPIKeyLimiter(rdb *redis.Client) fiber.Handler {
+	return middleware.APIKeyRateLimit(rdb, 300, time.Minute)
+}
+
 func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config, rdb *redis.Client, apiKeyRepo *repo.ApiKeyRepo) {
 	// ── Public routes ────────────────────────────────────────────────────────
 	app.Post("/api/v1/auth/login", loginLimiter, h.Auth.Login)
@@ -89,9 +94,11 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	app.Post("/webhooks/whatsapp", webhookLimiter, h.WhatsApp.Receive)
 
 	// Public lead intake — API key auth (scope: lead:create)
+	apiKeyLimiter := makeAPIKeyLimiter(rdb)
 	app.Post("/webhooks/leads",
 		webhookLimiter,
 		middleware.ValidateAPIKey(apiKeyRepo),
+		apiKeyLimiter,
 		middleware.RequireAPIKeyScope("lead:create"),
 		h.PublicLead.SubmitLead,
 	)
@@ -197,6 +204,7 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 
 	// Leads / Pipeline — viewers: read-only; agents: create+move; admin: all
 	v1.Get("/leads", h.Lead.KanbanBoard)
+	v1.Get("/leads/search", h.Lead.List)
 	v1.Get("/leads/:id", h.Lead.Get)
 	v1.Post("/leads",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
@@ -209,6 +217,14 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Patch("/leads/:id/notes",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.Lead.UpdateNotes,
+	)
+	v1.Patch("/leads/:id/assign",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Lead.Assign,
+	)
+	v1.Delete("/leads/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Lead.Delete,
 	)
 	v1.Get("/leads/:id/communications", h.Lead.GetCommunications)
 
