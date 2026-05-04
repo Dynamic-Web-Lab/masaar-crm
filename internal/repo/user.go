@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -24,7 +25,7 @@ func (r *UserRepo) FindByEmail(ctx context.Context, email string) (*domain.User,
 		WHERE email = $1
 	`
 	u := &domain.User{}
-	err := r.db.QueryRow(ctx, q, email).Scan(
+	err := r.db.QueryRow(ctx, q, strings.ToLower(strings.TrimSpace(email))).Scan(
 		&u.ID, &u.Name, &u.Email, &u.PasswordHash,
 		&u.Role, &u.LangPref, &u.WANumber, &u.CreatedAt,
 	)
@@ -58,6 +59,7 @@ func (r *UserRepo) Create(ctx context.Context, u *domain.User) error {
 		RETURNING created_at
 	`
 	u.ID = uuid.New()
+	u.Email = strings.ToLower(strings.TrimSpace(u.Email))
 	return r.db.QueryRow(ctx, q,
 		u.ID, u.Name, u.Email, u.PasswordHash,
 		u.Role, u.LangPref, u.WANumber,
