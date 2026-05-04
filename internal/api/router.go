@@ -276,38 +276,48 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	)
 
 	// Real Estate Market Data (BuyOrSell24) — agents and admin only (optional integration)
-	v1.Post("/properties/search",
-		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
-		h.Property.SearchProperties,
-	)
-	v1.Get("/properties/transactions",
-		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
-		h.Property.GetTransactions,
-	)
-	v1.Get("/properties/buildings",
-		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
-		h.Property.GetBuildings,
-	)
-	v1.Get("/properties/buildings/:id",
-		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
-		h.Property.GetBuildingByID,
-	)
-	v1.Get("/properties/schools/nearby",
-		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
-		h.Property.GetNearbySchools,
-	)
-	v1.Get("/properties/yield-analysis",
-		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
-		h.Property.GetYieldAnalysis,
-	)
-	v1.Get("/properties/comparables",
-		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
-		h.Property.GetComparables,
-	)
-	v1.Get("/properties/market-trends",
-		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
-		h.Property.GetMarketTrends,
-	)
+	prop := v1.Group("/properties", middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent))
+
+	// AI search
+	prop.Post("/search", h.Property.SearchProperties)
+	prop.Post("/projects/search", h.Property.SearchProjects)
+	prop.Post("/ai/describe", h.Property.DescribeProperty)
+
+	// Transactions
+	prop.Get("/transactions", h.Property.GetTransactions)
+	prop.Get("/transactions/areas", h.Property.GetTransactionAreas)
+
+	// Buildings
+	prop.Get("/buildings", h.Property.GetBuildings)
+	prop.Get("/buildings/:id", h.Property.GetBuildingByID)
+
+	// Areas
+	prop.Get("/areas", h.Property.GetAreas)
+	prop.Get("/areas/:slug/summary", h.Property.GetAreaSummary)
+	prop.Get("/areas/:slug/buildings", h.Property.GetAreaBuildings)
+
+	// Map data
+	prop.Get("/map/areas", h.Property.GetMapAreas)
+	prop.Get("/pois", h.Property.GetNearbyPOIs)
+	prop.Get("/schools/nearby", h.Property.GetNearbySchools)
+
+	// Rentals & yield
+	prop.Get("/rentals", h.Property.GetRentals)
+	prop.Get("/rentals/ejari", h.Property.GetEjariRentals)
+	prop.Get("/rentals/ejari/yield", h.Property.GetEjariYield)
+
+	// Developers & projects
+	prop.Get("/developers", h.Property.GetDevelopers)
+	prop.Get("/projects", h.Property.GetProjects)
+
+	// Units & valuations
+	prop.Get("/units", h.Property.GetUnits)
+	prop.Get("/valuations", h.Property.GetValuations)
+
+	// Analytics
+	prop.Get("/yield-analysis", h.Property.GetYieldAnalysis)
+	prop.Get("/comparables", h.Property.GetComparables)
+	prop.Get("/market-trends", h.Property.GetMarketTrends)
 
 	// Notifications — personal; no role restriction beyond auth
 	v1.Get("/notifications", h.Notification.List)
