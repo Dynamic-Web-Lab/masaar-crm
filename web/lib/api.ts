@@ -105,6 +105,15 @@ export const api = {
   ai: {
     summarize: (threadId: string) =>
       request(`/api/v1/ai/summarize/${threadId}`, { method: 'POST' }),
+    replySuggestions: (threadId: string) =>
+      request(`/api/v1/ai/reply-suggestions/${threadId}`, { method: 'POST' }),
+    extractBuyerProfile: (threadId: string) =>
+      request(`/api/v1/ai/extract-buyer-profile/${threadId}`, { method: 'POST' }),
+    translate: (text: string, to: 'ar' | 'en') =>
+      request('/api/v1/ai/translate', {
+        method: 'POST',
+        body: JSON.stringify({ text, to }),
+      }),
   },
 
   // ─── Deals ──────────────────────────────────────────────────────────────────

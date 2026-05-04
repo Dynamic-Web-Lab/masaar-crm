@@ -10,6 +10,7 @@ import { KanbanCard } from '@/components/kanban/Card'
 import { Modal, FormField, FormError } from '@/components/ui/Modal'
 import { CommunicationHistoryComponent } from '@/components/communication/CommunicationHistory'
 import { AgentAssist } from '@/components/agent/AgentAssist'
+import { BuyerProfile } from '@/components/agent/BuyerProfile'
 import { api } from '@/lib/api'
 import { useLang } from '@/context/LangContext'
 import type { KanbanBoard, Lead, LeadStage, Contact, PaginatedResult, CommunicationHistory } from '@/types'
@@ -395,7 +396,7 @@ export default function PipelinePage() {
             )}
 
             {activeTab === 'assist' && threadId && (
-              <div className="max-h-96 overflow-y-auto">
+              <div className="max-h-96 overflow-y-auto space-y-3">
                 <AgentAssist
                   leadId={selectedLead.id}
                   threadId={threadId}
@@ -403,9 +404,9 @@ export default function PipelinePage() {
                   conversation={threadConversation}
                   onActionClick={(action, message) => {
                     console.log('Action clicked:', action, message)
-                    // Handle action (send message, etc.)
                   }}
                 />
+                <BuyerProfile threadId={threadId} />
               </div>
             )}
 

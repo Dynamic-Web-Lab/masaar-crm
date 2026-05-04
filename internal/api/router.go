@@ -280,6 +280,20 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		aiQuota, aiUserQuota,
 		h.AI.SummarizeThread,
 	)
+	v1.Post("/ai/reply-suggestions/:thread_id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		aiQuota, aiUserQuota,
+		h.AI.ReplySuggestions,
+	)
+	v1.Post("/ai/extract-buyer-profile/:thread_id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		aiQuota, aiUserQuota,
+		h.AI.ExtractBuyerProfile,
+	)
+	v1.Post("/ai/translate",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.AI.Translate,
+	)
 
 	// Message Analysis — agents and admin only (intent parsing, enrichment, auto-lead)
 	v1.Post("/messages/analyze",

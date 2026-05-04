@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -144,4 +146,141 @@ func (h *AIHandler) SummarizeThread(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"summary": summary})
+}
+
+// POST /api/v1/ai/reply-suggestions/:thread_id
+func (h *AIHandler) ReplySuggestions(c *fiber.Ctx) error {
+	threadID, err := uuid.Parse(c.Params("thread_id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid thread_id"})
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), ollamaTimeout)
+	defer cancel()
+
+	thread, err := h.wa.GetThread(ctx, threadID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "thread not found"})
+	}
+
+	msgs, err := h.wa.GetMessages(ctx, threadID, 20)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "messages not found"})
+	}
+
+	var bodies []string
+	for _, m := range msgs {
+		prefix := "Agent"
+		if m.Direction == domain.DirectionInbound {
+			prefix = "Customer"
+		}
+		bodies = append(bodies, prefix+": "+m.Body)
+	}
+
+	contactName := ""
+	if thread.Contact != nil {
+		contactName = thread.Contact.FullName
+	}
+
+	raw, err := h.ollama.ReplySuggestions(ctx, contactName, bodies)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
+	}
+
+	// Extract the JSON object from the response (model may add preamble text)
+	start := strings.Index(raw, "{")
+	end := strings.LastIndex(raw, "}")
+	if start != -1 && end != -1 && end > start {
+		raw = raw[start : end+1]
+	}
+
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+		return c.JSON(fiber.Map{"raw": raw})
+	}
+	return c.JSON(parsed)
+}
+
+// POST /api/v1/ai/extract-buyer-profile/:thread_id
+func (h *AIHandler) ExtractBuyerProfile(c *fiber.Ctx) error {
+	threadID, err := uuid.Parse(c.Params("thread_id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid thread_id"})
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), ollamaTimeout)
+	defer cancel()
+
+	thread, err := h.wa.GetThread(ctx, threadID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "thread not found"})
+	}
+
+	msgs, err := h.wa.GetMessages(ctx, threadID, 40)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "messages not found"})
+	}
+
+	var bodies []string
+	for _, m := range msgs {
+		prefix := "Agent"
+		if m.Direction == domain.DirectionInbound {
+			prefix = "Customer"
+		}
+		bodies = append(bodies, prefix+": "+m.Body)
+	}
+
+	contactName := ""
+	if thread.Contact != nil {
+		contactName = thread.Contact.FullName
+	}
+
+	raw, err := h.ollama.ExtractBuyerProfile(ctx, contactName, bodies)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
+	}
+
+	start := strings.Index(raw, "{")
+	end := strings.LastIndex(raw, "}")
+	if start != -1 && end != -1 && end > start {
+		raw = raw[start : end+1]
+	}
+
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+		return c.JSON(fiber.Map{"raw": raw})
+	}
+	return c.JSON(parsed)
+}
+
+// POST /api/v1/ai/translate
+func (h *AIHandler) Translate(c *fiber.Ctx) error {
+	var body struct {
+		Text string `json:"text"`
+		To   string `json:"to"`
+	}
+	if err := c.BodyParser(&body); err != nil || body.Text == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "text and to (ar|en) are required"})
+	}
+	if body.To != "ar" && body.To != "en" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "to must be 'ar' or 'en'"})
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), ollamaTimeout)
+	defer cancel()
+
+	translated, err := h.ollama.Translate(ctx, body.Text, body.To)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
+	}
+
+	from := "en"
+	if body.To == "en" {
+		from = "ar"
+	}
+	return c.JSON(fiber.Map{
+		"translated": strings.TrimSpace(translated),
+		"from":       from,
+		"to":         body.To,
+	})
 }
