@@ -132,7 +132,9 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	// Dashboard stats — all authenticated users
 	v1.Get("/stats", h.Stats.Overview)
 
-	// User settings — personal; no role restriction beyond auth
+	// User management — list/create: admin only; personal settings: any auth user
+	v1.Get("/users", middleware.RequireRole(domain.RoleAdmin), h.User.ListUsers)
+	v1.Post("/users", middleware.RequireRole(domain.RoleAdmin), h.User.CreateUser)
 	v1.Get("/users/me", h.User.GetMe)
 	v1.Patch("/users/me/password", h.User.ChangePassword)
 	v1.Patch("/users/me/lang", h.User.UpdateLang)

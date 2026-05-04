@@ -66,6 +66,29 @@ func (r *UserRepo) Create(ctx context.Context, u *domain.User) error {
 	).Scan(&u.CreatedAt)
 }
 
+func (r *UserRepo) List(ctx context.Context) ([]domain.User, error) {
+	const q = `
+		SELECT id, name, email, password_hash, role, lang_pref, wa_number, created_at
+		FROM users ORDER BY created_at ASC
+	`
+	rows, err := r.db.Query(ctx, q)
+	if err != nil {
+		return nil, fmt.Errorf("list users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []domain.User
+	for rows.Next() {
+		var u domain.User
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash,
+			&u.Role, &u.LangPref, &u.WANumber, &u.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan user: %w", err)
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}
+
 func (r *UserRepo) UpdatePassword(ctx context.Context, id uuid.UUID, passwordHash string) error {
 	const q = `UPDATE users SET password_hash = $1 WHERE id = $2`
 	_, err := r.db.Exec(ctx, q, passwordHash, id)
