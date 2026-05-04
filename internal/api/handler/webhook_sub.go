@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"net"
+	"net/url"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/maidulcu/masaar-crm/internal/domain"
@@ -24,15 +27,15 @@ type WebhookSubCreateRequest struct {
 }
 
 type WebhookSubResponse struct {
-	ID           uuid.UUID  `json:"id"`
-	Name         string     `json:"name"`
-	URL          string     `json:"url"`
-	Events       []string   `json:"events"`
-	Active       bool       `json:"active"`
-	Secret       string     `json:"secret,omitempty"` // only on creation
-	FailureCount int        `json:"failure_count"`
-	CreatedAt    string     `json:"created_at"`
-	LastFiredAt  *string    `json:"last_fired_at"`
+	ID           uuid.UUID `json:"id"`
+	Name         string    `json:"name"`
+	URL          string    `json:"url"`
+	Events       []string  `json:"events"`
+	Active       bool      `json:"active"`
+	Secret       string    `json:"secret,omitempty"` // only on creation
+	FailureCount int       `json:"failure_count"`
+	CreatedAt    string    `json:"created_at"`
+	LastFiredAt  *string   `json:"last_fired_at"`
 }
 
 // ListWebhooks lists webhook subscriptions for the company
@@ -103,6 +106,20 @@ func (h *WebhookSubHandler) Create(c *fiber.Ctx) error {
 	}
 	if req.URL == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "url is required"})
+	}
+
+	parsedURL, err := url.ParseRequestURI(req.URL)
+	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid url schema"})
+	}
+
+	ips, err := net.LookupIP(parsedURL.Hostname())
+	if err == nil {
+		for _, ip := range ips {
+			if ip.IsPrivate() || ip.IsLoopback() || ip.IsUnspecified() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "url cannot point to private or local IP addresses"})
+			}
+		}
 	}
 
 	secret, err := webhook.GenerateSecret()
