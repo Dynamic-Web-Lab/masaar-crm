@@ -30,6 +30,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export const api = {
+  get: <T>(path: string) => request<T>(path),
+  post: <T>(path: string, data?: unknown) => request<T>(path, { method: 'POST', body: data ? JSON.stringify(data) : undefined }),
+  put: <T>(path: string, data?: unknown) => request<T>(path, { method: 'PUT', body: data ? JSON.stringify(data) : undefined }),
+  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  
   auth: {
     login: (email: string, password: string) =>
       request('/api/v1/auth/login', {
