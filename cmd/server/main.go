@@ -12,16 +12,18 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/helmet"
-	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/maidulcu/masaar-crm/internal/api/middleware"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/maidulcu/masaar-crm/internal/ai"
 	"github.com/maidulcu/masaar-crm/internal/api"
 	"github.com/maidulcu/masaar-crm/internal/api/handler"
+	"github.com/maidulcu/masaar-crm/internal/billing"
 	"github.com/maidulcu/masaar-crm/internal/bos24"
 	"github.com/maidulcu/masaar-crm/internal/config"
 	"github.com/maidulcu/masaar-crm/internal/email"
 	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/maidulcu/masaar-crm/internal/webhook"
 	"github.com/maidulcu/masaar-crm/internal/whatsapp"
 	"github.com/maidulcu/masaar-crm/internal/ws"
 	"github.com/pressly/goose/v3"
@@ -30,6 +32,17 @@ import (
 
 func main() {
 	cfg := config.Load()
+
+	// ── Startup validation ───────────────────────────────────────────────────
+	if cfg.JWTSecret == "change-me-in-production" || cfg.JWTSecret == "" {
+		if cfg.AppEnv == "production" {
+			log.Fatal("JWT_SECRET must be set to a strong random value in production")
+		}
+		log.Println("WARNING: JWT_SECRET is using default value — change before deploying to production")
+	}
+	if cfg.AppEnv == "production" && cfg.AllowedOrigins == "*" {
+		log.Fatal("ALLOWED_ORIGINS must not be '*' in production — set it to your frontend domain")
+	}
 
 	// ── Database ─────────────────────────────────────────────────────────────
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -156,6 +169,24 @@ func main() {
 	}
 
 	auditLogRepo := repo.NewAuditLogRepo(pool)
+	apiKeyRepo := repo.NewApiKeyRepo(pool)
+	billingRepo := repo.NewBillingRepo(pool)
+
+	// ── Stripe billing (optional) ─────────────────────────────────────────────
+	stripeCfg := &billing.StripeConfig{
+		SecretKey:       cfg.StripeSecretKey,
+		WebhookSecret:   cfg.StripeWebhookSecret,
+		PriceIDStarter:  cfg.StripePriceIDStarter,
+		PriceIDPro:      cfg.StripePriceIDPro,
+		PriceIDBusiness: cfg.StripePriceIDBusiness,
+		AppURL:          cfg.AppURL,
+	}
+	billing.SetupStripe(stripeCfg)
+	if stripeCfg.IsEnabled() {
+		log.Println("Stripe billing enabled")
+	}
+	webhookRepo := repo.NewWebhookRepo(pool)
+	dispatcher := webhook.NewDispatcher(webhookRepo)
 
 	// ── Payment Reminder Service ──────────────────────────────────────────────
 	paymentReminderService := ai.NewPaymentReminderService(
@@ -171,11 +202,11 @@ func main() {
 
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	handlers := &api.Handlers{
-		Auth:                handler.NewAuthHandler(userRepo, rdb, cfg),
-		User:                handler.NewUserHandler(userRepo),
+		Auth:                handler.NewAuthHandler(userRepo, rdb, cfg, auditLogRepo, emailService),
+		User:                handler.NewUserHandler(userRepo, auditLogRepo),
 		Stats:               handler.NewStatsHandler(statsRepo),
 		Contact:             handler.NewContactHandler(contactRepo, auditLogRepo),
-		Lead:                handler.NewLeadHandler(leadRepo, contactRepo, commHistRepo, scoringService, hub, auditLogRepo),
+		Lead:                handler.NewLeadHandler(leadRepo, contactRepo, commHistRepo, scoringService, hub, auditLogRepo, dispatcher),
 		WhatsApp:            handler.NewWhatsAppHandler(waRepo, contactRepo, taggingService, hub, cfg),
 		WhatsAppOutbound:    handler.NewWhatsAppOutboundHandler(whatsappSender, outboundRepo, waRepo),
 		AI:                  handler.NewAIHandler(aiClient, contactRepo, leadRepo, waRepo),
@@ -199,6 +230,10 @@ func main() {
 		Inspection:          handler.NewInspectionHandler(inspectionTemplateRepo, inspectionRepo),
 		Maintenance:         handler.NewMaintenanceTaskHandler(maintenanceRepo),
 		LeaseRenewal:        handler.NewLeaseRenewalHandler(leaseRenewalRepo, renewalTemplateRepo, renewalCommLogRepo),
+		ApiKey:              handler.NewApiKeyHandler(apiKeyRepo),
+		PublicLead:          handler.NewPublicLeadHandler(contactRepo, leadRepo, dispatcher),
+		WebhookSub:          handler.NewWebhookSubHandler(webhookRepo, dispatcher),
+		Billing:             handler.NewBillingHandler(billingRepo, companySettingsRepo, stripeCfg),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
@@ -208,18 +243,21 @@ func main() {
 		WriteTimeout: 30 * time.Second,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
+			msg := "internal server error"
 			if e, ok := err.(*fiber.Error); ok {
 				code = e.Code
+				msg = e.Message
 			}
-			return c.Status(code).JSON(fiber.Map{"error": err.Error()})
+			if code == fiber.StatusInternalServerError {
+				log.Printf("internal error: %v", err)
+			}
+			return c.Status(code).JSON(fiber.Map{"error": msg})
 		},
 	})
 
 	app.Use(helmet.New())
 	app.Use(recover.New())
-	app.Use(logger.New(logger.Config{
-		Format: "[${time}] ${status} ${method} ${path} ${latency}\n",
-	}))
+	app.Use(middleware.PIISafeLogger())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     cfg.AllowedOrigins,
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
@@ -227,7 +265,7 @@ func main() {
 		AllowCredentials: cfg.AllowedOrigins != "*",
 	}))
 
-	api.RegisterRoutes(app, handlers, hub, cfg, rdb)
+	api.RegisterRoutes(app, handlers, hub, cfg, rdb, apiKeyRepo, billingRepo)
 
 	// ── Background Jobs ──────────────────────────────────────────────────────
 	companyRepo := repo.NewCompanyRepo(pool)

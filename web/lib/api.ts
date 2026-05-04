@@ -436,6 +436,17 @@ export const api = {
     delete: (id: string) =>
       request(`/api/v1/maintenance-tasks/${id}`, { method: 'DELETE' }),
   },
+
+  // ─── Billing & Plans ─────────────────────────────────────────────────────────
+
+  billing: {
+    get: () => request('/api/v1/billing'),
+    getUsage: () => request('/api/v1/billing/usage'),
+    checkout: (plan: string) =>
+      request('/api/v1/billing/checkout', { method: 'POST', body: JSON.stringify({ plan }) }),
+    portal: () =>
+      request('/api/v1/billing/portal', { method: 'POST' }),
+  },
 }
 
 export default api
