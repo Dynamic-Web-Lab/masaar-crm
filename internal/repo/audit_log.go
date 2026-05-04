@@ -33,12 +33,16 @@ func (r *AuditLogRepo) Log(ctx context.Context, actorID uuid.UUID, action, entit
 
 // AuditLog constants used across handlers.
 const (
-	AuditCreate = "create"
-	AuditUpdate = "update"
-	AuditDelete = "delete"
+	AuditCreate         = "create"
+	AuditUpdate         = "update"
+	AuditDelete         = "delete"
+	AuditLogin          = "login"
+	AuditLogout         = "logout"
+	AuditPasswordChange = "password_change"
 
 	AuditContact = domain.AuditEntityContact
 	AuditLead    = domain.AuditEntityLead
 	AuditDeal    = domain.AuditEntityDeal
 	AuditInvoice = domain.AuditEntityInvoice
+	AuditUser    = "user"
 )

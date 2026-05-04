@@ -11,6 +11,7 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/api/middleware"
 	"github.com/maidulcu/masaar-crm/internal/config"
 	"github.com/maidulcu/masaar-crm/internal/domain"
+	"github.com/maidulcu/masaar-crm/internal/repo"
 	"github.com/maidulcu/masaar-crm/internal/ws"
 	"github.com/redis/go-redis/v9"
 	fiberswagger "github.com/swaggo/fiber-swagger"
@@ -45,6 +46,10 @@ type Handlers struct {
 	Inspection        *handler.InspectionHandler
 	Maintenance       *handler.MaintenanceTaskHandler
 	LeaseRenewal      *handler.LeaseRenewalHandler
+	ApiKey            *handler.ApiKeyHandler
+	PublicLead        *handler.PublicLeadHandler
+	WebhookSub        *handler.WebhookSubHandler
+	Billing           *handler.BillingHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -84,16 +89,36 @@ var apiLimiter = limiter.New(limiter.Config{
 	},
 })
 
-func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config, rdb *redis.Client) {
+// apiKeyLimiter caps each API key to 300 requests/min using Redis sliding window.
+func makeAPIKeyLimiter(rdb *redis.Client) fiber.Handler {
+	return middleware.APIKeyRateLimit(rdb, 300, time.Minute)
+}
+
+func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config, rdb *redis.Client, apiKeyRepo *repo.ApiKeyRepo, billingRepo *repo.BillingRepo) {
 	// ── Public routes ────────────────────────────────────────────────────────
 	app.Post("/api/v1/auth/login", loginLimiter, h.Auth.Login)
 	app.Post("/api/v1/auth/magic-link/request", magicLinkLimiter, h.Auth.RequestMagicLink)
 	app.Post("/api/v1/auth/magic-link/verify", h.Auth.VerifyMagicLink)
 	app.Post("/api/v1/auth/refresh", h.Auth.Refresh)
+	app.Post("/api/v1/auth/forgot-password", loginLimiter, h.Auth.ForgotPassword)
+	app.Post("/api/v1/auth/reset-password", h.Auth.ResetPassword)
 
 	// WhatsApp webhook — Meta calls this publicly
 	app.Get("/webhooks/whatsapp", h.WhatsApp.Verify)
 	app.Post("/webhooks/whatsapp", webhookLimiter, h.WhatsApp.Receive)
+
+	// Stripe webhook — must be public (raw body, no JWT)
+	app.Post("/webhooks/stripe", h.Billing.StripeWebhook)
+
+	// Public lead intake — API key auth (scope: lead:create)
+	apiKeyLimiter := makeAPIKeyLimiter(rdb)
+	app.Post("/webhooks/leads",
+		webhookLimiter,
+		middleware.ValidateAPIKey(apiKeyRepo),
+		apiKeyLimiter,
+		middleware.RequireAPIKeyScope("lead:create"),
+		h.PublicLead.SubmitLead,
+	)
 
 	// ── WebSocket — authenticated upgrade ────────────────────────────────────
 	app.Use("/ws", func(c *fiber.Ctx) error {
@@ -124,7 +149,9 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	// Dashboard stats — all authenticated users
 	v1.Get("/stats", h.Stats.Overview)
 
-	// User settings — personal; no role restriction beyond auth
+	// User management — list/create: admin only; personal settings: any auth user
+	v1.Get("/users", middleware.RequireRole(domain.RoleAdmin), h.User.ListUsers)
+	v1.Post("/users", middleware.RequireRole(domain.RoleAdmin), h.User.CreateUser)
 	v1.Get("/users/me", h.User.GetMe)
 	v1.Patch("/users/me/password", h.User.ChangePassword)
 	v1.Patch("/users/me/lang", h.User.UpdateLang)
@@ -149,6 +176,47 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		h.Settings.UpdateCompanySettings,
 	)
 
+	// API Keys — admin only (for external integrations)
+	v1.Get("/settings/api-keys",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.ApiKey.ListApiKeys,
+	)
+	v1.Post("/settings/api-keys",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.ApiKey.CreateApiKey,
+	)
+	v1.Delete("/settings/api-keys/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.ApiKey.RevokeApiKey,
+	)
+
+	// Outbound Webhooks — admin only
+	v1.Get("/settings/webhooks", h.WebhookSub.List)
+	v1.Post("/settings/webhooks",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.WebhookSub.Create,
+	)
+	v1.Delete("/settings/webhooks/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.WebhookSub.Delete,
+	)
+	v1.Post("/settings/webhooks/:id/test",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.WebhookSub.Test,
+	)
+
+	// Billing & plans — all authenticated users view; admin manages
+	v1.Get("/billing", h.Billing.GetBilling)
+	v1.Get("/billing/usage", h.Billing.GetUsage)
+	v1.Post("/billing/checkout",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Billing.CreateCheckout,
+	)
+	v1.Post("/billing/portal",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Billing.CreatePortal,
+	)
+
 	// Contacts — viewers: read-only; agents: create+update; admin: delete
 	v1.Get("/contacts", h.Contact.List)
 	v1.Get("/contacts/:id", h.Contact.Get)
@@ -167,6 +235,7 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 
 	// Leads / Pipeline — viewers: read-only; agents: create+move; admin: all
 	v1.Get("/leads", h.Lead.KanbanBoard)
+	v1.Get("/leads/search", h.Lead.List)
 	v1.Get("/leads/:id", h.Lead.Get)
 	v1.Post("/leads",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
@@ -179,6 +248,14 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Patch("/leads/:id/notes",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.Lead.UpdateNotes,
+	)
+	v1.Patch("/leads/:id/assign",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Lead.Assign,
+	)
+	v1.Delete("/leads/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Lead.Delete,
 	)
 	v1.Get("/leads/:id/communications", h.Lead.GetCommunications)
 
@@ -205,59 +282,80 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		h.WhatsAppOutbound.GetOutboundMessages,
 	)
 
-	// AI (manual) — agents and admin only
+	// AI (manual) — agents and admin only, quota enforced
+	aiQuota := middleware.CheckQuota(billingRepo, rdb, "ai")
+	aiUserQuota := middleware.CheckUserAIQuota(billingRepo, rdb)
+
 	v1.Post("/ai/summarize/:thread_id",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		aiQuota, aiUserQuota,
 		h.AI.SummarizeThread,
 	)
 
 	// Message Analysis — agents and admin only (intent parsing, enrichment, auto-lead)
 	v1.Post("/messages/analyze",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		aiQuota, aiUserQuota,
 		h.Message.AnalyzeMessage,
 	)
 	v1.Post("/messages/suggest-action",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		aiQuota, aiUserQuota,
 		h.Message.SuggestNextAction,
 	)
 	v1.Post("/messages/auto-create-lead",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		aiQuota, aiUserQuota,
 		h.Message.AutoCreateLead,
 	)
 
-	// Real Estate Market Data (BuyOrSell24) — agents and admin only (optional integration)
-	v1.Post("/properties/search",
+	// Real Estate Market Data (BuyOrSell24) — agents and admin only, quota enforced
+	bos24Quota := middleware.CheckQuota(billingRepo, rdb, "bos24")
+	prop := v1.Group("/properties",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
-		h.Property.SearchProperties,
+		bos24Quota,
 	)
-	v1.Get("/properties/transactions",
-		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
-		h.Property.GetTransactions,
-	)
-	v1.Get("/properties/buildings",
-		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
-		h.Property.GetBuildings,
-	)
-	v1.Get("/properties/buildings/:id",
-		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
-		h.Property.GetBuildingByID,
-	)
-	v1.Get("/properties/schools/nearby",
-		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
-		h.Property.GetNearbySchools,
-	)
-	v1.Get("/properties/yield-analysis",
-		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
-		h.Property.GetYieldAnalysis,
-	)
-	v1.Get("/properties/comparables",
-		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
-		h.Property.GetComparables,
-	)
-	v1.Get("/properties/market-trends",
-		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
-		h.Property.GetMarketTrends,
-	)
+
+	// AI search
+	prop.Post("/search", h.Property.SearchProperties)
+	prop.Post("/projects/search", h.Property.SearchProjects)
+	prop.Post("/ai/describe", h.Property.DescribeProperty)
+
+	// Transactions
+	prop.Get("/transactions", h.Property.GetTransactions)
+	prop.Get("/transactions/areas", h.Property.GetTransactionAreas)
+
+	// Buildings
+	prop.Get("/buildings", h.Property.GetBuildings)
+	prop.Get("/buildings/:id", h.Property.GetBuildingByID)
+
+	// Areas
+	prop.Get("/areas", h.Property.GetAreas)
+	prop.Get("/areas/:slug/summary", h.Property.GetAreaSummary)
+	prop.Get("/areas/:slug/buildings", h.Property.GetAreaBuildings)
+
+	// Map data
+	prop.Get("/map/areas", h.Property.GetMapAreas)
+	prop.Get("/pois", h.Property.GetNearbyPOIs)
+	prop.Get("/schools/nearby", h.Property.GetNearbySchools)
+
+	// Rentals & yield
+	prop.Get("/rentals", h.Property.GetRentals)
+	prop.Get("/rentals/ejari", h.Property.GetEjariRentals)
+	prop.Get("/rentals/ejari/yield", h.Property.GetEjariYield)
+
+	// Developers & projects
+	prop.Get("/developers", h.Property.GetDevelopers)
+	prop.Get("/projects", h.Property.GetProjects)
+
+	// Units & valuations
+	prop.Get("/units", h.Property.GetUnits)
+	prop.Get("/valuations", h.Property.GetValuations)
+
+	// Analytics
+	prop.Get("/yield-analysis", h.Property.GetYieldAnalysis)
+	prop.Get("/comparables", h.Property.GetComparables)
+	prop.Get("/market-trends", h.Property.GetMarketTrends)
 
 	// Notifications — personal; no role restriction beyond auth
 	v1.Get("/notifications", h.Notification.List)

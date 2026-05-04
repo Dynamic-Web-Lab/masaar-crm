@@ -39,7 +39,7 @@ services:
     restart: always
     environment:
       APP_ENV: production
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=require
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       JWT_SECRET: ${JWT_SECRET}
       WA_VERIFY_TOKEN: ${WA_VERIFY_TOKEN}
@@ -47,6 +47,7 @@ services:
       WA_PHONE_NUMBER_ID: ${WA_PHONE_NUMBER_ID}
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}  # required — set to your frontend domain, e.g. https://crm.yourcompany.ae
     ports: []                       # put behind a reverse proxy (nginx/caddy)
     logging:
       driver: "json-file"
