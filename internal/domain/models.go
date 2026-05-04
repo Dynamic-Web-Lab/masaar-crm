@@ -73,21 +73,26 @@ const (
 )
 
 type Lead struct {
-	ID          uuid.UUID  `json:"id"`
-	ContactID   uuid.UUID  `json:"contact_id"`
-	Stage       LeadStage  `json:"stage"`
-	Source      LeadSource `json:"source"`
-	DealValue   float64    `json:"deal_value"`
-	Currency    string     `json:"currency"` // default: AED
-	Notes       string     `json:"notes"`
-	LeadScore   int        `json:"lead_score"`
+	ID             uuid.UUID  `json:"id"`
+	ContactID      uuid.UUID  `json:"contact_id"`
+	Stage          LeadStage  `json:"stage"`
+	Source         LeadSource `json:"source"`
+	DealValue      float64    `json:"deal_value"`
+	Currency       string     `json:"currency"` // default: AED
+	Notes          string     `json:"notes"`
+	LeadScore      int        `json:"lead_score"`
 	ScoreUpdatedAt *time.Time `json:"score_updated_at"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	AssignedTo     *uuid.UUID `json:"assigned_to,omitempty"`
+	ClosedReason   string     `json:"closed_reason,omitempty"`
+	LastContactedAt *time.Time `json:"last_contacted_at,omitempty"`
+	DeletedAt      *time.Time `json:"deleted_at,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 
 	// Joined
-	Contact *Contact `json:"contact,omitempty"`
-	Tags    []string `json:"tags,omitempty"`
+	Contact    *Contact `json:"contact,omitempty"`
+	AssignedUser *User  `json:"assigned_user,omitempty"`
+	Tags       []string `json:"tags,omitempty"`
 }
 
 // ─── WhatsApp ─────────────────────────────────────────────────────────────────

@@ -51,12 +51,20 @@ type Config struct {
 
 	// App
 	AppEnv string
+	AppURL string // base URL for generating links in emails, e.g. https://crm.yourcompany.ae
 
 	// Multi-tenancy (single-tenant: fixed company UUID for this installation)
 	CompanyID string
 
 	// CORS — comma-separated allowed origins; defaults to * in development only
 	AllowedOrigins string
+
+	// Stripe billing (optional — leave empty for self-hosted/community)
+	StripeSecretKey       string
+	StripeWebhookSecret   string
+	StripePriceIDStarter  string
+	StripePriceIDPro      string
+	StripePriceIDBusiness string
 }
 
 func Load() *Config {
@@ -90,8 +98,14 @@ func Load() *Config {
 		SMTPFromEmail:        getEnv("SMTP_FROM_EMAIL", "noreply@masaar.local"),
 		SMTPFromName:         getEnv("SMTP_FROM_NAME", "Masaar CRM"),
 		AppEnv:               getEnv("APP_ENV", "development"),
-		CompanyID:            getEnv("APP_COMPANY_ID", "00000000-0000-0000-0000-000000000001"),
-		AllowedOrigins:       getEnv("ALLOWED_ORIGINS", "*"),
+		AppURL:               getEnv("APP_URL", "http://localhost:3000"),
+		CompanyID:             getEnv("APP_COMPANY_ID", "00000000-0000-0000-0000-000000000001"),
+		AllowedOrigins:        getEnv("ALLOWED_ORIGINS", "*"),
+		StripeSecretKey:       getEnv("STRIPE_SECRET_KEY", ""),
+		StripeWebhookSecret:   getEnv("STRIPE_WEBHOOK_SECRET", ""),
+		StripePriceIDStarter:  getEnv("STRIPE_PRICE_STARTER", ""),
+		StripePriceIDPro:      getEnv("STRIPE_PRICE_PRO", ""),
+		StripePriceIDBusiness: getEnv("STRIPE_PRICE_BUSINESS", ""),
 	}
 }
 
