@@ -20,10 +20,11 @@ type AuthHandler struct {
 	users  *repo.UserRepo
 	redis  *redis.Client
 	config *config.Config
+	audit  *repo.AuditLogRepo
 }
 
-func NewAuthHandler(users *repo.UserRepo, rdb *redis.Client, cfg *config.Config) *AuthHandler {
-	return &AuthHandler{users: users, redis: rdb, config: cfg}
+func NewAuthHandler(users *repo.UserRepo, rdb *redis.Client, cfg *config.Config, audit *repo.AuditLogRepo) *AuthHandler {
+	return &AuthHandler{users: users, redis: rdb, config: cfg, audit: audit}
 }
 
 // Login godoc
@@ -67,6 +68,10 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	if err := h.redis.Set(context.Background(), key, user.ID.String(), ttl).Err(); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "session error"})
 	}
+
+	h.audit.Log(c.Context(), user.ID, repo.AuditLogin, repo.AuditUser, user.ID, fiber.Map{
+		"ip": c.IP(),
+	})
 
 	return c.JSON(fiber.Map{
 		"access_token":  access,
@@ -167,6 +172,13 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 	if token := middleware.BearerToken(c); token != "" {
 		if err := h.redis.Set(context.Background(), "blacklist:"+token, "1", time.Duration(h.config.JWTAccessExpiryMin)*time.Minute).Err(); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to revoke access token"})
+		}
+	}
+
+	// Log logout — best effort, user ID from JWT claims
+	if sub, ok := middleware.ClaimsFromCtx(c)["sub"].(string); ok {
+		if userID, err := uuid.Parse(sub); err == nil {
+			h.audit.Log(c.Context(), userID, repo.AuditLogout, repo.AuditUser, userID, nil)
 		}
 	}
 
