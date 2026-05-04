@@ -22,6 +22,7 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/config"
 	"github.com/maidulcu/masaar-crm/internal/email"
 	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/maidulcu/masaar-crm/internal/webhook"
 	"github.com/maidulcu/masaar-crm/internal/whatsapp"
 	"github.com/maidulcu/masaar-crm/internal/ws"
 	"github.com/pressly/goose/v3"
@@ -157,6 +158,8 @@ func main() {
 
 	auditLogRepo := repo.NewAuditLogRepo(pool)
 	apiKeyRepo := repo.NewApiKeyRepo(pool)
+	webhookRepo := repo.NewWebhookRepo(pool)
+	dispatcher := webhook.NewDispatcher(webhookRepo)
 
 	// ── Payment Reminder Service ──────────────────────────────────────────────
 	paymentReminderService := ai.NewPaymentReminderService(
@@ -176,7 +179,7 @@ func main() {
 		User:                handler.NewUserHandler(userRepo),
 		Stats:               handler.NewStatsHandler(statsRepo),
 		Contact:             handler.NewContactHandler(contactRepo, auditLogRepo),
-		Lead:                handler.NewLeadHandler(leadRepo, contactRepo, commHistRepo, scoringService, hub, auditLogRepo),
+		Lead:                handler.NewLeadHandler(leadRepo, contactRepo, commHistRepo, scoringService, hub, auditLogRepo, dispatcher),
 		WhatsApp:            handler.NewWhatsAppHandler(waRepo, contactRepo, taggingService, hub, cfg),
 		WhatsAppOutbound:    handler.NewWhatsAppOutboundHandler(whatsappSender, outboundRepo, waRepo),
 		AI:                  handler.NewAIHandler(aiClient, contactRepo, leadRepo, waRepo),
@@ -201,7 +204,8 @@ func main() {
 		Maintenance:         handler.NewMaintenanceTaskHandler(maintenanceRepo),
 		LeaseRenewal:        handler.NewLeaseRenewalHandler(leaseRenewalRepo, renewalTemplateRepo, renewalCommLogRepo),
 		ApiKey:              handler.NewApiKeyHandler(apiKeyRepo),
-		PublicLead:          handler.NewPublicLeadHandler(contactRepo, leadRepo),
+		PublicLead:          handler.NewPublicLeadHandler(contactRepo, leadRepo, dispatcher),
+		WebhookSub:          handler.NewWebhookSubHandler(webhookRepo, dispatcher),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────

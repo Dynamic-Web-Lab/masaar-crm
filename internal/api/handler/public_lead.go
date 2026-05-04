@@ -4,19 +4,22 @@ import (
 	"regexp"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/maidulcu/masaar-crm/internal/domain"
 	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/maidulcu/masaar-crm/internal/webhook"
 )
 
 var e164PublicRe = regexp.MustCompile(`^\+[1-9]\d{6,14}$`)
 
 type PublicLeadHandler struct {
-	contacts *repo.ContactRepo
-	leads    *repo.LeadRepo
+	contacts   *repo.ContactRepo
+	leads      *repo.LeadRepo
+	dispatcher *webhook.Dispatcher
 }
 
-func NewPublicLeadHandler(contacts *repo.ContactRepo, leads *repo.LeadRepo) *PublicLeadHandler {
-	return &PublicLeadHandler{contacts: contacts, leads: leads}
+func NewPublicLeadHandler(contacts *repo.ContactRepo, leads *repo.LeadRepo, dispatcher *webhook.Dispatcher) *PublicLeadHandler {
+	return &PublicLeadHandler{contacts: contacts, leads: leads, dispatcher: dispatcher}
 }
 
 type PublicLeadRequest struct {
@@ -138,6 +141,17 @@ func (h *PublicLeadHandler) SubmitLead(c *fiber.Ctx) error {
 			"error": "failed to create lead",
 		})
 	}
+
+	// Fire outbound webhook asynchronously
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
+	h.dispatcher.Dispatch(companyID, webhook.EventLeadCreated, fiber.Map{
+		"lead_id":    lead.ID,
+		"contact_id": contact.ID,
+		"contact":    fiber.Map{"name": contact.FullName, "phone": contact.PhoneWA},
+		"stage":      lead.Stage,
+		"source":     lead.Source,
+		"deal_value": lead.DealValue,
+	})
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"lead_id":    lead.ID,

@@ -8,6 +8,7 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/ai"
 	"github.com/maidulcu/masaar-crm/internal/domain"
 	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/maidulcu/masaar-crm/internal/webhook"
 	"github.com/maidulcu/masaar-crm/internal/ws"
 )
 
@@ -18,10 +19,11 @@ type LeadHandler struct {
 	scoringService *ai.ScoringService
 	hub            *ws.Hub
 	audit          *repo.AuditLogRepo
+	dispatcher     *webhook.Dispatcher
 }
 
-func NewLeadHandler(leads *repo.LeadRepo, contacts *repo.ContactRepo, commHistRepo *repo.CommunicationHistoryRepo, scoringService *ai.ScoringService, hub *ws.Hub, audit *repo.AuditLogRepo) *LeadHandler {
-	return &LeadHandler{leads: leads, contacts: contacts, commHistRepo: commHistRepo, scoringService: scoringService, hub: hub, audit: audit}
+func NewLeadHandler(leads *repo.LeadRepo, contacts *repo.ContactRepo, commHistRepo *repo.CommunicationHistoryRepo, scoringService *ai.ScoringService, hub *ws.Hub, audit *repo.AuditLogRepo, dispatcher *webhook.Dispatcher) *LeadHandler {
+	return &LeadHandler{leads: leads, contacts: contacts, commHistRepo: commHistRepo, scoringService: scoringService, hub: hub, audit: audit, dispatcher: dispatcher}
 }
 
 // KanbanBoard godoc
@@ -74,6 +76,17 @@ func (h *LeadHandler) Create(c *fiber.Ctx) error {
 		Type:    "lead.created",
 		Payload: lead,
 	})
+
+	if h.dispatcher != nil {
+		companyID, _ := uuid.Parse(c.Locals("company_id").(string))
+		h.dispatcher.Dispatch(companyID, webhook.EventLeadCreated, fiber.Map{
+			"lead_id":    lead.ID,
+			"contact_id": lead.ContactID,
+			"stage":      lead.Stage,
+			"source":     lead.Source,
+			"deal_value": lead.DealValue,
+		})
+	}
 
 	actorID := c.Locals("user_id").(uuid.UUID)
 	h.audit.Log(c.Context(), actorID, repo.AuditCreate, repo.AuditLead, lead.ID, lead)
@@ -133,6 +146,25 @@ func (h *LeadHandler) UpdateStage(c *fiber.Ctx) error {
 			"stage":   body.Stage,
 		},
 	})
+
+	if h.dispatcher != nil {
+		companyID, _ := uuid.Parse(c.Locals("company_id").(string))
+		h.dispatcher.Dispatch(companyID, webhook.EventLeadStageChanged, fiber.Map{
+			"lead_id": id,
+			"stage":   body.Stage,
+		})
+		if body.Stage == domain.StageWon {
+			h.dispatcher.Dispatch(companyID, webhook.EventLeadWon, fiber.Map{
+				"lead_id": id,
+				"stage":   body.Stage,
+			})
+		} else if body.Stage == domain.StageLost {
+			h.dispatcher.Dispatch(companyID, webhook.EventLeadLost, fiber.Map{
+				"lead_id": id,
+				"stage":   body.Stage,
+			})
+		}
+	}
 
 	return c.JSON(fiber.Map{"lead_id": id, "stage": body.Stage})
 }
