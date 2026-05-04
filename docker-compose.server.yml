@@ -1,16 +1,19 @@
-version: "3.9"
+# Masaar CRM Production Stack
+# Usage: docker compose -f docker-compose.server.yml up -d
 
 services:
   postgres:
     image: pgvector/pgvector:pg16
     container_name: masaar-postgres
     restart: unless-stopped
-    env_file:
-      - .env
+    environment:
+      POSTGRES_USER: masaar
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: masaar
     volumes:
       - masaar_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U masaar"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -24,12 +27,14 @@ services:
     container_name: masaar-api
     restart: unless-stopped
     environment:
-      - DATABASE_URL=postgres://masaar:97798f1b1186c86f73473aae2c081222@masaar-postgres:5432/masaar?sslmode=disable
-      - REDIS_URL=redis://buyorsell24-redis:6379
-      - JWT_SECRET=e1c817e68bb83946a1a89a4c5de58262a3a5e0ca02563ef8a9c320de602a04b2
+      - DATABASE_URL=postgres://masaar:${POSTGRES_PASSWORD}@masaar-postgres:5432/masaar?sslmode=disable
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
       - APP_ENV=production
-      - ALLOWED_ORIGINS=https://masaar.dynamicweblab.com
-      - NEXT_PUBLIC_API_URL=https://masaar.dynamicweblab.com
+      - ALLOWED_ORIGINS=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-mistral}
     depends_on:
       postgres:
         condition: service_healthy
@@ -43,13 +48,11 @@ services:
     container_name: masaar-web
     restart: unless-stopped
     environment:
-      - NEXT_PUBLIC_API_URL=https://masaar.dynamicweblab.com
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
     depends_on:
       - api
     networks:
       - buyorsell24_masaar_shared
-    ports:
-      - "3000:3000"
 
 networks:
   buyorsell24_masaar_shared:
