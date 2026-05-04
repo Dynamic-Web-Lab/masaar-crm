@@ -146,7 +146,7 @@ export default function BillingPage() {
     setCheckingOut(planID)
     setError('')
     try {
-      const res = await api.post('/billing/checkout', { plan: planID })
+      const res = await api.post<{ data: { checkout_url: string } }>('/billing/checkout', { plan: planID })
       window.location.href = res.data.checkout_url
     } catch (e: any) {
       setError(e.response?.data?.error || 'Failed to start checkout')
@@ -159,7 +159,7 @@ export default function BillingPage() {
     setOpeningPortal(true)
     setError('')
     try {
-      const res = await api.post('/billing/portal')
+      const res = await api.post<{ data: { portal_url: string } }>('/billing/portal')
       window.location.href = res.data.portal_url
     } catch (e: any) {
       setError(e.response?.data?.error || 'Failed to open billing portal')
