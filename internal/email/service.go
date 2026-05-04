@@ -199,3 +199,103 @@ func (s *Service) RenderInvoiceTemplate(data InvoiceData) (string, error) {
 	}
 	return buf.String(), nil
 }
+
+// ─── Magic Link Email Template ───────────────────────────────────────
+
+type MagicLinkData struct {
+	LoginURL string
+	ExpiryMin int
+	Lang string
+}
+
+func (d MagicLinkData) IsArabic() bool { return d.Lang == "ar" }
+
+func (s *Service) RenderMagicLinkTemplate(data MagicLinkData) (string, error) {
+	const tmpl = `
+<!DOCTYPE html>
+<html lang="{{if .IsArabic}}ar{{else}}en{{end}}" dir="{{if .IsArabic}}rtl{{else}}ltr{{end}}">
+<head>
+<meta charset="utf-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@400;600;700&display=swap');
+  body {
+    font-family: {{if .IsArabic}}'Cairo', Arial{{else}}'Inter', Arial{{end}}, sans-serif;
+    color: #333; margin: 0; padding: 0; background: #f9f9f9;
+  }
+  .container { max-width: 600px; margin: 32px auto; background: #fff; border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 40px; }
+  .header { text-align: center; border-bottom: 2px solid #0066cc; padding-bottom: 20px; margin-bottom: 28px; }
+  .logo { font-size: 24px; font-weight: 700; color: #0066cc; }
+  .title { font-size: 20px; font-weight: 600; margin: 24px 0 16px; }
+  .button { display: inline-block; padding: 14px 32px; background: #0066cc; color: #fff;
+    text-decoration: none; border-radius: 6px; font-weight: 600; margin: 20px 0; }
+  .button:hover { background: #0052a3; }
+  .footer { margin-top: 36px; padding-top: 20px; border-top: 1px solid #eee;
+    font-size: 12px; color: #999; text-align: center; }
+  .warning { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px;
+    padding: 12px 16px; margin: 20px 0; font-size: 14px; color: #856404; }
+  .link-fallback { word-break: break-all; font-size: 12px; color: #666; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo">{{if .IsArabic}}مسار CRM{{else}}Masaar CRM{{end}}</div>
+  </div>
+
+  <div class="title">
+    {{if .IsArabic}}رابط تسجيل الدخول{{else}}Your Login Link{{end}}
+  </div>
+
+  <p>
+    {{if .IsArabic}}
+      انقر على الزر أدناه لتسجيل الدخول إلى حسابك. هذا الرابط صالح لمدة {{.ExpiryMin}} دقيقة.
+    {{else}}
+      Click the button below to log in to your account. This link is valid for {{.ExpiryMin}} minutes.
+    {{end}}
+  </p>
+
+  <div style="text-align: center;">
+    <a href="{{.LoginURL}}" class="button">
+      {{if .IsArabic}}تسجيل الدخول{{else}}Log In{{end}}
+    </a>
+  </div>
+
+  <div class="warning">
+    {{if .IsArabic}}
+      <strong>تنبيه:</strong> إذا لم تطلب هذا الرابط، يرجى تجاهل هذا البريد الإلكتروني.
+    {{else}}
+      <strong>Security Notice:</strong> If you didn't request this link, please ignore this email.
+    {{end}}
+  </div>
+
+  <div class="link-fallback">
+    {{if .IsArabic}}أو انسخ الرابط التالي:{{else}}Or copy this link:{{end}}<br>
+    <a href="{{.LoginURL}}">{{.LoginURL}}</a>
+  </div>
+
+  <div class="footer">
+    {{if .IsArabic}}
+      <p>هذا بريد إلكتروني آلي، يرجى عدم الرد عليه.</p>
+      <p>© {{.ExpiryMin}} مسار CRM - الإمارات العربية المتحدة</p>
+    {{else}}
+      <p>This is an automated email, please do not reply.</p>
+      <p>© {{.ExpiryMin}} Masaar CRM - UAE</p>
+    {{end}}
+  </div>
+</div>
+</body>
+</html>
+`
+	t, err := template.New("magic_link").Parse(tmpl)
+	if err != nil {
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	if err = t.Execute(&buf, data); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+

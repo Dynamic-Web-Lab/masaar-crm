@@ -36,6 +36,16 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       }),
+    requestMagicLink: (email: string, lang_pref?: 'ar' | 'en') =>
+      request('/api/v1/auth/magic-link/request', {
+        method: 'POST',
+        body: JSON.stringify({ email, lang_pref }),
+      }),
+    verifyMagicLink: (token: string) =>
+      request('/api/v1/auth/magic-link/verify', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      }),
     logout: (refreshToken: string) =>
       request('/api/v1/auth/logout', {
         method: 'DELETE',

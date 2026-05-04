@@ -1,0 +1,33 @@
+# ============================================
+# Multi-Domain Docker Compose Template
+# For hosting multiple Next.js sites
+# ============================================
+# Usage:
+# 1. Copy this file to docker-compose.yml for your domain
+# 2. Replace DOMAIN_NAME with your domain (e.g., jsmhome.ae)
+# 3. Update NEXT_PUBLIC_API_URL if your app needs API
+# 4. Build and run: docker compose up -d --build
+# ============================================
+
+version: "3.9"
+
+services:
+  # Next.js Frontend
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: ${DOMAIN_NAME:-myapp}-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+      # Add your app-specific env vars here
+    networks:
+      - web_network
+
+networks:
+  web_network:
+    driver: bridge
