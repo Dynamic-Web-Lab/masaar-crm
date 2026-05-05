@@ -132,6 +132,7 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		middleware.JWT(cfg.JWTSecret),
 		middleware.CheckBlacklist(rdb),
 		middleware.ExtractClaims(cfg.CompanyID),
+		middleware.BlockDemoWrites(),
 	)
 
 	v1.Delete("/auth/logout", h.Auth.Logout)

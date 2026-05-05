@@ -374,21 +374,46 @@ func (h *AuthHandler) DemoLogin(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "demo account not configured"})
 	}
 
-	access, refresh, err := h.generateTokenPair(user)
+	// Demo JWT carries demo:true so BlockDemoWrites middleware can reject all writes.
+	// Access token lasts 2 hours; refresh lasts 24 hours (sessions reset daily).
+	now := time.Now()
+	accessClaims := jwt.MapClaims{
+		"sub":  user.ID.String(),
+		"name": user.Name,
+		"role": string(user.Role),
+		"demo": true,
+		"exp":  now.Add(2 * time.Hour).Unix(),
+		"iat":  now.Unix(),
+	}
+	access, err := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims).
+		SignedString([]byte(h.config.JWTSecret))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "token generation failed"})
 	}
 
+	refreshClaims := jwt.MapClaims{
+		"sub":  user.ID.String(),
+		"exp":  now.Add(24 * time.Hour).Unix(),
+		"iat":  now.Unix(),
+		"jti":  uuid.New().String(),
+		"demo": true,
+	}
+	refresh, err := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).
+		SignedString([]byte(h.config.JWTSecret))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "token generation failed"})
+	}
+
+	// Store refresh with 24-hour TTL (demo sessions expire daily)
 	key := fmt.Sprintf("refresh:%s", refresh)
-	ttl := time.Duration(h.config.JWTRefreshExpiryDays) * 24 * time.Hour
-	if err := h.redis.Set(context.Background(), key, user.ID.String(), ttl).Err(); err != nil {
+	if err := h.redis.Set(context.Background(), key, user.ID.String(), 24*time.Hour).Err(); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "session error"})
 	}
 
 	return c.JSON(fiber.Map{
 		"access_token":  access,
 		"refresh_token": refresh,
-		"expires_in":    h.config.JWTAccessExpiryMin * 60,
+		"expires_in":    7200, // 2 hours
 		"demo":          true,
 		"user": fiber.Map{
 			"id":        user.ID,

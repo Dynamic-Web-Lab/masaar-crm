@@ -61,6 +61,35 @@ func BearerToken(c *fiber.Ctx) string {
 	return ""
 }
 
+// BlockDemoWrites rejects all state-changing requests for tokens that carry
+// "demo": true in their claims. GET/HEAD/OPTIONS pass through; DELETE on the
+// logout path is also allowed so demo users can still sign out cleanly.
+// This is belt-and-suspenders on top of the Viewer RBAC — no demo user can
+// ever send emails, spam WhatsApp, mutate data, or consume AI quota.
+func BlockDemoWrites() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		claims := ClaimsFromCtx(c)
+		demo, _ := claims["demo"].(bool)
+		if !demo {
+			return c.Next()
+		}
+
+		method := c.Method()
+		if method == "GET" || method == "HEAD" || method == "OPTIONS" {
+			return c.Next()
+		}
+		// Allow the demo user to log out
+		if method == "DELETE" && strings.HasSuffix(c.Path(), "/auth/logout") {
+			return c.Next()
+		}
+
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "demo accounts are read-only",
+			"demo":  true,
+		})
+	}
+}
+
 // ExtractClaims reads JWT claims and sets user_id (uuid.UUID), company_id (string),
 // and role (domain.Role) in Fiber locals so handlers can access them without
 // repeating assertion boilerplate.
