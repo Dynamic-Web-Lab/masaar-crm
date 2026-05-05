@@ -118,6 +118,84 @@ Return only valid JSON.`, contactName, conversation)
 	return c.Generate(ctx, prompt)
 }
 
+// ReplySuggestions returns 3 context-aware reply options for an agent, bilingual (AR + EN).
+func (c *Client) ReplySuggestions(ctx context.Context, contactName string, messages []string) (string, error) {
+	conversation := ""
+	for i, m := range messages {
+		conversation += fmt.Sprintf("%d. %s\n", i+1, m)
+	}
+
+	prompt := fmt.Sprintf(`You are a UAE real estate sales assistant helping an agent respond on WhatsApp.
+
+Generate exactly 3 suggested reply options. Each must be professional, warm, and under 80 words.
+Return ONLY valid JSON in this exact format:
+{
+  "suggestions": [
+    {"ar": "الرد بالعربية", "en": "Reply in English"},
+    {"ar": "الرد بالعربية", "en": "Reply in English"},
+    {"ar": "الرد بالعربية", "en": "Reply in English"}
+  ]
+}
+
+Contact: %s
+Conversation:
+%s
+
+Return only the JSON object, no other text.`, contactName, conversation)
+
+	return c.Generate(ctx, prompt)
+}
+
+// ExtractBuyerProfile extracts structured buyer requirements from a WhatsApp conversation.
+func (c *Client) ExtractBuyerProfile(ctx context.Context, contactName string, messages []string) (string, error) {
+	conversation := ""
+	for i, m := range messages {
+		conversation += fmt.Sprintf("%d. %s\n", i+1, m)
+	}
+
+	prompt := fmt.Sprintf(`You are a UAE real estate lead analysis expert.
+
+Analyze this conversation and extract the buyer's property requirements.
+Return ONLY valid JSON in this exact format:
+{
+  "areas": ["Marina", "Downtown"],
+  "property_type": "apartment|villa|townhouse|any",
+  "bedrooms": "studio|1BR|2BR|3BR|4BR+|any",
+  "budget_min_aed": number or null,
+  "budget_max_aed": number or null,
+  "timeline": "immediate|1-3 months|3-6 months|flexible|unknown",
+  "buyer_type": "investor|end_user|unknown",
+  "transaction_type": "buy|rent|both|unknown",
+  "notes": "Key observations for the agent in one sentence",
+  "confidence": "high|medium|low"
+}
+
+Contact: %s
+Conversation:
+%s
+
+Return only the JSON object, no other text.`, contactName, conversation)
+
+	return c.Generate(ctx, prompt)
+}
+
+// Translate translates a text snippet between Arabic and English.
+func (c *Client) Translate(ctx context.Context, text, targetLang string) (string, error) {
+	fromLang := "Arabic"
+	toLang := "English"
+	if targetLang == "ar" {
+		fromLang = "English"
+		toLang = "Arabic"
+	}
+
+	prompt := fmt.Sprintf(`Translate the following %s text to %s.
+Return ONLY the translated text. No explanations, no quotes, no extra formatting.
+
+Text: %s`, fromLang, toLang, text)
+
+	return c.Generate(ctx, prompt)
+}
+
 // SuggestAction recommends the next best action for the agent.
 func (c *Client) SuggestAction(ctx context.Context, message, threadSummary string) (string, error) {
 	prompt := fmt.Sprintf(`You are a UAE real estate sales coach.

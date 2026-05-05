@@ -214,7 +214,7 @@ func main() {
 		Notification:        handler.NewNotificationHandler(notificationRepo),
 		Deal:                handler.NewDealHandler(dealRepo, invoiceRepo, auditLogRepo),
 		Invoice:             handler.NewInvoiceHandler(invoiceRepo, dealRepo, companySettingsRepo),
-		Property:            handler.NewPropertyHandler(bos24Client),
+		Property:            handler.NewPropertyHandler(bos24Client, leadRepo, contactRepo, companySettingsRepo),
 		Settings:            handler.NewSettingsHandler(settingsRepo, companySettingsRepo),
 		Email:               handler.NewEmailHandler(emailService, emailRepo),
 		RentalProperty:      handler.NewRentalPropertyHandler(rentalPropertyRepo),

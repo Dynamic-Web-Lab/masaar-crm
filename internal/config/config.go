@@ -70,6 +70,10 @@ type Config struct {
 	StripePriceIDStarter  string
 	StripePriceIDPro      string
 	StripePriceIDBusiness string
+
+	// Demo mode — set DEMO_MODE=true to enable one-click demo login
+	DemoMode  bool
+	DemoEmail string
 }
 
 func Load() *Config {
@@ -114,6 +118,8 @@ func Load() *Config {
 		StripePriceIDStarter:  getEnv("STRIPE_PRICE_STARTER", ""),
 		StripePriceIDPro:      getEnv("STRIPE_PRICE_PRO", ""),
 		StripePriceIDBusiness: getEnv("STRIPE_PRICE_BUSINESS", ""),
+		DemoMode:              getEnv("DEMO_MODE", "false") == "true",
+		DemoEmail:             getEnv("DEMO_EMAIL", "demo@masaar.local"),
 	}
 }
 

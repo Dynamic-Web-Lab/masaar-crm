@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Header } from '@/components/layout/Header'
 import { useAuthStore } from '@/store/auth'
 import { useLang } from '@/context/LangContext'
+import { ReportModal } from '@/components/property/ReportModal'
 
 interface PropertyResult {
   id: number
@@ -27,6 +28,7 @@ interface TransactionFilters {
 export default function PropertiesPage() {
   const { user } = useAuthStore()
   const { t } = useLang()
+  const [showReport, setShowReport] = useState(false)
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
@@ -130,7 +132,18 @@ export default function PropertiesPage() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <Header title={t('بحث العقارات', 'Property Search')} />
+      {showReport && <ReportModal onClose={() => setShowReport(false)} />}
+      <Header title={t('بحث العقارات', 'Property Search')}>
+        <button
+          onClick={() => setShowReport(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-[#1a3a5c] text-white text-sm font-semibold rounded-lg hover:bg-[#22487a] transition"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          {t('تقرير PDF', 'Client Report PDF')}
+        </button>
+      </Header>
 
       <main className="flex-1 overflow-y-auto p-6 bg-gray-50">
         <div className="max-w-4xl space-y-6">

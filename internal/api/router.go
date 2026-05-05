@@ -102,6 +102,7 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	app.Post("/api/v1/auth/refresh", h.Auth.Refresh)
 	app.Post("/api/v1/auth/forgot-password", loginLimiter, h.Auth.ForgotPassword)
 	app.Post("/api/v1/auth/reset-password", h.Auth.ResetPassword)
+	app.Post("/api/v1/auth/demo", loginLimiter, h.Auth.DemoLogin)
 
 	// WhatsApp webhook — Meta calls this publicly
 	app.Get("/webhooks/whatsapp", h.WhatsApp.Verify)
@@ -142,6 +143,7 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		middleware.JWT(cfg.JWTSecret),
 		middleware.CheckBlacklist(rdb),
 		middleware.ExtractClaims(cfg.CompanyID),
+		middleware.BlockDemoWrites(),
 	)
 
 	v1.Delete("/auth/logout", h.Auth.Logout)
@@ -291,6 +293,20 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		aiQuota, aiUserQuota,
 		h.AI.SummarizeThread,
 	)
+	v1.Post("/ai/reply-suggestions/:thread_id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		aiQuota, aiUserQuota,
+		h.AI.ReplySuggestions,
+	)
+	v1.Post("/ai/extract-buyer-profile/:thread_id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		aiQuota, aiUserQuota,
+		h.AI.ExtractBuyerProfile,
+	)
+	v1.Post("/ai/translate",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.AI.Translate,
+	)
 
 	// Message Analysis — agents and admin only (intent parsing, enrichment, auto-lead)
 	v1.Post("/messages/analyze",
@@ -356,6 +372,12 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	prop.Get("/yield-analysis", h.Property.GetYieldAnalysis)
 	prop.Get("/comparables", h.Property.GetComparables)
 	prop.Get("/market-trends", h.Property.GetMarketTrends)
+
+	// Property research report PDF — PDF quota applied
+	prop.Post("/report/pdf",
+		middleware.CheckQuota(billingRepo, rdb, "pdf"),
+		h.Property.GenerateReport,
+	)
 
 	// Notifications — personal; no role restriction beyond auth
 	v1.Get("/notifications", h.Notification.List)
@@ -646,9 +668,12 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		h.LeaseRenewal.CreateTemplate,
 	)
 
-	// Health
+	// Health + public feature flags (no auth required)
 	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"status": "ok"})
+		return c.JSON(fiber.Map{
+			"status":       "ok",
+			"demo_enabled": cfg.DemoMode,
+		})
 	})
 
 	// Swagger UI — available in all envs; gate with BasicAuth in production if needed
