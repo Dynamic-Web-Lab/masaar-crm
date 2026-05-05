@@ -12,6 +12,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [demoLoading, setDemoLoading] = useState(false)
+  const [demoEnabled, setDemoEnabled] = useState(false)
   const { setSession, init, token } = useAuthStore()
   const router = useRouter()
   const { lang, setLang, t } = useLang()
@@ -21,6 +23,11 @@ export default function LoginPage() {
     if (token && isLoggedIn()) router.replace('/pipeline')
   }, [token, router])
 
+  // Check if demo mode is enabled on this server
+  useEffect(() => {
+    api.health().then((h) => setDemoEnabled(h.demo_enabled)).catch(() => {})
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -28,13 +35,27 @@ export default function LoginPage() {
     try {
       const res = await api.auth.login(email, password) as LoginResponse
       setSession(res.access_token, res.refresh_token, res.user)
-      // Switch UI language to user preference
       if (res.user.lang_pref) setLang(res.user.lang_pref)
       router.push('/pipeline')
     } catch (err: any) {
       setError(err.message || t('حدث خطأ', 'Something went wrong'))
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDemo = async () => {
+    setError('')
+    setDemoLoading(true)
+    try {
+      const res = await api.auth.demo() as LoginResponse & { demo?: boolean }
+      setSession(res.access_token, res.refresh_token, res.user)
+      if (res.demo) localStorage.setItem('masaar_is_demo', '1')
+      router.push('/pipeline')
+    } catch (err: any) {
+      setError(err.message || t('حدث خطأ', 'Something went wrong'))
+    } finally {
+      setDemoLoading(false)
     }
   }
 
@@ -98,6 +119,37 @@ export default function LoginPage() {
               ? t('جاري تسجيل الدخول...', 'Signing in...')
               : t('تسجيل الدخول', 'Sign in')}
           </button>
+
+          {/* Demo login — only shown when server has DEMO_MODE=true */}
+          {demoEnabled && (
+            <>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-100" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="px-2 bg-white text-gray-400">
+                    {t('أو', 'or')}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleDemo}
+                disabled={demoLoading}
+                className="w-full py-2.5 border-2 border-dashed border-amber-300 text-amber-700 font-medium rounded-lg text-sm hover:bg-amber-50 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {demoLoading ? (
+                  <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <span>👀</span>
+                )}
+                {demoLoading
+                  ? t('جاري الدخول...', 'Loading demo...')
+                  : t('تجربة العرض التوضيحي', 'Try Demo — read-only')}
+              </button>
+            </>
+          )}
         </form>
 
         {/* Lang toggle */}

@@ -354,3 +354,48 @@ func (h *AuthHandler) generateTokenPair(user *domain.User) (access, refresh stri
 		SignedString([]byte(h.config.JWTSecret))
 	return
 }
+
+// DemoLogin godoc
+// @Summary      One-click demo login
+// @Description  Issues a short-lived JWT for the read-only demo user. Only available when DEMO_MODE=true.
+// @Tags         Auth
+// @Produce      json
+// @Success      200  {object}  object{access_token=string,refresh_token=string,expires_in=int,user=object,demo=bool}
+// @Failure      403  {object}  object{error=string}
+// @Failure      404  {object}  object{error=string}
+// @Router       /auth/demo [post]
+func (h *AuthHandler) DemoLogin(c *fiber.Ctx) error {
+	if !h.config.DemoMode {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "demo mode is not enabled"})
+	}
+
+	user, err := h.users.FindByEmail(c.Context(), h.config.DemoEmail)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "demo account not configured"})
+	}
+
+	access, refresh, err := h.generateTokenPair(user)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "token generation failed"})
+	}
+
+	key := fmt.Sprintf("refresh:%s", refresh)
+	ttl := time.Duration(h.config.JWTRefreshExpiryDays) * 24 * time.Hour
+	if err := h.redis.Set(context.Background(), key, user.ID.String(), ttl).Err(); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "session error"})
+	}
+
+	return c.JSON(fiber.Map{
+		"access_token":  access,
+		"refresh_token": refresh,
+		"expires_in":    h.config.JWTAccessExpiryMin * 60,
+		"demo":          true,
+		"user": fiber.Map{
+			"id":        user.ID,
+			"name":      user.Name,
+			"email":     user.Email,
+			"role":      user.Role,
+			"lang_pref": user.LangPref,
+		},
+	})
+}

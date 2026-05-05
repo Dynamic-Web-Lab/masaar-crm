@@ -41,7 +41,12 @@ export const api = {
         method: 'DELETE',
         body: JSON.stringify({ refresh_token: refreshToken }),
       }),
+    demo: () =>
+      request('/api/v1/auth/demo', { method: 'POST' }),
   },
+
+  health: () =>
+    request<{ status: string; demo_enabled: boolean }>('/health'),
 
   // ─── Contacts ───────────────────────────────────────────────────────────────
 

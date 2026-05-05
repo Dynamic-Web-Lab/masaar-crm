@@ -91,6 +91,7 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	app.Post("/api/v1/auth/refresh", h.Auth.Refresh)
 	app.Post("/api/v1/auth/forgot-password", loginLimiter, h.Auth.ForgotPassword)
 	app.Post("/api/v1/auth/reset-password", h.Auth.ResetPassword)
+	app.Post("/api/v1/auth/demo", loginLimiter, h.Auth.DemoLogin)
 
 	// WhatsApp webhook — Meta calls this publicly
 	app.Get("/webhooks/whatsapp", h.WhatsApp.Verify)
@@ -655,9 +656,12 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		h.LeaseRenewal.CreateTemplate,
 	)
 
-	// Health
+	// Health + public feature flags (no auth required)
 	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"status": "ok"})
+		return c.JSON(fiber.Map{
+			"status":       "ok",
+			"demo_enabled": cfg.DemoMode,
+		})
 	})
 
 	// Swagger UI — available in all envs; gate with BasicAuth in production if needed
