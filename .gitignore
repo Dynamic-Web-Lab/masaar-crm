@@ -32,7 +32,7 @@ SHARED_SERVICES.md
 secrets/
 backups/
 
-# Go
+# Go binaries
 /bin/
 /dist/
 *.exe
@@ -40,6 +40,8 @@ backups/
 *.out
 vendor/
 go.sum.bak
+masaar
+server
 
 # Air (Go live-reload)
 tmp/
@@ -80,4 +82,3 @@ logs/
 # Test coverage
 coverage.out
 coverage.html
-server
