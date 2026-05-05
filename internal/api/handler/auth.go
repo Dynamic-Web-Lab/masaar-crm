@@ -522,6 +522,88 @@ func (h *AuthHandler) VerifyMagicLink(c *fiber.Ctx) error {
 	})
 }
 
+// DemoLogin godoc
+// @Summary      One-click demo login
+// @Description  Returns JWT for demo@masaar.local with demo flag. Only available if DEMO_MODE=true.
+// @Tags         Auth
+// @Produce      json
+// @Success      200   {object}  object{access_token=string,refresh_token=string,expires_in=int,user=object}
+// @Failure      403   {object}  object{error=string}
+// @Router       /auth/demo [post]
+func (h *AuthHandler) DemoLogin(c *fiber.Ctx) error {
+	if !h.config.DemoMode {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "demo mode disabled",
+		})
+	}
+
+	ctx := context.Background()
+	user, err := h.users.FindByEmail(ctx, h.config.DemoEmail)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "demo user not found",
+		})
+	}
+
+	// Create custom JWT claims with demo flag and custom TTLs
+	now := time.Now()
+	accessExpiry := now.Add(2 * time.Hour)
+	refreshExpiry := now.Add(24 * time.Hour)
+
+	accessClaims := jwt.MapClaims{
+		"sub":   user.ID.String(),
+		"email": user.Email,
+		"role":  user.Role,
+		"demo":  true,
+		"exp":   accessExpiry.Unix(),
+		"iat":   now.Unix(),
+	}
+	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
+	access, err := accessToken.SignedString([]byte(h.config.JWTSecret))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "token generation failed",
+		})
+	}
+
+	refreshClaims := jwt.MapClaims{
+		"sub": user.ID.String(),
+		"exp": refreshExpiry.Unix(),
+		"iat": now.Unix(),
+	}
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
+	refresh, err := refreshToken.SignedString([]byte(h.config.JWTSecret))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "token generation failed",
+		})
+	}
+
+	// Store refresh token in Redis with 24h TTL
+	key := fmt.Sprintf("refresh:%s", refresh)
+	if err := h.redis.Set(ctx, key, user.ID.String(), 24*time.Hour).Err(); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "session error",
+		})
+	}
+
+	// Log demo login
+	h.audit.Log(c.Context(), user.ID, repo.AuditLogin, repo.AuditUser, user.ID, nil)
+
+	return c.JSON(fiber.Map{
+		"access_token":  access,
+		"refresh_token": refresh,
+		"expires_in":    120 * 60, // 2 hours in seconds
+		"user": fiber.Map{
+			"id":        user.ID,
+			"name":      user.Name,
+			"email":     user.Email,
+			"role":      user.Role,
+			"lang_pref": user.LangPref,
+		},
+	})
+}
+
 // split is a simple string split helper
 func split(s, sep string) []string {
 	idx := len(s)

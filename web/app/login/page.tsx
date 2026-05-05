@@ -16,6 +16,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [magicSent, setMagicSent] = useState(false)
+  const [demoEnabled, setDemoEnabled] = useState(false)
   const { setSession, init, token } = useAuthStore()
   const router = useRouter()
   const { lang, setLang, t } = useLang()
@@ -24,6 +25,9 @@ export default function LoginPage() {
   useEffect(() => {
     if (token && isLoggedIn()) router.replace('/pipeline')
   }, [token, router])
+  useEffect(() => {
+    api.health().then(res => setDemoEnabled(res.demo_enabled)).catch(() => {})
+  }, [])
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -55,6 +59,21 @@ export default function LoginPage() {
     }
   }
 
+  const handleDemoLogin = async () => {
+    setError('')
+    setLoading(true)
+    try {
+      const res = await api.auth.demo() as LoginResponse
+      setSession(res.access_token, res.refresh_token, res.user)
+      localStorage.setItem('masaar_is_demo', '1')
+      router.push('/pipeline')
+    } catch (err: any) {
+      setError(err.message || t('حدث خطأ', 'Something went wrong'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-sm">
@@ -70,6 +89,23 @@ export default function LoginPage() {
             {t('نظام إدارة علاقات العملاء الإماراتي', 'CRM built for the UAE')}
           </p>
         </div>
+
+        {demoEnabled && (
+          <div className="bg-amber-50 rounded-2xl border-2 border-dashed border-amber-300 p-4 mb-6 text-center">
+            <p className="text-sm text-amber-900 mb-3">
+              {t('جرّب النظام بدون الحاجة لكلمة مرور', 'Try the platform without logging in')}
+            </p>
+            <button
+              onClick={handleDemoLogin}
+              disabled={loading}
+              className="w-full py-2 bg-amber-300 text-amber-900 font-medium rounded-lg text-sm hover:bg-amber-400 transition-colors disabled:opacity-60"
+            >
+              {loading
+                ? t('جاري المعالجة...', 'Processing...')
+                : t('جرّب البيئة التجريبية', 'Try Demo')}
+            </button>
+          </div>
+        )}
 
         {magicSent ? (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 space-y-4 text-center">
