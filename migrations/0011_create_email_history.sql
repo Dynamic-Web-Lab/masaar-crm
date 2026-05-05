@@ -12,7 +12,7 @@ CREATE TABLE email_history (
   related_id BIGINT,
   sent_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  created_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   metadata JSONB
 );
 

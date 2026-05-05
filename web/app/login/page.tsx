@@ -7,13 +7,15 @@ import { useAuthStore } from '@/store/auth'
 import { useLang } from '@/context/LangContext'
 import type { LoginResponse } from '@/types'
 
+type LoginMode = 'password' | 'magic-link'
+
 export default function LoginPage() {
+  const [mode, setMode] = useState<LoginMode>('password')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [demoLoading, setDemoLoading] = useState(false)
-  const [demoEnabled, setDemoEnabled] = useState(false)
+  const [magicSent, setMagicSent] = useState(false)
   const { setSession, init, token } = useAuthStore()
   const router = useRouter()
   const { lang, setLang, t } = useLang()
@@ -23,12 +25,7 @@ export default function LoginPage() {
     if (token && isLoggedIn()) router.replace('/pipeline')
   }, [token, router])
 
-  // Check if demo mode is enabled on this server
-  useEffect(() => {
-    api.health().then((h) => setDemoEnabled(h.demo_enabled)).catch(() => {})
-  }, [])
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
@@ -44,18 +41,17 @@ export default function LoginPage() {
     }
   }
 
-  const handleDemo = async () => {
+  const handleMagicLinkRequest = async (e: React.FormEvent) => {
+    e.preventDefault()
     setError('')
-    setDemoLoading(true)
+    setLoading(true)
     try {
-      const res = await api.auth.demo() as LoginResponse & { demo?: boolean }
-      setSession(res.access_token, res.refresh_token, res.user)
-      if (res.demo) localStorage.setItem('masaar_is_demo', '1')
-      router.push('/pipeline')
+      await api.auth.requestMagicLink(email, lang)
+      setMagicSent(true)
     } catch (err: any) {
       setError(err.message || t('حدث خطأ', 'Something went wrong'))
     } finally {
-      setDemoLoading(false)
+      setLoading(false)
     }
   }
 
@@ -75,82 +71,91 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('البريد الإلكتروني', 'Email')}
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-              placeholder={t('أدخل بريدك الإلكتروني', 'Enter your email')}
-            />
+        {magicSent ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 space-y-4 text-center">
+            <div className="text-brand-600 text-4xl mb-2">📧</div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              {t('تم إرسال رابط الدخول', 'Magic link sent!')}
+            </h3>
+            <p className="text-sm text-gray-600">
+              {t(
+                'تحقق من بريدك الإلكتروني وانقر على الرابط لتسجيل الدخول',
+                'Check your email and click the link to sign in'
+              )}
+            </p>
+            <button
+              onClick={() => { setMagicSent(false); setError('') }}
+              className="text-sm text-brand-600 hover:text-brand-700"
+            >
+              {t('العودة لتسجيل الدخول', 'Back to sign in')}
+            </button>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {t('كلمة المرور', 'Password')}
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-              placeholder="••••••••"
-            />
-          </div>
-
-          {error && (
-            <p className="text-red-500 text-xs bg-red-50 px-3 py-2 rounded-lg">{error}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 bg-brand-600 text-white font-medium rounded-lg text-sm hover:bg-brand-700 transition-colors disabled:opacity-60"
+        ) : (
+          <form
+            onSubmit={mode === 'password' ? handlePasswordLogin : handleMagicLinkRequest}
+            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 space-y-4"
           >
-            {loading
-              ? t('جاري تسجيل الدخول...', 'Signing in...')
-              : t('تسجيل الدخول', 'Sign in')}
-          </button>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('البريد الإلكتروني', 'Email')}
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                placeholder={t('أدخل بريدك الإلكتروني', 'Enter your email')}
+              />
+            </div>
 
-          {/* Demo login — only shown when server has DEMO_MODE=true */}
-          {demoEnabled && (
-            <>
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-100" />
-                </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="px-2 bg-white text-gray-400">
-                    {t('أو', 'or')}
-                  </span>
-                </div>
+            {mode === 'password' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('كلمة المرور', 'Password')}
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  placeholder="••••••••"
+                />
               </div>
+            )}
+
+            {error && (
+              <p className="text-red-500 text-xs bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2.5 bg-brand-600 text-white font-medium rounded-lg text-sm hover:bg-brand-700 transition-colors disabled:opacity-60"
+            >
+              {loading
+                ? t('جاري المعالجة...', 'Processing...')
+                : mode === 'password'
+                  ? t('تسجيل الدخول', 'Sign in')
+                  : t('إرسال رابط الدخول', 'Send magic link')}
+            </button>
+
+            <div className="text-center">
               <button
                 type="button"
-                onClick={handleDemo}
-                disabled={demoLoading}
-                className="w-full py-2.5 border-2 border-dashed border-amber-300 text-amber-700 font-medium rounded-lg text-sm hover:bg-amber-50 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                onClick={() => { setMode(mode === 'password' ? 'magic-link' : 'password'); setError('') }}
+                className="text-xs text-brand-600 hover:text-brand-700"
               >
-                {demoLoading ? (
-                  <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <span>👀</span>
-                )}
-                {demoLoading
-                  ? t('جاري الدخول...', 'Loading demo...')
-                  : t('تجربة العرض التوضيحي', 'Try Demo — read-only')}
+                {mode === 'password'
+                  ? t('تسجيل الدخول بدون كلمة مرور', 'Sign in with magic link')
+                  : t('العودة لتسجيل الدخول بالكلمة', 'Back to password login')}
               </button>
-            </>
-          )}
-        </form>
+            </div>
+          </form>
+        )}
 
         {/* Lang toggle */}
         <div className="mt-4 text-center">

@@ -1,0 +1,62 @@
+# Masaar CRM Production Stack
+# Usage: docker compose -f docker-compose.server.yml up -d
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: masaar-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: masaar
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: masaar
+    volumes:
+      - masaar_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U masaar"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - buyorsell24_masaar_shared
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: masaar-api
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgres://masaar:${POSTGRES_PASSWORD}@masaar-postgres:5432/masaar?sslmode=disable
+      - REDIS_URL=${REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - APP_ENV=production
+      - ALLOWED_ORIGINS=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-mistral}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - buyorsell24_masaar_shared
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    container_name: masaar-web
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+    depends_on:
+      - api
+    networks:
+      - buyorsell24_masaar_shared
+
+networks:
+  buyorsell24_masaar_shared:
+    external: true
+
+volumes:
+  masaar_postgres_data:

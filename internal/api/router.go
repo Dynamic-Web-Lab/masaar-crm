@@ -71,6 +71,15 @@ var loginLimiter = limiter.New(limiter.Config{
 	},
 })
 
+// magicLinkLimiter caps magic link requests to prevent abuse (3 requests/minute per IP).
+var magicLinkLimiter = limiter.New(limiter.Config{
+	Max:        3,
+	Expiration: 1 * time.Minute,
+	LimitReached: func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "too many requests, please try again later"})
+	},
+})
+
 // apiLimiter caps general authenticated API usage to 100 requests/min per IP.
 var apiLimiter = limiter.New(limiter.Config{
 	Max:        100,
@@ -88,6 +97,8 @@ func makeAPIKeyLimiter(rdb *redis.Client) fiber.Handler {
 func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config, rdb *redis.Client, apiKeyRepo *repo.ApiKeyRepo, billingRepo *repo.BillingRepo) {
 	// ── Public routes ────────────────────────────────────────────────────────
 	app.Post("/api/v1/auth/login", loginLimiter, h.Auth.Login)
+	app.Post("/api/v1/auth/magic-link/request", magicLinkLimiter, h.Auth.RequestMagicLink)
+	app.Post("/api/v1/auth/magic-link/verify", h.Auth.VerifyMagicLink)
 	app.Post("/api/v1/auth/refresh", h.Auth.Refresh)
 	app.Post("/api/v1/auth/forgot-password", loginLimiter, h.Auth.ForgotPassword)
 	app.Post("/api/v1/auth/reset-password", h.Auth.ResetPassword)

@@ -1,5 +1,5 @@
 # ---- Build stage ----
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates
 
@@ -28,6 +28,8 @@ WORKDIR /app
 # Copy binary and migrations from builder
 COPY --from=builder --chown=masaar:masaar /masaar .
 COPY --from=builder --chown=masaar:masaar /app/migrations ./migrations
+# Copy .env if it exists (create empty one if not)
+RUN if [ -f /app/.env ]; then cp --chown=masaar:masaar /app/.env .env; fi
 
 # Set permissions
 RUN chmod +x /app/masaar

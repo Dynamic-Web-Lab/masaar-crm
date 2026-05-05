@@ -355,66 +355,163 @@ func (h *AuthHandler) generateTokenPair(user *domain.User) (access, refresh stri
 	return
 }
 
-// DemoLogin godoc
-// @Summary      One-click demo login
-// @Description  Issues a short-lived JWT for the read-only demo user. Only available when DEMO_MODE=true.
+// ─── Magic Link Login ─────────────────────────────────────────────────────
+
+// RequestMagicLink godoc
+// @Summary      Request Magic Link
+// @Description  Send a magic link to the user's email for passwordless login. Rate limited to 3 requests per email per hour.
 // @Tags         Auth
+// @Accept       json
 // @Produce      json
-// @Success      200  {object}  object{access_token=string,refresh_token=string,expires_in=int,user=object,demo=bool}
-// @Failure      403  {object}  object{error=string}
-// @Failure      404  {object}  object{error=string}
-// @Router       /auth/demo [post]
-func (h *AuthHandler) DemoLogin(c *fiber.Ctx) error {
-	if !h.config.DemoMode {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "demo mode is not enabled"})
+// @Param        body  body      object{email=string,lang_pref=string}  true  "Email and preferred language (ar/en)"
+// @Success      200   {object}  object{message=string}
+// @Failure      400   {object}  object{error=string}
+// @Failure      429   {object}  object{error=string}  "Rate limit exceeded"
+// @Router       /auth/magic-link/request [post]
+func (h *AuthHandler) RequestMagicLink(c *fiber.Ctx) error {
+	var body struct {
+		Email    string `json:"email"`
+		LangPref string `json:"lang_pref"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
 	}
 
-	user, err := h.users.FindByEmail(c.Context(), h.config.DemoEmail)
+	if body.Email == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "email required"})
+	}
+
+	if body.LangPref == "" {
+		body.LangPref = "en"
+	}
+
+	ctx := context.Background()
+
+	// Rate limiting: 3 requests per email per hour
+	rateKey := fmt.Sprintf("magic_rate:%s", body.Email)
+	count, err := h.redis.Get(ctx, rateKey).Int()
+	if err != nil && err != redis.Nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal error"})
+	}
+	if count >= h.config.MagicLinkRateLimit {
+		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+			"error": "too many requests, please try again later",
+		})
+	}
+
+	// Increment rate limit counter
+	h.redis.Incr(ctx, rateKey)
+	if count == 0 {
+		h.redis.Expire(ctx, rateKey, 1*time.Hour)
+	}
+
+	// Generate magic token
+	token := uuid.New().String()
+	tokenKey := fmt.Sprintf("magic:%s", token)
+	tokenData := fmt.Sprintf("%s|%s", body.Email, body.LangPref)
+
+	// Store in Redis with expiry
+	expiry := time.Duration(h.config.MagicLinkExpiryMin) * time.Minute
+	err = h.redis.Set(ctx, tokenKey, tokenData, expiry).Err()
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "demo account not configured"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal error"})
 	}
 
-	// Demo JWT carries demo:true so BlockDemoWrites middleware can reject all writes.
-	// Access token lasts 2 hours; refresh lasts 24 hours (sessions reset daily).
-	now := time.Now()
-	accessClaims := jwt.MapClaims{
-		"sub":  user.ID.String(),
-		"name": user.Name,
-		"role": string(user.Role),
-		"demo": true,
-		"exp":  now.Add(2 * time.Hour).Unix(),
-		"iat":  now.Unix(),
+	// Build magic link URL
+	magicURL := fmt.Sprintf("%s/login?token=%s", h.config.MagicLinkBaseURL, token)
+
+	// Send email (don't fail the request if email fails - graceful degradation)
+	if emailService, ok := c.Locals("email_service").(*email.Service); ok && emailService.IsConfigured() {
+		htmlBody, err := emailService.RenderMagicLinkTemplate(email.MagicLinkData{
+			LoginURL:  magicURL,
+			ExpiryMin: h.config.MagicLinkExpiryMin,
+			Lang:      body.LangPref,
+		})
+		if err == nil {
+			_ = emailService.Send(&domain.EmailHistory{
+				ToEmail:   body.Email,
+				Subject:   "Your Masaar CRM Login Link",
+				HTMLBody:  htmlBody,
+			})
+		}
 	}
-	access, err := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims).
-		SignedString([]byte(h.config.JWTSecret))
+
+	// Always return success to prevent email enumeration
+	return c.JSON(fiber.Map{
+		"message": "if the email exists, a magic link has been sent",
+	})
+}
+
+// VerifyMagicLink godoc
+// @Summary      Verify Magic Link
+// @Description  Validate magic link token and issue JWT tokens. Auto-creates account if user doesn't exist.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      object{token=string}  true  "Magic link token"
+// @Success      200   {object}  object{access_token=string,refresh_token=string,expires_in=int,user=object}
+// @Failure      400   {object}  object{error=string}
+// @Failure      401   {object}  object{error=string}
+// @Router       /auth/magic-link/verify [post]
+func (h *AuthHandler) VerifyMagicLink(c *fiber.Ctx) error {
+	var body struct {
+		Token string `json:"token"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+
+	if body.Token == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "token required"})
+	}
+
+	ctx := context.Background()
+	tokenKey := fmt.Sprintf("magic:%s", body.Token)
+
+	// Get and delete token (single-use)
+	tokenData, err := h.redis.Get(ctx, tokenKey).Result()
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid or expired token"})
+	}
+
+	// Delete token to prevent reuse
+	h.redis.Del(ctx, tokenKey)
+
+	// Parse token data: email|lang_pref
+	parts := split(tokenData, "|")
+	if len(parts) != 2 {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid token data"})
+	}
+	email := parts[0]
+	langPref := parts[1]
+
+	// Find or create user
+	user, err := h.users.FindByEmail(ctx, email)
+	if err != nil {
+		// Auto-create account on first login
+		user, err = h.users.CreateWithDefaults(ctx, email, langPref)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create account"})
+		}
+	}
+
+	// Generate JWT tokens
+	access, refresh, err := h.generateTokenPair(user)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "token generation failed"})
 	}
 
-	refreshClaims := jwt.MapClaims{
-		"sub":  user.ID.String(),
-		"exp":  now.Add(24 * time.Hour).Unix(),
-		"iat":  now.Unix(),
-		"jti":  uuid.New().String(),
-		"demo": true,
-	}
-	refresh, err := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims).
-		SignedString([]byte(h.config.JWTSecret))
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "token generation failed"})
-	}
-
-	// Store refresh with 24-hour TTL (demo sessions expire daily)
+	// Store refresh token in Redis
 	key := fmt.Sprintf("refresh:%s", refresh)
-	if err := h.redis.Set(context.Background(), key, user.ID.String(), 24*time.Hour).Err(); err != nil {
+	ttl := time.Duration(h.config.JWTRefreshExpiryDays) * 24 * time.Hour
+	if err := h.redis.Set(ctx, key, user.ID.String(), ttl).Err(); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "session error"})
 	}
 
 	return c.JSON(fiber.Map{
 		"access_token":  access,
 		"refresh_token": refresh,
-		"expires_in":    7200, // 2 hours
-		"demo":          true,
+		"expires_in":    h.config.JWTAccessExpiryMin * 60,
 		"user": fiber.Map{
 			"id":        user.ID,
 			"name":      user.Name,
@@ -423,4 +520,19 @@ func (h *AuthHandler) DemoLogin(c *fiber.Ctx) error {
 			"lang_pref": user.LangPref,
 		},
 	})
+}
+
+// split is a simple string split helper
+func split(s, sep string) []string {
+	idx := len(s)
+	for i := 0; i < len(s)-len(sep)+1; i++ {
+		if s[i:i+len(sep)] == sep {
+			idx = i
+			break
+		}
+	}
+	if idx == len(s) {
+		return []string{s}
+	}
+	return []string{s[:idx], s[idx+len(sep):]}
 }

@@ -30,11 +30,26 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export const api = {
+  get: <T>(path: string) => request<T>(path),
+  post: <T>(path: string, data?: unknown) => request<T>(path, { method: 'POST', body: data ? JSON.stringify(data) : undefined }),
+  put: <T>(path: string, data?: unknown) => request<T>(path, { method: 'PUT', body: data ? JSON.stringify(data) : undefined }),
+  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  
   auth: {
     login: (email: string, password: string) =>
       request('/api/v1/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
+      }),
+    requestMagicLink: (email: string, lang_pref?: 'ar' | 'en') =>
+      request('/api/v1/auth/magic-link/request', {
+        method: 'POST',
+        body: JSON.stringify({ email, lang_pref }),
+      }),
+    verifyMagicLink: (token: string) =>
+      request('/api/v1/auth/magic-link/verify', {
+        method: 'POST',
+        body: JSON.stringify({ token }),
       }),
     logout: (refreshToken: string) =>
       request('/api/v1/auth/logout', {

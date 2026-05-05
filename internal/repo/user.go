@@ -159,3 +159,35 @@ func (r *UserRepo) UpdateLangPref(ctx context.Context, id uuid.UUID, lang string
 	_, err := r.db.Exec(ctx, q, lang, id)
 	return err
 }
+
+func (r *UserRepo) EmailExists(ctx context.Context, email string) (bool, error) {
+	const q = `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)`
+	var exists bool
+	err := r.db.QueryRow(ctx, q, email).Scan(&exists)
+	return exists, err
+}
+
+func (r *UserRepo) CreateWithDefaults(ctx context.Context, email string, langPref string) (*domain.User, error) {
+	const q = `
+		INSERT INTO users (id, name, email, password_hash, role, lang_pref, wa_number)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING created_at
+	`
+	u := &domain.User{
+		ID:           uuid.New(),
+		Name:         email, // Use email as initial name
+		Email:        email,
+		PasswordHash: "", // No password for magic link users
+		Role:         domain.RoleViewer, // Default role for magic link signups
+		LangPref:     langPref,
+		WANumber:     "",
+	}
+	err := r.db.QueryRow(ctx, q,
+		u.ID, u.Name, u.Email, u.PasswordHash,
+		u.Role, u.LangPref, u.WANumber,
+	).Scan(&u.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
+}
