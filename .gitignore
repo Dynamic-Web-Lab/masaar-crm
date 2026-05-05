@@ -18,6 +18,7 @@ docs/contracts/
 *.key
 *.cert
 secrets/
+backups/
 
 # Go
 /bin/
