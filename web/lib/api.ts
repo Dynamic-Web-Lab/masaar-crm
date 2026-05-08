@@ -120,6 +120,12 @@ export const api = {
   ai: {
     summarize: (threadId: string) =>
       request(`/api/v1/ai/summarize/${threadId}`, { method: 'POST' }),
+    extractBuyerProfile: (threadId: string) =>
+      request(`/api/v1/ai/extract-buyer-profile/${threadId}`, { method: 'POST' }),
+    replySuggestions: (threadId: string) =>
+      request(`/api/v1/ai/reply-suggestions/${threadId}`, { method: 'POST' }),
+    translate: (threadId: string, targetLang: string) =>
+      request(`/api/v1/ai/translate/${threadId}`, { method: 'POST', body: JSON.stringify({ target_lang: targetLang }) }),
   },
 
   // ─── Deals ──────────────────────────────────────────────────────────────────

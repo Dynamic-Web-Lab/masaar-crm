@@ -1,13 +1,11 @@
-FROM node:20-alpine AS deps
+FROM node:20-alpine AS builder
+ARG NEXT_PUBLIC_API_URL
 WORKDIR /app
 COPY web/package.json web/package-lock.json* ./
-RUN npm ci --prefer-offline
-
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+RUN npm install --prefer-offline
 COPY web/ .
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 RUN npm run build
 
 FROM node:20-alpine AS runner
@@ -18,8 +16,6 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy public if it exists, otherwise skip
-RUN if [ -d /app/public ]; then cp -r /app/public ./public; fi
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
