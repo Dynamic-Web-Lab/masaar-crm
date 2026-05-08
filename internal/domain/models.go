@@ -33,6 +33,7 @@ type User struct {
 	Role         Role      `json:"role"`
 	LangPref     string    `json:"lang_pref"` // "ar" | "en"
 	WANumber     string    `json:"wa_number"`
+	IsActive     bool      `json:"is_active"`
 	CreatedAt    time.Time `json:"created_at"`
 }
 

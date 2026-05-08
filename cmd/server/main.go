@@ -209,7 +209,7 @@ func main() {
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	handlers := &api.Handlers{
 		Auth:                handler.NewAuthHandler(userRepo, rdb, cfg, auditLogRepo, emailService),
-		User:                handler.NewUserHandler(userRepo, auditLogRepo),
+		User:                handler.NewUserHandler(userRepo, auditLogRepo, emailService, cfg),
 		Stats:               handler.NewStatsHandler(statsRepo),
 		Contact:             handler.NewContactHandler(contactRepo, auditLogRepo),
 		Lead:                handler.NewLeadHandler(leadRepo, contactRepo, commHistRepo, scoringService, hub, auditLogRepo, dispatcher),

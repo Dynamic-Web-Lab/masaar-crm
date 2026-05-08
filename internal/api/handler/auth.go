@@ -105,6 +105,10 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid credentials"})
 	}
 
+	if !user.IsActive {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "account is deactivated"})
+	}
+
 	// Successful login — clear failure counter
 	h.redis.Del(ctx, failKey, lockKey)
 
@@ -493,6 +497,10 @@ func (h *AuthHandler) VerifyMagicLink(c *fiber.Ctx) error {
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create account"})
 		}
+	}
+
+	if !user.IsActive {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "account is deactivated"})
 	}
 
 	// Generate JWT tokens

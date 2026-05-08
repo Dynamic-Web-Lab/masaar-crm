@@ -1,23 +1,28 @@
 package handler
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/maidulcu/masaar-crm/internal/api/middleware"
+	"github.com/maidulcu/masaar-crm/internal/config"
 	"github.com/maidulcu/masaar-crm/internal/domain"
+	"github.com/maidulcu/masaar-crm/internal/email"
 	"github.com/maidulcu/masaar-crm/internal/repo"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserHandler struct {
-	users *repo.UserRepo
-	audit *repo.AuditLogRepo
+	users  *repo.UserRepo
+	audit  *repo.AuditLogRepo
+	email  *email.Service
+	config *config.Config
 }
 
-func NewUserHandler(users *repo.UserRepo, audit *repo.AuditLogRepo) *UserHandler {
-	return &UserHandler{users: users, audit: audit}
+func NewUserHandler(users *repo.UserRepo, audit *repo.AuditLogRepo, emailSvc *email.Service, cfg *config.Config) *UserHandler {
+	return &UserHandler{users: users, audit: audit, email: emailSvc, config: cfg}
 }
 
 // GetMe godoc
@@ -46,6 +51,7 @@ func (h *UserHandler) GetMe(c *fiber.Ctx) error {
 		"email":     user.Email,
 		"role":      user.Role,
 		"lang_pref": user.LangPref,
+		"is_active": user.IsActive,
 	})
 }
 
@@ -144,7 +150,7 @@ func (h *UserHandler) UpdateLang(c *fiber.Ctx) error {
 // @Description  Returns all users in the company. Admin only.
 // @Tags         Users
 // @Produce      json
-// @Success      200  {array}   object{id=string,name=string,email=string,role=string,lang_pref=string}
+// @Success      200  {array}   object{id=string,name=string,email=string,role=string,is_active=bool}
 // @Security     BearerAuth
 // @Router       /users [get]
 func (h *UserHandler) ListUsers(c *fiber.Ctx) error {
@@ -156,12 +162,13 @@ func (h *UserHandler) ListUsers(c *fiber.Ctx) error {
 	out := make([]fiber.Map, 0, len(users))
 	for _, u := range users {
 		out = append(out, fiber.Map{
-			"id":        u.ID,
-			"name":      u.Name,
-			"email":     u.Email,
-			"role":      u.Role,
-			"lang_pref": u.LangPref,
-			"wa_number": u.WANumber,
+			"id":         u.ID,
+			"name":       u.Name,
+			"email":      u.Email,
+			"role":       u.Role,
+			"lang_pref":  u.LangPref,
+			"wa_number":  u.WANumber,
+			"is_active":  u.IsActive,
 			"created_at": u.CreatedAt,
 		})
 	}
@@ -240,4 +247,203 @@ func (h *UserHandler) CreateUser(c *fiber.Ctx) error {
 		"role":      user.Role,
 		"lang_pref": user.LangPref,
 	})
+}
+
+// InviteUser godoc
+// @Summary      Invite user
+// @Description  Create a new user and send them a setup link via email. Admin only.
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{name=string,email=string,role=string}  true  "Invite data"
+// @Success      201   {object}  object{id=string,name=string,email=string,role=string}
+// @Failure      400   {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /users/invite [post]
+func (h *UserHandler) InviteUser(c *fiber.Ctx) error {
+	var body struct {
+		Name  string      `json:"name"`
+		Email string      `json:"email"`
+		Role  domain.Role `json:"role"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+	if strings.TrimSpace(body.Name) == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name is required"})
+	}
+	if strings.TrimSpace(body.Email) == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "email is required"})
+	}
+
+	validRoles := map[domain.Role]bool{
+		domain.RoleAdmin: true, domain.RoleAgent: true, domain.RoleViewer: true,
+	}
+	if !validRoles[body.Role] {
+		body.Role = domain.RoleAgent
+	}
+
+	// Create user with empty password — they must set it via the invite link
+	user := &domain.User{
+		Name:         strings.TrimSpace(body.Name),
+		Email:        strings.ToLower(strings.TrimSpace(body.Email)),
+		PasswordHash: "",
+		Role:         body.Role,
+		LangPref:     "ar",
+		IsActive:     true,
+	}
+	if err := h.users.Create(c.Context(), user); err != nil {
+		if strings.Contains(err.Error(), "unique") || strings.Contains(err.Error(), "duplicate") {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "email already in use"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create user"})
+	}
+
+	// Generate a setup token (reuses the password reset flow)
+	token, err := h.users.CreatePasswordResetToken(c.Context(), user.ID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to generate invite token"})
+	}
+
+	setupURL := fmt.Sprintf("%s/reset-password?token=%s", h.config.AppURL, token)
+	if h.email != nil && h.email.IsConfigured() {
+		_ = h.email.Send(&domain.EmailHistory{
+			ToEmail:   user.Email,
+			Subject:   "You've been invited to Masaar CRM",
+			Body:      fmt.Sprintf("Hello %s,\n\nYou have been invited to Masaar CRM. Set your password via the link below (valid 1 hour):\n\n%s\n\nIf you weren't expecting this, you can ignore this email.", user.Name, setupURL),
+			RelatedTo: "user_invite",
+		})
+	} else {
+		fmt.Printf("[DEV] invite link for %s: %s\n", user.Email, setupURL)
+	}
+
+	callerID, _ := uuid.Parse(middleware.ClaimsFromCtx(c)["sub"].(string))
+	h.audit.Log(c.Context(), callerID, repo.AuditCreate, repo.AuditUser, user.ID,
+		fiber.Map{"email": user.Email, "role": body.Role, "method": "invite"})
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"id":    user.ID,
+		"name":  user.Name,
+		"email": user.Email,
+		"role":  user.Role,
+	})
+}
+
+// UpdateUser godoc
+// @Summary      Update user
+// @Description  Update a user's name and role. Admin only. Cannot edit own account.
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        id    path  string                              true  "User ID"
+// @Param        body  body  object{name=string,role=string}     true  "Update data"
+// @Success      204
+// @Failure      400  {object}  object{error=string}
+// @Failure      403  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /users/{id} [patch]
+func (h *UserHandler) UpdateUser(c *fiber.Ctx) error {
+	targetID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	callerID, _ := uuid.Parse(middleware.ClaimsFromCtx(c)["sub"].(string))
+	if targetID == callerID {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "cannot edit your own account via this endpoint"})
+	}
+
+	var body struct {
+		Name string      `json:"name"`
+		Role domain.Role `json:"role"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+	if strings.TrimSpace(body.Name) == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name is required"})
+	}
+
+	validRoles := map[domain.Role]bool{
+		domain.RoleAdmin: true, domain.RoleAgent: true, domain.RoleViewer: true,
+	}
+	if !validRoles[body.Role] {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid role"})
+	}
+
+	if err := h.users.UpdateUser(c.Context(), targetID, body.Name, body.Role); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update user"})
+	}
+
+	h.audit.Log(c.Context(), callerID, repo.AuditUpdate, repo.AuditUser, targetID,
+		fiber.Map{"name": body.Name, "role": body.Role})
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// SetActive godoc
+// @Summary      Set user active status
+// @Description  Activate or deactivate a user. Admin only. Cannot deactivate own account.
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        id    path  string                  true  "User ID"
+// @Param        body  body  object{active=bool}     true  "Active status"
+// @Success      200   {object}  object{is_active=bool}
+// @Failure      403   {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /users/{id}/active [patch]
+func (h *UserHandler) SetActive(c *fiber.Ctx) error {
+	targetID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	callerID, _ := uuid.Parse(middleware.ClaimsFromCtx(c)["sub"].(string))
+	if targetID == callerID {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "cannot deactivate yourself"})
+	}
+
+	var body struct {
+		Active bool `json:"active"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+
+	if err := h.users.SetActive(c.Context(), targetID, body.Active); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update status"})
+	}
+
+	h.audit.Log(c.Context(), callerID, repo.AuditUpdate, repo.AuditUser, targetID,
+		fiber.Map{"is_active": body.Active})
+	return c.JSON(fiber.Map{"is_active": body.Active})
+}
+
+// DeleteUser godoc
+// @Summary      Delete user
+// @Description  Permanently delete a user account. Admin only. Cannot delete own account.
+// @Tags         Users
+// @Produce      json
+// @Param        id  path  string  true  "User ID"
+// @Success      204
+// @Failure      403  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /users/{id} [delete]
+func (h *UserHandler) DeleteUser(c *fiber.Ctx) error {
+	targetID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+
+	callerID, _ := uuid.Parse(middleware.ClaimsFromCtx(c)["sub"].(string))
+	if targetID == callerID {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "cannot delete yourself"})
+	}
+
+	if err := h.users.Delete(c.Context(), targetID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete user"})
+	}
+
+	h.audit.Log(c.Context(), callerID, repo.AuditDelete, repo.AuditUser, targetID, nil)
+	return c.SendStatus(fiber.StatusNoContent)
 }

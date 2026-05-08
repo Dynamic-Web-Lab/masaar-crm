@@ -41,7 +41,7 @@ backups/
 vendor/
 go.sum.bak
 masaar
-server
+/server
 
 # Air (Go live-reload)
 tmp/

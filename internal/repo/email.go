@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -58,7 +59,7 @@ func (r *EmailRepository) UpdateStatus(ctx context.Context, id int64, status dom
 		args = append(args, time.Now())
 	}
 
-	query += ` WHERE id = $` + string(rune(len(args)+1))
+	query += ` WHERE id = $` + strconv.Itoa(len(args)+1)
 	args = append(args, id)
 
 	_, err := r.pool.Exec(ctx, query, args...)
