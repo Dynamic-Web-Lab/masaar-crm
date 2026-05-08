@@ -24,7 +24,7 @@ func NewUserRepo(db *pgxpool.Pool) *UserRepo {
 
 func (r *UserRepo) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	const q = `
-		SELECT id, name, email, password_hash, role, lang_pref, wa_number, is_active, created_at
+		SELECT id, name, email, password_hash, role, lang_pref, COALESCE(wa_number, ''), is_active, created_at
 		FROM users
 		WHERE email = $1
 	`
@@ -41,7 +41,7 @@ func (r *UserRepo) FindByEmail(ctx context.Context, email string) (*domain.User,
 
 func (r *UserRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	const q = `
-		SELECT id, name, email, password_hash, role, lang_pref, wa_number, is_active, created_at
+		SELECT id, name, email, password_hash, role, lang_pref, COALESCE(wa_number, ''), is_active, created_at
 		FROM users
 		WHERE id = $1
 	`
@@ -72,7 +72,7 @@ func (r *UserRepo) Create(ctx context.Context, u *domain.User) error {
 
 func (r *UserRepo) List(ctx context.Context) ([]domain.User, error) {
 	const q = `
-		SELECT id, name, email, password_hash, role, lang_pref, wa_number, is_active, created_at
+		SELECT id, name, email, password_hash, role, lang_pref, COALESCE(wa_number, ''), is_active, created_at
 		FROM users ORDER BY created_at ASC
 	`
 	rows, err := r.db.Query(ctx, q)
