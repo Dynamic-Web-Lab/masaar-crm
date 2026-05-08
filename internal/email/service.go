@@ -315,4 +315,4 @@ func (s *Service) RenderMagicLinkTemplate(data MagicLinkData) (string, error) {
 		return "", err
 	}
 	return buf.String(), nil
-}
+	}
