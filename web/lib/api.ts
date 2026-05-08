@@ -194,6 +194,15 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify({ lang }),
       }),
+    list: () => request('/api/v1/users'),
+    invite: (data: { name: string; email: string; role: string }) =>
+      request('/api/v1/users/invite', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: { name: string; role: string }) =>
+      request(`/api/v1/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    setActive: (id: string, active: boolean) =>
+      request(`/api/v1/users/${id}/active`, { method: 'PATCH', body: JSON.stringify({ active }) }),
+    delete: (id: string) =>
+      request(`/api/v1/users/${id}`, { method: 'DELETE' }),
   },
 
   // ─── Notifications ───────────────────────────────────────────────────────────

@@ -154,9 +154,13 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	// User management — list/create: admin only; personal settings: any auth user
 	v1.Get("/users", middleware.RequireRole(domain.RoleAdmin), h.User.ListUsers)
 	v1.Post("/users", middleware.RequireRole(domain.RoleAdmin), h.User.CreateUser)
+	v1.Post("/users/invite", middleware.RequireRole(domain.RoleAdmin), h.User.InviteUser)
 	v1.Get("/users/me", h.User.GetMe)
 	v1.Patch("/users/me/password", h.User.ChangePassword)
 	v1.Patch("/users/me/lang", h.User.UpdateLang)
+	v1.Patch("/users/:id", middleware.RequireRole(domain.RoleAdmin), h.User.UpdateUser)
+	v1.Patch("/users/:id/active", middleware.RequireRole(domain.RoleAdmin), h.User.SetActive)
+	v1.Delete("/users/:id", middleware.RequireRole(domain.RoleAdmin), h.User.DeleteUser)
 
 	// API Settings — admin only (integrations, API keys)
 	v1.Get("/settings/bos24",

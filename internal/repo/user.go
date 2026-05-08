@@ -24,14 +24,14 @@ func NewUserRepo(db *pgxpool.Pool) *UserRepo {
 
 func (r *UserRepo) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	const q = `
-		SELECT id, name, email, password_hash, role, lang_pref, wa_number, created_at
+		SELECT id, name, email, password_hash, role, lang_pref, wa_number, is_active, created_at
 		FROM users
 		WHERE email = $1
 	`
 	u := &domain.User{}
 	err := r.db.QueryRow(ctx, q, strings.ToLower(strings.TrimSpace(email))).Scan(
 		&u.ID, &u.Name, &u.Email, &u.PasswordHash,
-		&u.Role, &u.LangPref, &u.WANumber, &u.CreatedAt,
+		&u.Role, &u.LangPref, &u.WANumber, &u.IsActive, &u.CreatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("find user by email: %w", err)
@@ -41,14 +41,14 @@ func (r *UserRepo) FindByEmail(ctx context.Context, email string) (*domain.User,
 
 func (r *UserRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	const q = `
-		SELECT id, name, email, password_hash, role, lang_pref, wa_number, created_at
+		SELECT id, name, email, password_hash, role, lang_pref, wa_number, is_active, created_at
 		FROM users
 		WHERE id = $1
 	`
 	u := &domain.User{}
 	err := r.db.QueryRow(ctx, q, id).Scan(
 		&u.ID, &u.Name, &u.Email, &u.PasswordHash,
-		&u.Role, &u.LangPref, &u.WANumber, &u.CreatedAt,
+		&u.Role, &u.LangPref, &u.WANumber, &u.IsActive, &u.CreatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("find user by id: %w", err)
@@ -72,7 +72,7 @@ func (r *UserRepo) Create(ctx context.Context, u *domain.User) error {
 
 func (r *UserRepo) List(ctx context.Context) ([]domain.User, error) {
 	const q = `
-		SELECT id, name, email, password_hash, role, lang_pref, wa_number, created_at
+		SELECT id, name, email, password_hash, role, lang_pref, wa_number, is_active, created_at
 		FROM users ORDER BY created_at ASC
 	`
 	rows, err := r.db.Query(ctx, q)
@@ -85,12 +85,30 @@ func (r *UserRepo) List(ctx context.Context) ([]domain.User, error) {
 	for rows.Next() {
 		var u domain.User
 		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash,
-			&u.Role, &u.LangPref, &u.WANumber, &u.CreatedAt); err != nil {
+			&u.Role, &u.LangPref, &u.WANumber, &u.IsActive, &u.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan user: %w", err)
 		}
 		users = append(users, u)
 	}
 	return users, nil
+}
+
+func (r *UserRepo) UpdateUser(ctx context.Context, id uuid.UUID, name string, role domain.Role) error {
+	const q = `UPDATE users SET name = $1, role = $2 WHERE id = $3`
+	_, err := r.db.Exec(ctx, q, strings.TrimSpace(name), role, id)
+	return err
+}
+
+func (r *UserRepo) SetActive(ctx context.Context, id uuid.UUID, active bool) error {
+	const q = `UPDATE users SET is_active = $1 WHERE id = $2`
+	_, err := r.db.Exec(ctx, q, active, id)
+	return err
+}
+
+func (r *UserRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	const q = `DELETE FROM users WHERE id = $1`
+	_, err := r.db.Exec(ctx, q, id)
+	return err
 }
 
 func (r *UserRepo) UpdatePassword(ctx context.Context, id uuid.UUID, passwordHash string) error {
