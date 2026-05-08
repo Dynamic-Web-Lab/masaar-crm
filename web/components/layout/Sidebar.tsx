@@ -2,12 +2,14 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useLang } from '@/context/LangContext'
+import { useAuthStore } from '@/store/auth'
 import clsx from 'clsx'
 
 type NavItem = {
   href: string
   label: { en: string; ar: string }
   icon: React.ReactNode
+  adminOnly?: boolean
 }
 
 type NavSection = {
@@ -153,6 +155,16 @@ const sections: NavSection[] = [
     title: { en: 'Account', ar: 'الحساب' },
     items: [
       {
+        href: '/admin/users',
+        label: { en: 'Team', ar: 'الفريق' },
+        adminOnly: true,
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        ),
+      },
+      {
         href: '/settings/billing',
         label: { en: 'Plans & Billing', ar: 'الباقات والفواتير' },
         icon: (
@@ -178,7 +190,9 @@ const sections: NavSection[] = [
 export function Sidebar() {
   const pathname = usePathname()
   const { lang } = useLang()
+  const { user } = useAuthStore()
   const isAr = lang === 'ar'
+  const isAdmin = user?.role === 'admin'
 
   return (
     <aside className="flex flex-col w-56 min-h-screen bg-gray-900 text-white shrink-0 overflow-y-auto">
@@ -198,12 +212,14 @@ export function Sidebar() {
               {isAr ? section.title.ar : section.title.en}
             </p>
             <div className="space-y-0.5">
-              {section.items.map((item) => {
+              {section.items.filter(item => !item.adminOnly || isAdmin).map((item) => {
                 const active = item.href === '/analytics'
                   ? pathname.startsWith('/analytics')
                   : item.href === '/settings'
                     ? pathname === '/settings' || pathname.startsWith('/settings/api')
-                    : pathname.startsWith(item.href)
+                    : item.href === '/admin/users'
+                      ? pathname.startsWith('/admin')
+                      : pathname.startsWith(item.href)
                 return (
                   <Link
                     key={item.href}
