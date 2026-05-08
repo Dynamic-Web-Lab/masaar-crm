@@ -35,6 +35,10 @@ services:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-mistral}
+      - EMAIL_PROVIDER=${EMAIL_PROVIDER:-azure}
+      - AZURE_COMM_ENDPOINT=${AZURE_COMM_ENDPOINT}
+      - AZURE_COMM_KEY=${AZURE_COMM_KEY}
+      - AZURE_COMM_FROM_ADDRESS=${AZURE_COMM_FROM_ADDRESS}
     depends_on:
       postgres:
         condition: service_healthy

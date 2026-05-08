@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: buyorsell24-api
+    env_file: .env
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - REDIS_URL=redis://redis:6379/0
+      - MEILISEARCH_URL=http://meilisearch:7700
+      - API_TOKEN=buyorsell24_ollama_ai_2026
+      - GOOGLE_AI_TOKEN=AIzaSyBNQzGr5HY_8OUrcSiBscPIceSgShF0_aQ
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/root/buyorsell24-engine/data
+      - ./logs:/root/buyorsell24-engine/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - buyorsell24_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: buyorsell24-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - buyorsell24_network
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    container_name: buyorsell24-meilisearch
+    environment:
+      - MEILI_MASTER_KEY=buyorsell24_meili_master_key_2026
+      - MEILI_ENV=production
+      - MEILI_NO_ANALYTICS=true
+    volumes:
+      - meilisearch_data:/meili_data
+    ports:
+      - "7700:7700"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - buyorsell24_network
+
+  nginx:
+    image: nginx:alpine
+    container_name: buyorsell24-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - buyorsell24_network
+
+networks:
+  buyorsell24_network:
+    driver: bridge
+
+volumes:
+  redis_data:
+  meilisearch_data:
+

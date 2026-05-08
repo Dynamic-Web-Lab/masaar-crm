@@ -111,15 +111,21 @@ func main() {
 	renewalTemplateRepo := repo.NewRenewalTemplateRepo(pool)
 	renewalCommLogRepo := repo.NewRenewalCommunicationLogRepo(pool)
 
-	// ── Email service (optional SMTP integration) ────────────────────────────
+	// ── Email service (SMTP or Azure Communication Services) ─────────────────
 	emailService := email.NewService(&email.Config{
-		SMTPHost:     cfg.SMTPHost,
-		SMTPPort:     cfg.SMTPPort,
-		SMTPUser:     cfg.SMTPUser,
-		SMTPPassword: cfg.SMTPPassword,
-		FromEmail:    cfg.SMTPFromEmail,
-		FromName:     cfg.SMTPFromName,
+		SMTPHost:        cfg.SMTPHost,
+		SMTPPort:        cfg.SMTPPort,
+		SMTPUser:        cfg.SMTPUser,
+		SMTPPassword:    cfg.SMTPPassword,
+		FromEmail:       cfg.SMTPFromEmail,
+		FromName:        cfg.SMTPFromName,
+		AzureEndpoint:   cfg.AzureCommEndpoint,
+		AzureKey:        cfg.AzureCommKey,
+		AzureFromAddress: cfg.AzureCommFromAddress,
 	})
+	if emailService.IsConfigured() {
+		log.Printf("Email provider: %s", emailService.ProviderName())
+	}
 
 	// ── WhatsApp Sender (optional outbound messaging) ─────────────────────────
 	var whatsappSender *whatsapp.Sender

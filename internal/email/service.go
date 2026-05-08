@@ -10,51 +10,73 @@ import (
 )
 
 type Config struct {
+	// SMTP
 	SMTPHost     string
 	SMTPPort     string
 	SMTPUser     string
 	SMTPPassword string
 	FromEmail    string
 	FromName     string
+	// Azure Communication Services
+	AzureEndpoint   string
+	AzureKey        string
+	AzureFromAddress string
 }
 
 type Service struct {
-	cfg *Config
+	cfg      *Config
+	azureSvc *AzureService
 }
 
 func NewService(cfg *Config) *Service {
-	return &Service{cfg: cfg}
+	s := &Service{cfg: cfg}
+	if cfg.AzureEndpoint != "" && cfg.AzureKey != "" {
+		s.azureSvc = NewAzureService(cfg.AzureEndpoint, cfg.AzureKey, cfg.AzureFromAddress)
+	}
+	return s
+}
+
+func (s *Service) ProviderName() string {
+	if s.azureSvc != nil {
+		return "azure"
+	}
+	return "smtp"
 }
 
 func (s *Service) IsConfigured() bool {
+	if s.azureSvc != nil {
+		return true
+	}
 	return s.cfg != nil && s.cfg.SMTPHost != "" && s.cfg.SMTPUser != ""
 }
 
 func (s *Service) Send(email *domain.EmailHistory) error {
+	if s.azureSvc != nil {
+		return s.azureSvc.Send(email)
+	}
+	return s.sendSMTP(email)
+}
+
+func (s *Service) sendSMTP(email *domain.EmailHistory) error {
 	if !s.IsConfigured() {
 		return fmt.Errorf("email service not configured")
 	}
 
-	// Set From if not already set
 	if email.FromEmail == "" {
 		email.FromEmail = fmt.Sprintf("%s <%s>", s.cfg.FromName, s.cfg.FromEmail)
 	}
 
-	// Prepare SMTP auth
 	auth := smtp.PlainAuth("", s.cfg.SMTPUser, s.cfg.SMTPPassword, s.cfg.SMTPHost)
 	addr := fmt.Sprintf("%s:%s", s.cfg.SMTPHost, s.cfg.SMTPPort)
 
-	// Build email body
 	var body bytes.Buffer
 
-	// Headers
 	headers := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n",
 		email.FromEmail,
 		email.ToEmail,
 		email.Subject,
 	)
 
-	// Content-Type
 	if email.HTMLBody != "" {
 		headers += "MIME-Version: 1.0\r\nContent-Type: text/html; charset=\"utf-8\"\r\n"
 	} else {
@@ -63,14 +85,12 @@ func (s *Service) Send(email *domain.EmailHistory) error {
 
 	body.WriteString(headers + "\r\n")
 
-	// Body
 	if email.HTMLBody != "" {
 		body.WriteString(email.HTMLBody)
 	} else {
 		body.WriteString(email.Body)
 	}
 
-	// Send via SMTP
 	err := smtp.SendMail(addr, auth, s.cfg.FromEmail, []string{email.ToEmail}, body.Bytes())
 	return err
 }
@@ -86,12 +106,9 @@ type InvoiceData struct {
 	IssuedDate  string
 	DueDate     string
 	ContactName string
-	// Lang controls the template language: "ar" renders Arabic RTL,
-	// anything else (or empty) renders English LTR.
 	Lang string
 }
 
-// isArabic is available inside the template for conditional rendering.
 func (d InvoiceData) IsArabic() bool { return d.Lang == "ar" }
 
 func (s *Service) RenderInvoiceTemplate(data InvoiceData) (string, error) {
@@ -287,6 +304,7 @@ func (s *Service) RenderMagicLinkTemplate(data MagicLinkData) (string, error) {
 </body>
 </html>
 `
+
 	t, err := template.New("magic_link").Parse(tmpl)
 	if err != nil {
 		return "", err
@@ -298,4 +316,3 @@ func (s *Service) RenderMagicLinkTemplate(data MagicLinkData) (string, error) {
 	}
 	return buf.String(), nil
 }
-

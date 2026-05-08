@@ -41,13 +41,18 @@ type Config struct {
 	// BuyOrSell24 (Real Estate API)
 	BOS24Token string
 
-	// Email (SMTP)
+	// Email provider: "smtp" (default) or "azure" (Azure Communication Services)
+	EmailProvider  string
 	SMTPHost     string
 	SMTPPort     string
 	SMTPUser     string
 	SMTPPassword string
 	SMTPFromEmail string
 	SMTPFromName string
+	// Azure Communication Services (REST API, not SMTP)
+	AzureCommEndpoint   string
+	AzureCommKey        string
+	AzureCommFromAddress string
 
 	// Magic Link (Passwordless Login)
 	MagicLinkBaseURL  string
@@ -95,13 +100,17 @@ func Load() *Config {
 		OllamaModel:          getEnv("OLLAMA_MODEL", "llama3"),
 		GeminiAPIKey:         getEnv("GEMINI_API_KEY", ""),
 		GeminiModel:          getEnv("GEMINI_MODEL", "gemini-2.0-flash"),
-		BOS24Token:           getEnv("BOS24_API_TOKEN", ""),
+		BOS24Token:            getEnv("BOS24_API_TOKEN", ""),
+		EmailProvider:         getEnv("EMAIL_PROVIDER", "smtp"),
 		SMTPHost:             getEnv("SMTP_HOST", ""),
 		SMTPPort:             getEnv("SMTP_PORT", "587"),
 		SMTPUser:             getEnv("SMTP_USER", ""),
 		SMTPPassword:         getEnv("SMTP_PASSWORD", ""),
 		SMTPFromEmail:        getEnv("SMTP_FROM_EMAIL", "noreply@masaar.local"),
 		SMTPFromName:         getEnv("SMTP_FROM_NAME", "Masaar CRM"),
+		AzureCommEndpoint:    getEnv("AZURE_COMM_ENDPOINT", ""),
+		AzureCommKey:         getEnv("AZURE_COMM_KEY", ""),
+		AzureCommFromAddress: getEnv("AZURE_COMM_FROM_ADDRESS", ""),
 		MagicLinkBaseURL:     getEnv("MAGIC_LINK_BASE_URL", "http://localhost:3000"),
 		MagicLinkExpiryMin:   getEnvInt("MAGIC_LINK_EXPIRY_MIN", 15),
 		MagicLinkRateLimit:   getEnvInt("MAGIC_LINK_RATE_LIMIT", 3),
