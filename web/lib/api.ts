@@ -140,6 +140,8 @@ export const api = {
     get: (id: string) => request(`/api/v1/deals/${id}`),
     create: (data: unknown) =>
       request('/api/v1/deals', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) =>
+      request(`/api/v1/deals/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     updateStage: (id: string, stage: string) =>
       request(`/api/v1/deals/${id}/stage`, {
         method: 'PATCH',

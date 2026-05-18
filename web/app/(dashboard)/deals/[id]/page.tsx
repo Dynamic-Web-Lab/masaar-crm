@@ -27,6 +27,11 @@ export default function DealDetailPage() {
   const [creating, setCreating] = useState(false)
   const [subtotal, setSubtotal] = useState('')
   const [showForm, setShowForm] = useState(false)
+  const [showEditForm, setShowEditForm] = useState(false)
+  const [editAmount, setEditAmount] = useState('')
+  const [editProbability, setEditProbability] = useState('')
+  const [editCloseDate, setEditCloseDate] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
   const { lang, t } = useLang()
 
   const load = () => {
@@ -37,6 +42,9 @@ export default function DealDetailPage() {
     ]).then(([d, invs]) => {
       setDeal(d)
       setInvoices(Array.isArray(invs) ? invs : [])
+      setEditAmount(d.amount?.toString() || '')
+      setEditProbability(d.probability?.toString() || '')
+      setEditCloseDate(d.close_date || '')
     }).finally(() => setLoading(false))
   }
 
@@ -53,6 +61,24 @@ export default function DealDetailPage() {
       load()
     } finally {
       setCreating(false)
+    }
+  }
+
+  const handleSaveEdit = async () => {
+    if (!deal) return
+    setSavingEdit(true)
+    try {
+      await api.deals.update(id, {
+        amount: editAmount ? parseFloat(editAmount) : null,
+        probability: editProbability ? parseInt(editProbability) : null,
+        close_date: editCloseDate || null,
+      })
+      setShowEditForm(false)
+      load()
+    } catch {
+      console.error('Failed to update deal')
+    } finally {
+      setSavingEdit(false)
     }
   }
 
@@ -96,32 +122,96 @@ export default function DealDetailPage() {
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
-        {/* Deal summary */}
-        <div className="bg-white rounded-xl border border-gray-100 p-5 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <p className="text-xs text-gray-400 mb-1">{t('القيمة', 'Amount')}</p>
-            <p className="font-semibold text-gray-900">{deal.amount ? formatAmount(deal.amount) : '—'}</p>
+        {/* Deal summary with edit button */}
+        <div>
+          <div className="bg-white rounded-xl border border-gray-100 p-5 grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+            <div>
+              <p className="text-xs text-gray-400 mb-1">{t('القيمة', 'Amount')}</p>
+              <p className="font-semibold text-gray-900">{deal.amount ? formatAmount(deal.amount) : '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-1">{t('المرحلة', 'Stage')}</p>
+              <p className="font-medium text-gray-700 capitalize">{deal.stage}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-1">{t('الاحتمالية', 'Probability')}</p>
+              <p className="font-medium text-gray-700">{deal.probability}%</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-1">{t('تاريخ الإغلاق', 'Close Date')}</p>
+              <p className="font-medium text-gray-700">
+                {deal.close_date
+                  ? new Date(deal.close_date).toLocaleDateString(
+                      lang === 'ar' ? 'ar-AE' : 'en-AE',
+                      { year: 'numeric', month: 'short', day: 'numeric' }
+                    )
+                  : '—'}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-gray-400 mb-1">{t('المرحلة', 'Stage')}</p>
-            <p className="font-medium text-gray-700 capitalize">{deal.stage}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400 mb-1">{t('الاحتمالية', 'Probability')}</p>
-            <p className="font-medium text-gray-700">{deal.probability}%</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400 mb-1">{t('تاريخ الإغلاق', 'Close Date')}</p>
-            <p className="font-medium text-gray-700">
-              {deal.close_date
-                ? new Date(deal.close_date).toLocaleDateString(
-                    lang === 'ar' ? 'ar-AE' : 'en-AE',
-                    { year: 'numeric', month: 'short', day: 'numeric' }
-                  )
-                : '—'}
-            </p>
-          </div>
+          <button
+            onClick={() => setShowEditForm(!showEditForm)}
+            className="text-xs font-medium text-blue-600 hover:text-blue-700"
+          >
+            {t('تعديل', 'Edit')}
+          </button>
         </div>
+
+        {/* Edit form */}
+        {showEditForm && (
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs text-gray-600 mb-2 block">{t('القيمة', 'Amount')}</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  placeholder="0"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-600 mb-2 block">{t('الاحتمالية %', 'Probability %')}</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={editProbability}
+                  onChange={(e) => setEditProbability(e.target.value)}
+                  placeholder="0"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-600 mb-2 block">{t('تاريخ الإغلاق', 'Close Date')}</label>
+                <input
+                  type="date"
+                  value={editCloseDate}
+                  onChange={(e) => setEditCloseDate(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-3 justify-end">
+              <button
+                onClick={() => setShowEditForm(false)}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-700"
+              >
+                {t('إلغاء', 'Cancel')}
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+                className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              >
+                {savingEdit ? t('جاري الحفظ...', 'Saving...') : t('حفظ', 'Save')}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Invoices section */}
         <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">

@@ -367,10 +367,15 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 
 	// Deals — viewers: read-only; agents: create+stage; admin: all
 	v1.Get("/deals", h.Deal.List)
+	v1.Get("/deals/:id", h.Deal.Get)
 	v1.Get("/deals/:id/invoices", h.Deal.ListInvoices)
 	v1.Post("/deals",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.Deal.Create,
+	)
+	v1.Patch("/deals/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Deal.Update,
 	)
 	v1.Patch("/deals/:id/stage",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),

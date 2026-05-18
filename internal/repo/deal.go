@@ -89,6 +89,15 @@ func (r *DealRepo) Create(ctx context.Context, d *domain.Deal) error {
 	).Scan(&d.CreatedAt, &d.UpdatedAt)
 }
 
+func (r *DealRepo) Update(ctx context.Context, d *domain.Deal) error {
+	const q = `
+		UPDATE deals SET amount=$1, probability=$2, close_date=$3, updated_at=NOW()
+		WHERE id=$4
+	`
+	_, err := r.db.Exec(ctx, q, d.Amount, d.Probability, d.CloseDate, d.ID)
+	return err
+}
+
 func (r *DealRepo) UpdateStage(ctx context.Context, id uuid.UUID, stage domain.DealStage) error {
 	_, err := r.db.Exec(ctx,
 		`UPDATE deals SET stage=$1, updated_at=NOW() WHERE id=$2`,

@@ -110,6 +110,57 @@ func (h *DealHandler) Create(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(deal)
 }
 
+// Update godoc
+// @Summary      Update deal
+// @Description  Updates deal fields: amount, probability, close_date.
+// @Tags         Deals
+// @Accept       json
+// @Produce      json
+// @Param        id    path      string               true  "Deal UUID"
+// @Param        body  body      object{amount=number,probability=integer,close_date=string}  true  "Update payload"
+// @Success      200   {object}  domain.Deal
+// @Failure      400   {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /deals/{id} [patch]
+func (h *DealHandler) Update(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+	var updates struct {
+		Amount      *float64 `json:"amount"`
+		Probability *int     `json:"probability"`
+		CloseDate   *string  `json:"close_date"`
+	}
+	if err := c.BodyParser(&updates); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+
+	deal, err := h.deals.GetByID(c.Context(), id)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "deal not found"})
+	}
+
+	if updates.Amount != nil {
+		deal.Amount = *updates.Amount
+	}
+	if updates.Probability != nil {
+		if *updates.Probability < 0 || *updates.Probability > 100 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "probability must be 0-100"})
+		}
+		deal.Probability = *updates.Probability
+	}
+	if updates.CloseDate != nil {
+		deal.CloseDate = *updates.CloseDate
+	}
+
+	if err := h.deals.Update(c.Context(), deal); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	h.audit.Log(c.Context(), c.Locals("user_id").(uuid.UUID), repo.AuditUpdate, repo.AuditDeal, deal.ID, deal)
+	return c.JSON(deal)
+}
+
 // UpdateStage godoc
 // @Summary      Update deal stage
 // @Description  Moves a deal to a new stage: open|won|lost.
