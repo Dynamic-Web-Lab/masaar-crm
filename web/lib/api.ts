@@ -479,6 +479,41 @@ export const api = {
     portal: () =>
       request('/api/v1/billing/portal', { method: 'POST' }),
   },
+
+  // ─── Documents ──────────────────────────────────────────────────────────────
+
+  documents: {
+    // Templates
+    templates: {
+      list: (page: number = 1, limit: number = 20) =>
+        request(`/api/v1/documents/templates?page=${page}&limit=${limit}`),
+      get: (id: string) => request(`/api/v1/documents/templates/${id}`),
+      create: (data: unknown) =>
+        request('/api/v1/documents/templates', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: unknown) =>
+        request(`/api/v1/documents/templates/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        request(`/api/v1/documents/templates/${id}`, { method: 'DELETE' }),
+    },
+
+    // Documents
+    list: (entityType: string, entityId: string) =>
+      request(`/api/v1/documents?entity_type=${entityType}&entity_id=${entityId}`),
+    get: (id: string) => request(`/api/v1/documents/${id}`),
+    create: (data: unknown) =>
+      request('/api/v1/documents', { method: 'POST', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request(`/api/v1/documents/${id}`, { method: 'DELETE' }),
+
+    // Signatures
+    requestSignature: (docId: string, signerName: string, signerEmail: string) =>
+      request(`/api/v1/documents/${docId}/request-signature`, {
+        method: 'POST',
+        body: JSON.stringify({ signer_name: signerName, signer_email: signerEmail }),
+      }),
+    markSigned: (signatureId: string) =>
+      request(`/api/v1/documents/signatures/${signatureId}/mark-signed`, { method: 'PATCH' }),
+  },
 }
 
 export default api
