@@ -21,8 +21,7 @@ CREATE TABLE bank_transactions (
   transaction_type VARCHAR(50), -- credit, debit, transfer, check
   status VARCHAR(50) DEFAULT 'completed', -- pending, completed, failed, reversed
 
-  -- Reconciliation
-  matched_payment_id UUID REFERENCES payments(id) ON DELETE SET NULL,
+  -- Reconciliation (matched_payment_id added later via 0023 after payments table exists)
   match_confidence DECIMAL(3, 2), -- 0.0 to 1.0 confidence score
   matched_at TIMESTAMP,
 
@@ -38,7 +37,6 @@ CREATE INDEX idx_bank_transactions_company_id ON bank_transactions(company_id);
 CREATE INDEX idx_bank_transactions_bank_integration_id ON bank_transactions(bank_integration_id);
 CREATE INDEX idx_bank_transactions_external_id ON bank_transactions(external_id);
 CREATE INDEX idx_bank_transactions_transaction_date ON bank_transactions(transaction_date);
-CREATE INDEX idx_bank_transactions_matched_payment_id ON bank_transactions(matched_payment_id);
 CREATE INDEX idx_bank_transactions_status ON bank_transactions(status);
 
 -- +goose Down

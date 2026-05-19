@@ -15,8 +15,7 @@ CREATE TABLE payments (
   payment_reference VARCHAR(255), -- cheque number, transaction ID, etc
   status VARCHAR(50) DEFAULT 'pending', -- pending, received, overdue, failed, refunded
 
-  -- Reconciliation
-  bank_transaction_id UUID REFERENCES bank_transactions(id) ON DELETE SET NULL,
+  -- Reconciliation (bank_transaction_id added later via 0023 after bank_transactions exists)
   reconciled_at TIMESTAMP,
   reconciled_by UUID REFERENCES users(id),
 
@@ -42,7 +41,6 @@ CREATE INDEX idx_payments_lease_id ON payments(lease_id);
 CREATE INDEX idx_payments_status ON payments(status);
 CREATE INDEX idx_payments_due_date ON payments(due_date);
 CREATE INDEX idx_payments_paid_date ON payments(paid_date);
-CREATE INDEX idx_payments_bank_transaction_id ON payments(bank_transaction_id);
 
 -- +goose Down
 DROP TABLE payments;
