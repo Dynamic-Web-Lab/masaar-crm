@@ -956,6 +956,721 @@ func (h *PropertyHandler) GetMarketTrends(c *fiber.Ctx) error {
 	})
 }
 
+// GetMarketOverview godoc
+// @Summary      Market overview insights
+// @Description  Returns high-level market overview for a period and property type.
+// @Tags         Properties
+// @Produce      json
+// @Param        period         query  string  false  "month, quarter, year"
+// @Param        property_type  query  string  false  "Property type"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/insights/market-overview [get]
+func (h *PropertyHandler) GetMarketOverview(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetMarketOverview(ctx, c.Query("period"), c.Query("property_type"))
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetAreaComparison godoc
+// @Summary      Compare multiple areas
+// @Description  Returns side-by-side stats for multiple areas.
+// @Tags         Properties
+// @Produce      json
+// @Param        areas          query  string  true   "Comma-separated area names"
+// @Param        property_type  query  string  false  "Property type"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  object{error=string}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/insights/area-comparison [get]
+func (h *PropertyHandler) GetAreaComparison(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	areas := c.Query("areas")
+	if areas == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "areas is required"})
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetAreaComparison(ctx, areas, c.Query("property_type"))
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetPriceTrends godoc
+// @Summary      Price trends for an area
+// @Description  Returns historical price trends for a specific area.
+// @Tags         Properties
+// @Produce      json
+// @Param        area           query  string  true   "Area name"
+// @Param        property_type  query  string  false  "Property type"
+// @Param        granularity    query  string  false  "monthly, quarterly, yearly"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  object{error=string}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/insights/price-trends [get]
+func (h *PropertyHandler) GetPriceTrends(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	area := c.Query("area")
+	if area == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "area is required"})
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetPriceTrends(ctx, area, c.Query("property_type"), c.Query("granularity"))
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetTopAreas godoc
+// @Summary      Top performing areas
+// @Description  Returns top areas ranked by a specific metric.
+// @Tags         Properties
+// @Produce      json
+// @Param        metric         query  string  false  "volume, price, yield"
+// @Param        property_type  query  string  false  "Property type"
+// @Param        limit          query  int     false  "Result limit (default 10)"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/insights/top-areas [get]
+func (h *PropertyHandler) GetTopAreas(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	limit := 10
+	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 {
+		limit = l
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetTopAreas(ctx, c.Query("metric"), c.Query("property_type"), limit)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetBrokers godoc
+// @Summary      List registered brokers
+// @Description  Returns paginated list of real estate brokers.
+// @Tags         Properties
+// @Produce      json
+// @Param        limit   query  int  false  "Result limit (default 20)"
+// @Param        offset  query  int  false  "Offset for pagination"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/brokers [get]
+func (h *PropertyHandler) GetBrokers(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	limit := 20
+	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 {
+		limit = l
+	}
+	offset := 0
+	if o, err := strconv.Atoi(c.Query("offset")); err == nil && o >= 0 {
+		offset = o
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetBrokers(ctx, limit, offset)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetTransaction godoc
+// @Summary      Single transaction details
+// @Description  Returns details for a specific DLD transaction by ID.
+// @Tags         Properties
+// @Produce      json
+// @Param        id  path  string  true  "Transaction ID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  object{error=string}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/transactions/{id} [get]
+func (h *PropertyHandler) GetTransaction(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetTransaction(ctx, id)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetEnrichedTransaction godoc
+// @Summary      Enriched transaction details
+// @Description  Returns a transaction with additional market context.
+// @Tags         Properties
+// @Produce      json
+// @Param        id  path  string  true  "Transaction ID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  object{error=string}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/transactions/{id}/enriched [get]
+func (h *PropertyHandler) GetEnrichedTransaction(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetEnrichedTransaction(ctx, id)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetTransactionsByProject godoc
+// @Summary      Transactions for a project
+// @Description  Returns all DLD transactions for a specific project name.
+// @Tags         Properties
+// @Produce      json
+// @Param        name   path   string  true   "Project name"
+// @Param        limit  query  int     false  "Result limit"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  object{error=string}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/transactions/by-project/{name} [get]
+func (h *PropertyHandler) GetTransactionsByProject(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	name := c.Params("name")
+	if name == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name is required"})
+	}
+	filters := make(map[string]interface{})
+	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 {
+		filters["limit"] = l
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetTransactionsByProject(ctx, name, filters)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetAreaTransactionSummary godoc
+// @Summary      Transaction summary for an area
+// @Description  Returns aggregated transaction summary for a named area.
+// @Tags         Properties
+// @Produce      json
+// @Param        name  path  string  true  "Area name"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  object{error=string}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/transactions/area/{name}/summary [get]
+func (h *PropertyHandler) GetAreaTransactionSummary(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	name := c.Params("name")
+	if name == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name is required"})
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetAreaTransactionSummary(ctx, name)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetRentalStats godoc
+// @Summary      Rental market statistics
+// @Description  Returns aggregated rental statistics with optional filters.
+// @Tags         Properties
+// @Produce      json
+// @Param        area           query  string  false  "Area name"
+// @Param        property_type  query  string  false  "Property type"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/rentals/stats [get]
+func (h *PropertyHandler) GetRentalStats(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	filters := make(map[string]interface{})
+	if v := c.Query("area"); v != "" {
+		filters["area"] = v
+	}
+	if v := c.Query("property_type"); v != "" {
+		filters["property_type"] = v
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetRentalStats(ctx, filters)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetRentalAreas godoc
+// @Summary      Areas with rental data
+// @Description  Returns list of areas that have rental contract data.
+// @Tags         Properties
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/rentals/areas [get]
+func (h *PropertyHandler) GetRentalAreas(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetRentalAreas(ctx)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetRentalsByProject godoc
+// @Summary      Rentals for a project
+// @Description  Returns rental contracts for a specific project.
+// @Tags         Properties
+// @Produce      json
+// @Param        name    path   string  true   "Project name"
+// @Param        limit   query  int     false  "Result limit (default 20)"
+// @Param        offset  query  int     false  "Offset"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  object{error=string}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/rentals/project/{name} [get]
+func (h *PropertyHandler) GetRentalsByProject(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	name := c.Params("name")
+	if name == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name is required"})
+	}
+	limit := 20
+	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 {
+		limit = l
+	}
+	offset := 0
+	if o, err := strconv.Atoi(c.Query("offset")); err == nil && o >= 0 {
+		offset = o
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetRentalsByProject(ctx, name, limit, offset)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetRentalsByBuilding godoc
+// @Summary      Rentals for a building
+// @Description  Returns rental contracts for a specific building.
+// @Tags         Properties
+// @Produce      json
+// @Param        name    path   string  true   "Building name"
+// @Param        limit   query  int     false  "Result limit (default 20)"
+// @Param        offset  query  int     false  "Offset"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  object{error=string}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/rentals/building/{name} [get]
+func (h *PropertyHandler) GetRentalsByBuilding(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	name := c.Params("name")
+	if name == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name is required"})
+	}
+	limit := 20
+	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 {
+		limit = l
+	}
+	offset := 0
+	if o, err := strconv.Atoi(c.Query("offset")); err == nil && o >= 0 {
+		offset = o
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetRentalsByBuilding(ctx, name, limit, offset)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetLands godoc
+// @Summary      Land parcel listings
+// @Description  Returns paginated land parcels from DLD records.
+// @Tags         Properties
+// @Produce      json
+// @Param        limit   query  int  false  "Result limit (default 20)"
+// @Param        offset  query  int  false  "Offset"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/lands [get]
+func (h *PropertyHandler) GetLands(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	limit := 20
+	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 {
+		limit = l
+	}
+	offset := 0
+	if o, err := strconv.Atoi(c.Query("offset")); err == nil && o >= 0 {
+		offset = o
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetLands(ctx, limit, offset)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetLand godoc
+// @Summary      Single land parcel
+// @Description  Returns details for a specific land parcel.
+// @Tags         Properties
+// @Produce      json
+// @Param        id  path  string  true  "Land ID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  object{error=string}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/lands/{id} [get]
+func (h *PropertyHandler) GetLand(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetLand(ctx, id)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetMapConfig godoc
+// @Summary      Map configuration
+// @Description  Returns map rendering config (tile server, default center, zoom).
+// @Tags         Properties
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/map/config [get]
+func (h *PropertyHandler) GetMapConfig(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetMapConfig(ctx)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetMapBounds godoc
+// @Summary      Map geographic bounds
+// @Description  Returns the bounding box for the map view.
+// @Tags         Properties
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/map/bounds [get]
+func (h *PropertyHandler) GetMapBounds(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetMapBounds(ctx)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetPOICategories godoc
+// @Summary      POI category list
+// @Description  Returns all available POI categories for filtering.
+// @Tags         Properties
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/map/poi-categories [get]
+func (h *PropertyHandler) GetPOICategories(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetPOICategories(ctx)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetPropertyHeatmap godoc
+// @Summary      Property price heatmap data
+// @Description  Returns heatmap data points for rendering price density on a map.
+// @Tags         Properties
+// @Produce      json
+// @Param        property_type  query  string  false  "Property type"
+// @Param        trans_type     query  string  false  "Sell or Rent"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/map/heatmap [get]
+func (h *PropertyHandler) GetPropertyHeatmap(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	filters := make(map[string]interface{})
+	if v := c.Query("property_type"); v != "" {
+		filters["property_type"] = v
+	}
+	if v := c.Query("trans_type"); v != "" {
+		filters["trans_type"] = v
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetPropertyHeatmap(ctx, filters)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetAreaLocation godoc
+// @Summary      Area geocoordinates
+// @Description  Returns the geographic center and boundary for a named area.
+// @Tags         Properties
+// @Produce      json
+// @Param        name  path  string  true  "Area name"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  object{error=string}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/map/area/{name} [get]
+func (h *PropertyHandler) GetAreaLocation(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	name := c.Params("name")
+	if name == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name is required"})
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetAreaLocation(ctx, name)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetAreaByID godoc
+// @Summary      Area details by ID
+// @Description  Returns area details for a given area ID.
+// @Tags         Properties
+// @Produce      json
+// @Param        id  path  string  true  "Area ID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  object{error=string}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/areas/{id} [get]
+func (h *PropertyHandler) GetAreaByID(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetAreaByID(ctx, id)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetDeveloper godoc
+// @Summary      Developer details by ID
+// @Description  Returns details for a specific developer.
+// @Tags         Properties
+// @Produce      json
+// @Param        id  path  string  true  "Developer ID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  object{error=string}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/developers/{id} [get]
+func (h *PropertyHandler) GetDeveloper(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetDeveloper(ctx, id)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetProject godoc
+// @Summary      Project details by ID
+// @Description  Returns details for a specific real estate project.
+// @Tags         Properties
+// @Produce      json
+// @Param        id  path  string  true  "Project ID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  object{error=string}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/projects/{id} [get]
+func (h *PropertyHandler) GetProject(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetProject(ctx, id)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetUnit godoc
+// @Summary      Unit details by ID
+// @Description  Returns details for a specific property unit.
+// @Tags         Properties
+// @Produce      json
+// @Param        id  path  string  true  "Unit ID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  object{error=string}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/units/{id} [get]
+func (h *PropertyHandler) GetUnit(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetUnit(ctx, id)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
+// GetValuationByID godoc
+// @Summary      Valuation details by ID
+// @Description  Returns AVM valuation details for a specific record.
+// @Tags         Properties
+// @Produce      json
+// @Param        id  path  string  true  "Valuation ID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  object{error=string}
+// @Failure      503  {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/valuations/{id} [get]
+func (h *PropertyHandler) GetValuationByID(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+	id := c.Params("id")
+	if id == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
+	}
+	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	defer cancel()
+	result, err := h.bos24Client.GetValuation(ctx, id)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(result)
+}
+
 // Request/Response types
 
 type SearchPropertiesRequest struct {
