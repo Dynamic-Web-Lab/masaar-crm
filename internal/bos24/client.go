@@ -370,6 +370,234 @@ func (c *Client) GetUnits(ctx context.Context, filters map[string]interface{}) (
 	return result, err
 }
 
+// ── Insights (v1.3.0 — market intelligence) ──────────────────────────────────
+
+func (c *Client) GetMarketOverview(ctx context.Context, period, propertyType string) (map[string]interface{}, error) {
+	params := url.Values{}
+	if period != "" {
+		params.Set("period", period)
+	}
+	if propertyType != "" {
+		params.Set("property_type", propertyType)
+	}
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, "/public/realestate/insights/market-overview", params, &result, 30*time.Minute)
+	return result, err
+}
+
+func (c *Client) GetAreaComparison(ctx context.Context, areas, propertyType string) (map[string]interface{}, error) {
+	params := url.Values{}
+	params.Set("areas", areas)
+	if propertyType != "" {
+		params.Set("property_type", propertyType)
+	}
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, "/public/realestate/insights/area-comparison", params, &result, 30*time.Minute)
+	return result, err
+}
+
+func (c *Client) GetPriceTrends(ctx context.Context, area, propertyType, granularity string) (map[string]interface{}, error) {
+	params := url.Values{}
+	if area != "" {
+		params.Set("area", area)
+	}
+	if propertyType != "" {
+		params.Set("property_type", propertyType)
+	}
+	if granularity != "" {
+		params.Set("granularity", granularity)
+	}
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, "/public/realestate/insights/price-trends", params, &result, 1*time.Hour)
+	return result, err
+}
+
+func (c *Client) GetTopAreas(ctx context.Context, metric, propertyType string, limit int) (map[string]interface{}, error) {
+	params := url.Values{}
+	if metric != "" {
+		params.Set("metric", metric)
+	}
+	if propertyType != "" {
+		params.Set("property_type", propertyType)
+	}
+	if limit > 0 {
+		params.Set("limit", fmt.Sprintf("%d", limit))
+	}
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, "/public/realestate/insights/top-areas", params, &result, 1*time.Hour)
+	return result, err
+}
+
+// ── Brokers ───────────────────────────────────────────────────────────────────
+
+func (c *Client) GetBrokers(ctx context.Context, limit, offset int) ([]map[string]interface{}, error) {
+	params := url.Values{}
+	params.Set("limit", fmt.Sprintf("%d", limit))
+	params.Set("offset", fmt.Sprintf("%d", offset))
+	var result []map[string]interface{}
+	err := c.getWithCache(ctx, "/public/realestate/brokers", params, &result, 12*time.Hour)
+	return result, err
+}
+
+// ── Transaction details ───────────────────────────────────────────────────────
+
+func (c *Client) GetTransaction(ctx context.Context, transactionID string) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, fmt.Sprintf("/public/realestate/transactions/%s", transactionID), url.Values{}, &result, 24*time.Hour)
+	return result, err
+}
+
+func (c *Client) GetEnrichedTransaction(ctx context.Context, transactionID string) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, fmt.Sprintf("/public/realestate/transactions/%s/enriched", transactionID), url.Values{}, &result, 24*time.Hour)
+	return result, err
+}
+
+func (c *Client) GetTransactionsByProject(ctx context.Context, projectName string, filters map[string]interface{}) (map[string]interface{}, error) {
+	params := url.Values{}
+	if v, ok := filters["rooms"].(string); ok && v != "" {
+		params.Set("rooms", v)
+	}
+	if v, ok := filters["limit"].(int); ok {
+		params.Set("limit", fmt.Sprintf("%d", v))
+	}
+	if v, ok := filters["offset"].(int); ok {
+		params.Set("offset", fmt.Sprintf("%d", v))
+	}
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, fmt.Sprintf("/public/realestate/transactions/by-project/%s", url.PathEscape(projectName)), params, &result, 1*time.Hour)
+	return result, err
+}
+
+func (c *Client) GetAreaTransactionSummary(ctx context.Context, areaName string) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, fmt.Sprintf("/public/realestate/transactions/area/%s/summary", url.PathEscape(areaName)), url.Values{}, &result, 1*time.Hour)
+	return result, err
+}
+
+// ── Rental sub-endpoints ──────────────────────────────────────────────────────
+
+func (c *Client) GetRentalStats(ctx context.Context, filters map[string]interface{}) (map[string]interface{}, error) {
+	params := url.Values{}
+	if v, ok := filters["area"].(string); ok && v != "" {
+		params.Set("area", v)
+	}
+	if v, ok := filters["property_type"].(string); ok && v != "" {
+		params.Set("property_type", v)
+	}
+	if v, ok := filters["rooms"].(string); ok && v != "" {
+		params.Set("rooms", v)
+	}
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, "/public/realestate/rentals/stats", params, &result, 1*time.Hour)
+	return result, err
+}
+
+func (c *Client) GetRentalAreas(ctx context.Context) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, "/public/realestate/rentals/areas", url.Values{}, &result, 2*time.Hour)
+	return result, err
+}
+
+func (c *Client) GetRentalsByProject(ctx context.Context, projectName string, limit, offset int) (map[string]interface{}, error) {
+	params := url.Values{}
+	params.Set("limit", fmt.Sprintf("%d", limit))
+	params.Set("offset", fmt.Sprintf("%d", offset))
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, fmt.Sprintf("/public/realestate/rentals/project/%s", url.PathEscape(projectName)), params, &result, 1*time.Hour)
+	return result, err
+}
+
+func (c *Client) GetRentalsByBuilding(ctx context.Context, buildingName string, limit, offset int) (map[string]interface{}, error) {
+	params := url.Values{}
+	params.Set("limit", fmt.Sprintf("%d", limit))
+	params.Set("offset", fmt.Sprintf("%d", offset))
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, fmt.Sprintf("/public/realestate/rentals/building/%s", url.PathEscape(buildingName)), params, &result, 1*time.Hour)
+	return result, err
+}
+
+// ── Lands ─────────────────────────────────────────────────────────────────────
+
+func (c *Client) GetLands(ctx context.Context, limit, offset int) ([]map[string]interface{}, error) {
+	params := url.Values{}
+	params.Set("limit", fmt.Sprintf("%d", limit))
+	params.Set("offset", fmt.Sprintf("%d", offset))
+	var result []map[string]interface{}
+	err := c.getWithCache(ctx, "/public/realestate/lands", params, &result, 4*time.Hour)
+	return result, err
+}
+
+func (c *Client) GetLand(ctx context.Context, landID int) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, fmt.Sprintf("/public/realestate/lands/%d", landID), url.Values{}, &result, 4*time.Hour)
+	return result, err
+}
+
+// ── Map extras ────────────────────────────────────────────────────────────────
+
+func (c *Client) GetMapConfig(ctx context.Context) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, "/public/maps/config", url.Values{}, &result, 24*time.Hour)
+	return result, err
+}
+
+func (c *Client) GetMapBounds(ctx context.Context) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, "/public/maps/bounds", url.Values{}, &result, 24*time.Hour)
+	return result, err
+}
+
+func (c *Client) GetPOICategories(ctx context.Context) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, "/public/maps/pois/categories", url.Values{}, &result, 24*time.Hour)
+	return result, err
+}
+
+func (c *Client) GetPropertyHeatmap(ctx context.Context) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, "/public/maps/heatmap/properties", url.Values{}, &result, 2*time.Hour)
+	return result, err
+}
+
+func (c *Client) GetAreaLocation(ctx context.Context, areaName string) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, fmt.Sprintf("/public/maps/areas/%s", url.PathEscape(areaName)), url.Values{}, &result, 24*time.Hour)
+	return result, err
+}
+
+// ── Single record lookups ─────────────────────────────────────────────────────
+
+func (c *Client) GetAreaByID(ctx context.Context, areaID int) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, fmt.Sprintf("/public/realestate/areas/%d", areaID), url.Values{}, &result, 24*time.Hour)
+	return result, err
+}
+
+func (c *Client) GetDeveloper(ctx context.Context, developerID int) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, fmt.Sprintf("/public/realestate/developers/%d", developerID), url.Values{}, &result, 12*time.Hour)
+	return result, err
+}
+
+func (c *Client) GetProject(ctx context.Context, projectID int) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, fmt.Sprintf("/public/realestate/projects/%d", projectID), url.Values{}, &result, 6*time.Hour)
+	return result, err
+}
+
+func (c *Client) GetUnit(ctx context.Context, unitID int) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, fmt.Sprintf("/public/realestate/units/%d", unitID), url.Values{}, &result, 2*time.Hour)
+	return result, err
+}
+
+func (c *Client) GetValuation(ctx context.Context, valuationID int) (map[string]interface{}, error) {
+	var result map[string]interface{}
+	err := c.getWithCache(ctx, fmt.Sprintf("/public/realestate/valuations/%d", valuationID), url.Values{}, &result, 2*time.Hour)
+	return result, err
+}
+
 // Helper methods
 
 func (c *Client) getWithCache(ctx context.Context, path string, params url.Values, result interface{}, ttl time.Duration) error {

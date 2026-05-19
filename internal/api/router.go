@@ -366,6 +366,45 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	prop.Get("/comparables", h.Property.GetComparables)
 	prop.Get("/market-trends", h.Property.GetMarketTrends)
 
+	// Insights
+	prop.Get("/insights/market-overview", h.Property.GetMarketOverview)
+	prop.Get("/insights/area-comparison", h.Property.GetAreaComparison)
+	prop.Get("/insights/price-trends", h.Property.GetPriceTrends)
+	prop.Get("/insights/top-areas", h.Property.GetTopAreas)
+
+	// Brokers
+	prop.Get("/brokers", h.Property.GetBrokers)
+
+	// Transaction detail routes (must come before /transactions/:id to avoid ambiguity)
+	prop.Get("/transactions/by-project/:name", h.Property.GetTransactionsByProject)
+	prop.Get("/transactions/area/:name/summary", h.Property.GetAreaTransactionSummary)
+	prop.Get("/transactions/:id", h.Property.GetTransaction)
+	prop.Get("/transactions/:id/enriched", h.Property.GetEnrichedTransaction)
+
+	// Rental sub-routes
+	prop.Get("/rentals/stats", h.Property.GetRentalStats)
+	prop.Get("/rentals/areas", h.Property.GetRentalAreas)
+	prop.Get("/rentals/project/:name", h.Property.GetRentalsByProject)
+	prop.Get("/rentals/building/:name", h.Property.GetRentalsByBuilding)
+
+	// Lands
+	prop.Get("/lands", h.Property.GetLands)
+	prop.Get("/lands/:id", h.Property.GetLand)
+
+	// Map extras
+	prop.Get("/map/config", h.Property.GetMapConfig)
+	prop.Get("/map/bounds", h.Property.GetMapBounds)
+	prop.Get("/map/poi-categories", h.Property.GetPOICategories)
+	prop.Get("/map/heatmap", h.Property.GetPropertyHeatmap)
+	prop.Get("/map/area/:name", h.Property.GetAreaLocation)
+
+	// Single entity lookups
+	prop.Get("/areas/:id", h.Property.GetAreaByID)
+	prop.Get("/developers/:id", h.Property.GetDeveloper)
+	prop.Get("/projects/:id", h.Property.GetProject)
+	prop.Get("/units/:id", h.Property.GetUnit)
+	prop.Get("/valuations/:id", h.Property.GetValuationByID)
+
 	// Notifications — personal; no role restriction beyond auth
 	v1.Get("/notifications", h.Notification.List)
 	v1.Patch("/notifications/:id/read", h.Notification.MarkRead)
