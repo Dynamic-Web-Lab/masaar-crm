@@ -110,6 +110,7 @@ func main() {
 	leaseRenewalRepo := repo.NewLeaseRenewalRepo(pool)
 	renewalTemplateRepo := repo.NewRenewalTemplateRepo(pool)
 	renewalCommLogRepo := repo.NewRenewalCommunicationLogRepo(pool)
+	documentRepo := repo.NewDocumentRepo(pool)
 
 	// ── Email service (SMTP or Azure Communication Services) ─────────────────
 	emailService := email.NewService(&email.Config{
@@ -236,6 +237,7 @@ func main() {
 		Inspection:          handler.NewInspectionHandler(inspectionTemplateRepo, inspectionRepo),
 		Maintenance:         handler.NewMaintenanceTaskHandler(maintenanceRepo),
 		LeaseRenewal:        handler.NewLeaseRenewalHandler(leaseRenewalRepo, renewalTemplateRepo, renewalCommLogRepo),
+		Document:           handler.NewDocumentHandler(documentRepo, auditLogRepo),
 		ApiKey:              handler.NewApiKeyHandler(apiKeyRepo),
 		PublicLead:          handler.NewPublicLeadHandler(contactRepo, leadRepo, dispatcher),
 		WebhookSub:          handler.NewWebhookSubHandler(webhookRepo, dispatcher),

@@ -46,6 +46,7 @@ type Handlers struct {
 	Inspection        *handler.InspectionHandler
 	Maintenance       *handler.MaintenanceTaskHandler
 	LeaseRenewal      *handler.LeaseRenewalHandler
+	Document          *handler.DocumentHandler
 	ApiKey            *handler.ApiKeyHandler
 	PublicLead        *handler.PublicLeadHandler
 	WebhookSub        *handler.WebhookSubHandler
@@ -653,6 +654,42 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Post("/renewal-templates",
 		middleware.RequireRole(domain.RoleAdmin),
 		h.LeaseRenewal.CreateTemplate,
+	)
+
+	// Document Templates
+	v1.Get("/documents/templates", h.Document.ListTemplates)
+	v1.Get("/documents/templates/:id", h.Document.GetTemplate)
+	v1.Post("/documents/templates",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Document.CreateTemplate,
+	)
+	v1.Patch("/documents/templates/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Document.UpdateTemplate,
+	)
+	v1.Delete("/documents/templates/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Document.DeleteTemplate,
+	)
+
+	// Documents
+	v1.Get("/documents", h.Document.ListDocuments)
+	v1.Get("/documents/:id", h.Document.GetDocument)
+	v1.Post("/documents",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Document.CreateDocument,
+	)
+	v1.Post("/documents/:id/request-signature",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Document.SendForSignature,
+	)
+	v1.Patch("/documents/signatures/:id/mark-signed",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Document.MarkSigned,
+	)
+	v1.Delete("/documents/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Document.DeleteDocument,
 	)
 
 	// Health
