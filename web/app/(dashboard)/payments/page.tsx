@@ -76,7 +76,7 @@ export default function PaymentsPage() {
   const leaseLabel = (l: Lease) => {
     const tenant = l.tenant?.full_name_en ?? ''
     const property = l.property?.name ?? ''
-    return [tenant, property, l.unit_number].filter(Boolean).join(' · ')
+    return [tenant, property, l.property?.unit_number].filter(Boolean).join(' · ')
   }
 
   return (
