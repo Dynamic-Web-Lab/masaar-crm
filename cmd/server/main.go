@@ -43,12 +43,12 @@ func main() {
 	if cfg.AppEnv == "production" && cfg.AllowedOrigins == "*" {
 		log.Fatal("ALLOWED_ORIGINS must not be '*' in production — set it to your frontend domain")
 	}
-	if cfg.WAAppSecret == "" && cfg.WAVerifyToken != "" {
-		// WhatsApp webhook is configured (WA_VERIFY_TOKEN set) but App Secret is missing
+	if cfg.WAAppSecret == "" && cfg.WAPhoneNumberID != "" {
+		// WhatsApp is actively configured (phone number ID set) but App Secret is missing
 		if cfg.AppEnv == "production" {
-			log.Fatal("WA_APP_SECRET must be set when WA_VERIFY_TOKEN is configured — required to validate Meta webhook signatures")
+			log.Fatal("WA_APP_SECRET must be set when WhatsApp (WA_PHONE_NUMBER_ID) is configured")
 		}
-		log.Println("WARNING: WA_APP_SECRET is not set — webhook signature validation is disabled")
+		log.Println("WARNING: WA_APP_SECRET is not set — Meta webhook signature validation disabled")
 	}
 
 	// ── Database ─────────────────────────────────────────────────────────────
