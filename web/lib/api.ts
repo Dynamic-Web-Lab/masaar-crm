@@ -480,6 +480,15 @@ export const api = {
       request('/api/v1/billing/portal', { method: 'POST' }),
   },
 
+  // ─── Public (no auth) ───────────────────────────────────────────────────────
+
+  public: {
+    getSignature: (signatureId: string) =>
+      fetch(`${BASE}/api/public/sign/${signatureId}`).then((r) => r.json()),
+    sign: (signatureId: string) =>
+      fetch(`${BASE}/api/public/sign/${signatureId}`, { method: 'POST' }).then((r) => r.json()),
+  },
+
   // ─── Documents ──────────────────────────────────────────────────────────────
 
   documents: {

@@ -318,6 +318,56 @@ func (h *DocumentHandler) MarkSigned(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"id": sigID})
 }
 
+// PublicGetSignature godoc
+// @Summary      Get signature details (public)
+// @Description  Returns the document and signature details for a given signature ID. No auth required.
+// @Tags         Public
+// @Produce      json
+// @Param        id  path      string  true  "Signature UUID"
+// @Success      200  {object}  object{signature=domain.DocumentSignature,document=domain.Document}
+// @Failure      404  {object}  object{error=string}
+// @Router       /public/sign/{id} [get]
+func (h *DocumentHandler) PublicGetSignature(c *fiber.Ctx) error {
+	sigID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+
+	sigs, err := h.docs.GetSignatureByID(c.Context(), sigID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "signature not found"})
+	}
+
+	doc, err := h.docs.GetDocument(c.Context(), sigs.DocumentID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "document not found"})
+	}
+
+	return c.JSON(fiber.Map{"signature": sigs, "document": doc})
+}
+
+// PublicSign godoc
+// @Summary      Sign a document (public)
+// @Description  Marks a signature as signed. No auth required — the signature UUID is the access token.
+// @Tags         Public
+// @Produce      json
+// @Param        id  path      string  true  "Signature UUID"
+// @Success      200  {object}  object{status=string}
+// @Failure      400  {object}  object{error=string}
+// @Router       /public/sign/{id} [post]
+func (h *DocumentHandler) PublicSign(c *fiber.Ctx) error {
+	sigID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+
+	if err := h.docs.MarkSigned(c.Context(), sigID, time.Now()); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"status": "signed"})
+}
+
 // DeleteDocument godoc
 // @Summary      Delete document
 // @Description  Soft-deletes a document (not permanently removed).

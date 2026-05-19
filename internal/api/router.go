@@ -111,6 +111,10 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	// Stripe webhook — must be public (raw body, no JWT)
 	app.Post("/webhooks/stripe", h.Billing.StripeWebhook)
 
+	// Public document signing — signature UUID is the access token
+	app.Get("/api/public/sign/:id", h.Document.PublicGetSignature)
+	app.Post("/api/public/sign/:id", h.Document.PublicSign)
+
 	// Public lead intake — API key auth (scope: lead:create)
 	apiKeyLimiter := makeAPIKeyLimiter(rdb)
 	app.Post("/webhooks/leads",

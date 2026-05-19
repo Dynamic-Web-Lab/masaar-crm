@@ -212,6 +212,22 @@ func (r *DocumentRepo) GetSignatures(ctx context.Context, documentID uuid.UUID) 
 	return sigs, nil
 }
 
+func (r *DocumentRepo) GetSignatureByID(ctx context.Context, sigID uuid.UUID) (*domain.DocumentSignature, error) {
+	const q = `
+		SELECT id, document_id, signer_name, signer_email, signature_field_name, signature_status, signed_at, signature_image_url, ip_address, user_agent, created_at
+		FROM document_signatures WHERE id = $1
+	`
+	s := &domain.DocumentSignature{}
+	err := r.db.QueryRow(ctx, q, sigID).Scan(
+		&s.ID, &s.DocumentID, &s.SignerName, &s.SignerEmail, &s.SignatureFieldName, &s.SignatureStatus,
+		&s.SignedAt, &s.SignatureImageURL, &s.IPAddress, &s.UserAgent, &s.CreatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get signature: %w", err)
+	}
+	return s, nil
+}
+
 func (r *DocumentRepo) MarkSigned(ctx context.Context, sigID uuid.UUID, signedAt time.Time) error {
 	_, err := r.db.Exec(ctx,
 		`UPDATE document_signatures SET signature_status=$1, signed_at=$2 WHERE id=$3`,

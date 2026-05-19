@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import { useLang } from '@/context/LangContext'
 import type { Deal, VATInvoice } from '@/types'
 import clsx from 'clsx'
+import DocumentAttachmentSection from '@/components/DocumentAttachmentSection'
 
 const invoiceStatusColor: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-600',
@@ -334,6 +335,11 @@ export default function DealDetailPage() {
               )}
             </table>
           )}
+        </div>
+
+        {/* Documents section */}
+        <div className="bg-white rounded-xl border border-gray-100 p-5">
+          <DocumentAttachmentSection entityType="deal" entityId={id} canEdit />
         </div>
 
         {/* VAT summary card */}

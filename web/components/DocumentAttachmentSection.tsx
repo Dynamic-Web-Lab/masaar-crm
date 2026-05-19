@@ -21,16 +21,13 @@ interface Signature {
   created_at: string
 }
 
-interface DocumentWithSignatures {
-  document: Document
-  signatures: Signature[]
-}
-
 interface DocumentAttachmentSectionProps {
   entityType: string
   entityId: string
   canEdit?: boolean
 }
+
+const DOC_TYPES = ['lease', 'contract', 'invoice', 'agreement', 'addendum', 'other']
 
 export default function DocumentAttachmentSection({
   entityType,
@@ -42,12 +39,16 @@ export default function DocumentAttachmentSection({
   const [expandedDoc, setExpandedDoc] = useState<string | null>(null)
   const [signatures, setSignatures] = useState<Record<string, Signature[]>>({})
 
-  const [showSignatureForm, setShowSignatureForm] = useState(false)
-  const [signerData, setSignerData] = useState({
-    docId: '',
-    signerName: '',
-    signerEmail: '',
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [createData, setCreateData] = useState({
+    document_title: '',
+    document_type: '',
+    file_url: '',
   })
+
+  const [sigFormDocId, setSigFormDocId] = useState<string | null>(null)
+  const [signerData, setSignerData] = useState({ signerName: '', signerEmail: '' })
   const [sendingSignature, setSendingSignature] = useState(false)
 
   useEffect(() => {
@@ -58,9 +59,7 @@ export default function DocumentAttachmentSection({
     setLoading(true)
     try {
       const docs = await api.documents.list(entityType, entityId)
-      if (Array.isArray(docs)) {
-        setDocuments(docs as Document[])
-      }
+      setDocuments(Array.isArray(docs) ? (docs as Document[]) : [])
     } catch (err) {
       console.error('Failed to load documents:', err)
     } finally {
@@ -70,33 +69,46 @@ export default function DocumentAttachmentSection({
 
   async function loadSignatures(docId: string) {
     try {
-      const result = await api.documents.get(docId)
-      if (result && typeof result === 'object') {
-        const data = result as { document: Document; signatures: Signature[] }
-        setSignatures((prev) => ({ ...prev, [docId]: data.signatures || [] }))
-      }
+      const result = await api.documents.get(docId) as { document: Document; signatures: Signature[] }
+      setSignatures((prev) => ({ ...prev, [docId]: result.signatures || [] }))
     } catch (err) {
       console.error('Failed to load signatures:', err)
     }
   }
 
-  async function handleRequestSignature() {
-    if (!signerData.signerName || !signerData.signerEmail) {
-      alert('Signer name and email required')
+  async function handleCreateDocument() {
+    if (!createData.document_title || !createData.document_type) {
+      alert('Title and type are required')
       return
     }
+    setCreating(true)
+    try {
+      await api.documents.create({
+        document_title: createData.document_title,
+        document_type: createData.document_type,
+        file_url: createData.file_url || undefined,
+        related_entity_type: entityType,
+        related_entity_id: entityId,
+      })
+      setCreateData({ document_title: '', document_type: '', file_url: '' })
+      setShowCreateForm(false)
+      loadDocuments()
+    } catch (err) {
+      console.error('Failed to create document:', err)
+      alert('Failed to create document')
+    } finally {
+      setCreating(false)
+    }
+  }
 
+  async function handleRequestSignature() {
+    if (!signerData.signerName || !signerData.signerEmail || !sigFormDocId) return
     setSendingSignature(true)
     try {
-      await api.documents.requestSignature(
-        signerData.docId,
-        signerData.signerName,
-        signerData.signerEmail
-      )
-      alert('Signature request sent successfully')
-      setShowSignatureForm(false)
-      setSignerData({ docId: '', signerName: '', signerEmail: '' })
-      loadSignatures(signerData.docId)
+      await api.documents.requestSignature(sigFormDocId, signerData.signerName, signerData.signerEmail)
+      setSigFormDocId(null)
+      setSignerData({ signerName: '', signerEmail: '' })
+      loadSignatures(sigFormDocId)
     } catch (err) {
       console.error('Failed to request signature:', err)
       alert('Failed to request signature')
@@ -107,21 +119,19 @@ export default function DocumentAttachmentSection({
 
   async function handleDeleteDocument(docId: string) {
     if (!confirm('Delete this document?')) return
-
     try {
       await api.documents.delete(docId)
       loadDocuments()
-    } catch (err) {
-      console.error('Failed to delete document:', err)
+    } catch {
       alert('Failed to delete document')
     }
   }
 
   if (loading) {
     return (
-      <div className="py-4">
-        <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
-        <span className="text-sm text-gray-600 ml-2">Loading documents...</span>
+      <div className="py-4 flex items-center gap-2">
+        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400" />
+        <span className="text-sm text-gray-500">Loading documents...</span>
       </div>
     )
   }
@@ -129,172 +139,221 @@ export default function DocumentAttachmentSection({
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-900">Documents</h3>
+        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Documents</h3>
         {canEdit && (
           <button
-            onClick={() => setShowSignatureForm(!showSignatureForm)}
-            className="text-sm px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            className="text-xs font-medium px-3 py-1.5 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors"
           >
-            {showSignatureForm ? 'Cancel' : '+ Add Document'}
+            {showCreateForm ? 'Cancel' : '+ Attach Document'}
           </button>
         )}
       </div>
 
       {/* Create Document Form */}
-      {showSignatureForm && canEdit && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="font-medium text-gray-900 mb-3">Request Signature</h4>
-          <div className="space-y-3">
+      {showCreateForm && canEdit && (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+          <div>
+            <label className="text-xs text-gray-600 mb-1 block">Title</label>
+            <input
+              type="text"
+              value={createData.document_title}
+              onChange={(e) => setCreateData({ ...createData, document_title: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              placeholder="e.g. Signed Lease Agreement"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Document</label>
+              <label className="text-xs text-gray-600 mb-1 block">Type</label>
               <select
-                value={signerData.docId}
-                onChange={(e) => setSignerData({ ...signerData, docId: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={createData.document_type}
+                onChange={(e) => setCreateData({ ...createData, document_type: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
               >
-                <option value="">Select document</option>
-                {documents.map((doc) => (
-                  <option key={doc.id} value={doc.id}>
-                    {doc.document_title}
-                  </option>
+                <option value="">Select type...</option>
+                {DOC_TYPES.map((t) => (
+                  <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
                 ))}
               </select>
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Signer Name</label>
-                <input
-                  type="text"
-                  value={signerData.signerName}
-                  onChange={(e) => setSignerData({ ...signerData, signerName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Full name"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={signerData.signerEmail}
-                  onChange={(e) => setSignerData({ ...signerData, signerEmail: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="email@example.com"
-                />
-              </div>
+            <div>
+              <label className="text-xs text-gray-600 mb-1 block">File URL (optional)</label>
+              <input
+                type="url"
+                value={createData.file_url}
+                onChange={(e) => setCreateData({ ...createData, file_url: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="https://..."
+              />
             </div>
-
-            <button
-              onClick={handleRequestSignature}
-              disabled={sendingSignature}
-              className="w-full px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:bg-gray-400 font-medium"
-            >
-              {sendingSignature ? 'Sending...' : 'Request Signature'}
-            </button>
           </div>
+          <button
+            onClick={handleCreateDocument}
+            disabled={creating}
+            className="w-full py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
+          >
+            {creating ? 'Attaching...' : 'Attach Document'}
+          </button>
         </div>
       )}
 
-      {/* Documents List */}
+      {/* Documents list */}
       {documents.length === 0 ? (
-        <div className="text-center py-6 bg-gray-50 rounded-lg">
-          <p className="text-gray-600 text-sm">No documents attached yet</p>
+        <div className="text-center py-8 text-sm text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+          No documents attached yet
         </div>
       ) : (
         <div className="space-y-2">
           {documents.map((doc) => (
-            <div key={doc.id} className="border border-gray-200 rounded-lg overflow-hidden">
-              {/* Document Header */}
+            <div key={doc.id} className="border border-gray-200 rounded-xl overflow-hidden">
+              {/* Row */}
               <div
-                className="flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 cursor-pointer transition"
+                className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-gray-50 cursor-pointer transition-colors"
                 onClick={() => {
-                  setExpandedDoc(expandedDoc === doc.id ? null : doc.id)
-                  if (expandedDoc !== doc.id && !signatures[doc.id]) {
-                    loadSignatures(doc.id)
-                  }
+                  const next = expandedDoc === doc.id ? null : doc.id
+                  setExpandedDoc(next)
+                  if (next && !signatures[doc.id]) loadSignatures(doc.id)
                 }}
               >
-                <div className="flex-1">
-                  <h4 className="font-medium text-gray-900">{doc.document_title}</h4>
-                  <div className="flex gap-3 mt-1">
-                    <span className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded">
-                      {doc.document_type}
-                    </span>
-                    <span
-                      className={`text-xs px-2 py-1 rounded font-medium ${
-                        doc.signature_status === 'signed'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-amber-100 text-amber-800'
-                      }`}
-                    >
-                      {doc.signature_status === 'signed' ? '✓ Signed' : '○ Pending'}
-                    </span>
-                  </div>
+                <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{doc.document_title}</p>
+                  <p className="text-xs text-gray-500">{doc.document_type}</p>
                 </div>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${
+                  doc.signature_status === 'signed'
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-amber-100 text-amber-700'
+                }`}>
+                  {doc.signature_status === 'signed' ? '✓ Signed' : '○ Pending'}
+                </span>
                 <svg
-                  className={`w-5 h-5 text-gray-400 transition-transform ${
-                    expandedDoc === doc.id ? 'rotate-180' : ''
-                  }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+                  className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${expandedDoc === doc.id ? 'rotate-180' : ''}`}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
 
-              {/* Expanded Content */}
+              {/* Expanded panel */}
               {expandedDoc === doc.id && (
-                <div className="border-t border-gray-200 p-4 space-y-4">
-                  {/* Signature Requests */}
+                <div className="border-t border-gray-100 bg-gray-50 px-4 py-4 space-y-4">
+                  {/* Signatures */}
                   <div>
-                    <h5 className="font-medium text-gray-900 mb-2">Signatures</h5>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Signatures</p>
+                      {canEdit && sigFormDocId !== doc.id && (
+                        <button
+                          onClick={() => setSigFormDocId(doc.id)}
+                          className="text-xs text-blue-600 hover:underline font-medium"
+                        >
+                          + Request Signature
+                        </button>
+                      )}
+                    </div>
+
+                    {sigFormDocId === doc.id && (
+                      <div className="bg-white border border-blue-100 rounded-lg p-3 mb-2 space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            placeholder="Signer name"
+                            value={signerData.signerName}
+                            onChange={(e) => setSignerData({ ...signerData, signerName: e.target.value })}
+                            className="px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          />
+                          <input
+                            type="email"
+                            placeholder="email@example.com"
+                            value={signerData.signerEmail}
+                            onChange={(e) => setSignerData({ ...signerData, signerEmail: e.target.value })}
+                            className="px-2 py-1.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleRequestSignature}
+                            disabled={sendingSignature}
+                            className="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            {sendingSignature ? 'Sending...' : 'Send Request'}
+                          </button>
+                          <button
+                            onClick={() => setSigFormDocId(null)}
+                            className="px-3 py-1 text-gray-500 hover:text-gray-700 text-xs"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {signatures[doc.id] && signatures[doc.id].length > 0 ? (
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {signatures[doc.id].map((sig) => (
-                          <div key={sig.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                            <div className="text-sm">
-                              <p className="font-medium text-gray-900">{sig.signer_name}</p>
-                              <p className="text-gray-600">{sig.signer_email}</p>
+                          <div key={sig.id} className="flex items-center justify-between bg-white border border-gray-100 rounded-lg px-3 py-2">
+                            <div>
+                              <p className="text-xs font-medium text-gray-900">{sig.signer_name}</p>
+                              <p className="text-xs text-gray-500">{sig.signer_email}</p>
                             </div>
-                            <div
-                              className={`text-xs px-2 py-1 rounded font-medium ${
+                                <div className="flex items-center gap-2">
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                                 sig.signature_status === 'signed'
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-yellow-100 text-yellow-800'
-                              }`}
-                            >
-                              {sig.signature_status === 'signed' ? '✓ Signed' : '○ Pending'}
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-yellow-100 text-yellow-700'
+                              }`}>
+                                {sig.signature_status === 'signed' ? '✓ Signed' : '○ Pending'}
+                              </span>
+                              {sig.signature_status !== 'signed' && (
+                                <button
+                                  title="Copy signature link"
+                                  onClick={() => {
+                                    const link = `${window.location.origin}/sign/${sig.id}`
+                                    navigator.clipboard.writeText(link).then(() => alert('Link copied!'))
+                                  }}
+                                  className="text-xs text-gray-400 hover:text-gray-600"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
+                                </button>
+                              )}
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-600">No signature requests yet</p>
+                      <p className="text-xs text-gray-400">No signature requests yet</p>
                     )}
                   </div>
 
                   {/* Actions */}
-                  {canEdit && (
-                    <div className="flex gap-2 pt-2 border-t border-gray-200">
-                      {doc.file_url && (
-                        <a
-                          href={doc.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                        >
-                          View File
-                        </a>
-                      )}
+                  <div className="flex items-center gap-3 pt-1">
+                    {doc.file_url && (
+                      <a
+                        href={doc.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:underline font-medium flex items-center gap-1"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        View File
+                      </a>
+                    )}
+                    {canEdit && (
                       <button
                         onClick={() => handleDeleteDocument(doc.id)}
-                        className="text-sm px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                        className="text-xs text-red-500 hover:underline font-medium ml-auto"
                       >
                         Delete
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               )}
             </div>
