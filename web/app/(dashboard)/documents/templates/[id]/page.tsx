@@ -127,7 +127,7 @@ export default function EditTemplatePage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Template Content</label>
-              <p className="text-xs text-gray-500 mb-2">Use {{field_name}} for placeholders (e.g., {{tenant_name}})</p>
+              <p className="text-xs text-gray-500 mb-2">{'Use {{field_name}} for placeholders (e.g., {{tenant_name}})'}</p>
               <textarea
                 value={formData.template_content}
                 onChange={(e) => setFormData({ ...formData, template_content: e.target.value })}

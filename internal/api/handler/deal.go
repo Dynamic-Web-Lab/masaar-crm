@@ -2,6 +2,7 @@ package handler
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -151,7 +152,9 @@ func (h *DealHandler) Update(c *fiber.Ctx) error {
 		deal.Probability = *updates.Probability
 	}
 	if updates.CloseDate != nil {
-		deal.CloseDate = *updates.CloseDate
+		if t, err := time.Parse("2006-01-02", *updates.CloseDate); err == nil {
+			deal.CloseDate = &t
+		}
 	}
 
 	if err := h.deals.Update(c.Context(), deal); err != nil {

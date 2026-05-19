@@ -1393,13 +1393,13 @@ func (h *PropertyHandler) GetLand(c *fiber.Ctx) error {
 	if h.bos24Client == nil {
 		return h.notEnabled(c)
 	}
-	id := c.Params("id")
-	if id == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
+	idInt, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
 	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
 	defer cancel()
-	result, err := h.bos24Client.GetLand(ctx, id)
+	result, err := h.bos24Client.GetLand(ctx, idInt)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1487,16 +1487,9 @@ func (h *PropertyHandler) GetPropertyHeatmap(c *fiber.Ctx) error {
 	if h.bos24Client == nil {
 		return h.notEnabled(c)
 	}
-	filters := make(map[string]interface{})
-	if v := c.Query("property_type"); v != "" {
-		filters["property_type"] = v
-	}
-	if v := c.Query("trans_type"); v != "" {
-		filters["trans_type"] = v
-	}
 	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
 	defer cancel()
-	result, err := h.bos24Client.GetPropertyHeatmap(ctx, filters)
+	result, err := h.bos24Client.GetPropertyHeatmap(ctx)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1546,13 +1539,13 @@ func (h *PropertyHandler) GetAreaByID(c *fiber.Ctx) error {
 	if h.bos24Client == nil {
 		return h.notEnabled(c)
 	}
-	id := c.Params("id")
-	if id == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
+	idInt, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
 	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
 	defer cancel()
-	result, err := h.bos24Client.GetAreaByID(ctx, id)
+	result, err := h.bos24Client.GetAreaByID(ctx, idInt)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1574,13 +1567,13 @@ func (h *PropertyHandler) GetDeveloper(c *fiber.Ctx) error {
 	if h.bos24Client == nil {
 		return h.notEnabled(c)
 	}
-	id := c.Params("id")
-	if id == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
+	idInt, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
 	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
 	defer cancel()
-	result, err := h.bos24Client.GetDeveloper(ctx, id)
+	result, err := h.bos24Client.GetDeveloper(ctx, idInt)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1602,13 +1595,13 @@ func (h *PropertyHandler) GetProject(c *fiber.Ctx) error {
 	if h.bos24Client == nil {
 		return h.notEnabled(c)
 	}
-	id := c.Params("id")
-	if id == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
+	idInt, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
 	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
 	defer cancel()
-	result, err := h.bos24Client.GetProject(ctx, id)
+	result, err := h.bos24Client.GetProject(ctx, idInt)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1630,13 +1623,13 @@ func (h *PropertyHandler) GetUnit(c *fiber.Ctx) error {
 	if h.bos24Client == nil {
 		return h.notEnabled(c)
 	}
-	id := c.Params("id")
-	if id == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
+	idInt, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
 	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
 	defer cancel()
-	result, err := h.bos24Client.GetUnit(ctx, id)
+	result, err := h.bos24Client.GetUnit(ctx, idInt)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1658,13 +1651,13 @@ func (h *PropertyHandler) GetValuationByID(c *fiber.Ctx) error {
 	if h.bos24Client == nil {
 		return h.notEnabled(c)
 	}
-	id := c.Params("id")
-	if id == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
+	idInt, err := strconv.Atoi(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
 	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
 	defer cancel()
-	result, err := h.bos24Client.GetValuation(ctx, id)
+	result, err := h.bos24Client.GetValuation(ctx, idInt)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}

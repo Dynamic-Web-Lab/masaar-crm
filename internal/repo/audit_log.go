@@ -44,5 +44,6 @@ const (
 	AuditLead    = domain.AuditEntityLead
 	AuditDeal    = domain.AuditEntityDeal
 	AuditInvoice = domain.AuditEntityInvoice
-	AuditUser    = "user"
+	AuditUser     = "user"
+	AuditDocument = "document"
 )
