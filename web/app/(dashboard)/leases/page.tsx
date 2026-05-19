@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Header } from '@/components/layout/Header'
 import { Modal, FormField, FormError } from '@/components/ui/Modal'
 import { useLang } from '@/context/LangContext'
@@ -107,8 +108,10 @@ export default function LeasesPage() {
                 </thead>
                 <tbody>
                   {leases.map(l => (
-                    <tr key={l.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-900">{l.tenant?.full_name_en || '-'}</td>
+                    <tr key={l.id} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer">
+                      <td className="px-4 py-3">
+                        <Link href={`/leases/${l.id}`} className="font-medium text-gray-900 hover:text-brand-600">{l.tenant?.full_name_en || '-'}</Link>
+                      </td>
                       <td className="px-4 py-3 text-gray-600">{l.property?.name || '-'}</td>
                       <td className="px-4 py-3 text-gray-700 font-medium">{l.currency} {l.monthly_rent.toLocaleString()}</td>
                       <td className="px-4 py-3 text-gray-500 text-xs">{fmtDate(l.start_date)}</td>
