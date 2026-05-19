@@ -43,6 +43,12 @@ func main() {
 	if cfg.AppEnv == "production" && cfg.AllowedOrigins == "*" {
 		log.Fatal("ALLOWED_ORIGINS must not be '*' in production — set it to your frontend domain")
 	}
+	if cfg.WAAppSecret == "" {
+		if cfg.AppEnv == "production" {
+			log.Fatal("WA_APP_SECRET must be set in production — required to validate Meta webhook signatures")
+		}
+		log.Println("WARNING: WA_APP_SECRET is not set — webhook signature validation is disabled")
+	}
 
 	// ── Database ─────────────────────────────────────────────────────────────
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -273,7 +279,7 @@ func main() {
 		AllowCredentials: cfg.AllowedOrigins != "*",
 	}))
 
-	api.RegisterRoutes(app, handlers, hub, cfg, rdb, apiKeyRepo, billingRepo)
+	api.RegisterRoutes(app, handlers, hub, cfg, rdb, pool, apiKeyRepo, billingRepo)
 
 	// ── Background Jobs ──────────────────────────────────────────────────────
 	companyRepo := repo.NewCompanyRepo(pool)

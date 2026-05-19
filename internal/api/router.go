@@ -1,9 +1,11 @@
 package api
 
 import (
+	"context"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	basicauth "github.com/gofiber/fiber/v2/middleware/basicauth"
 	"github.com/gofiber/fiber/v2/middleware/limiter"
 	fiberws "github.com/gofiber/websocket/v2"
 	_ "github.com/maidulcu/masaar-crm/docs" // swagger generated docs
@@ -13,6 +15,7 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/domain"
 	"github.com/maidulcu/masaar-crm/internal/repo"
 	"github.com/maidulcu/masaar-crm/internal/ws"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	fiberswagger "github.com/swaggo/fiber-swagger"
 )
@@ -95,7 +98,7 @@ func makeAPIKeyLimiter(rdb *redis.Client) fiber.Handler {
 	return middleware.APIKeyRateLimit(rdb, 300, time.Minute)
 }
 
-func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config, rdb *redis.Client, apiKeyRepo *repo.ApiKeyRepo, billingRepo *repo.BillingRepo) {
+func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config, rdb *redis.Client, pool *pgxpool.Pool, apiKeyRepo *repo.ApiKeyRepo, billingRepo *repo.BillingRepo) {
 	// ── Public routes ────────────────────────────────────────────────────────
 	app.Post("/api/v1/auth/login", loginLimiter, h.Auth.Login)
 	app.Post("/api/v1/auth/magic-link/request", magicLinkLimiter, h.Auth.RequestMagicLink)
@@ -735,11 +738,40 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		h.Document.DeleteDocument,
 	)
 
-	// Health
+	// Health — checks DB and Redis connectivity
 	app.Get("/health", func(c *fiber.Ctx) error {
+		ctx, cancel := context.WithTimeout(c.Context(), 3*time.Second)
+		defer cancel()
+
+		errs := fiber.Map{}
+
+		if err := pool.Ping(ctx); err != nil {
+			errs["database"] = "unreachable"
+		}
+		if err := rdb.Ping(ctx).Err(); err != nil {
+			errs["redis"] = "unreachable"
+		}
+
+		if len(errs) > 0 {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"status": "degraded",
+				"checks": errs,
+			})
+		}
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
 
-	// Swagger UI — available in all envs; gate with BasicAuth in production if needed
-	app.Get("/docs/*", fiberswagger.WrapHandler)
+	// Swagger UI — gated behind BasicAuth in production
+	if cfg.AppEnv == "production" {
+		app.Get("/docs/*",
+			basicauth.New(basicauth.Config{
+				Users: map[string]string{
+					"admin": cfg.JWTSecret[:16], // use first 16 chars of JWT secret as password
+				},
+			}),
+			fiberswagger.WrapHandler,
+		)
+	} else {
+		app.Get("/docs/*", fiberswagger.WrapHandler)
+	}
 }

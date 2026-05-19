@@ -23,7 +23,7 @@ FROM alpine:latest
 WORKDIR /app
 
 # Install runtime dependencies
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates wget
 
 # Copy binary from builder
 COPY --from=builder /build/masaar .
@@ -35,8 +35,8 @@ COPY migrations ./migrations
 EXPOSE 8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD /app/masaar ping || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 # Run application
 CMD ["/app/masaar"]

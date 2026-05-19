@@ -66,7 +66,8 @@ func (h *WhatsAppHandler) ListThreads(c *fiber.Ctx) error {
 
 	threads, err := h.wa.ListThreads(c.Context(), status, page, limit)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		log.Printf("ListThreads error: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to load threads"})
 	}
 	return c.JSON(threads)
 }
