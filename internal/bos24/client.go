@@ -33,12 +33,15 @@ type Client struct {
 	cacheTTL   time.Duration
 }
 
-// NewClient creates a new BOS24 API client
-// token should be your BuyOrSell24 API token
-// rdb is optional - if provided, responses will be cached
-func NewClient(token string, rdb *redis.Client) *Client {
+// NewClient creates a new BOS24 API client.
+// baseURL overrides the default production URL (pass "" to use the default).
+// rdb is optional - if provided, responses will be cached.
+func NewClient(token, baseURL string, rdb *redis.Client) *Client {
+	if baseURL == "" {
+		baseURL = BaseURL
+	}
 	return &Client{
-		baseURL: BaseURL,
+		baseURL: baseURL,
 		token:   token,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
