@@ -39,7 +39,8 @@ type Config struct {
 	GeminiModel   string
 
 	// BuyOrSell24 (Real Estate API)
-	BOS24Token string
+	BOS24Token   string
+	BOS24BaseURL string
 
 	// Email provider: "smtp" (default) or "azure" (Azure Communication Services)
 	EmailProvider  string
@@ -101,6 +102,7 @@ func Load() *Config {
 		GeminiAPIKey:         getEnv("GEMINI_API_KEY", ""),
 		GeminiModel:          getEnv("GEMINI_MODEL", "gemini-2.0-flash"),
 		BOS24Token:            getEnv("BOS24_API_TOKEN", ""),
+		BOS24BaseURL:          getEnv("BOS24_BASE_URL", "https://data.buyorsell24.com"),
 		EmailProvider:         getEnv("EMAIL_PROVIDER", "smtp"),
 		SMTPHost:             getEnv("SMTP_HOST", ""),
 		SMTPPort:             getEnv("SMTP_PORT", "587"),

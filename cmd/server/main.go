@@ -178,7 +178,7 @@ func main() {
 		dbToken = cfg.BOS24Token
 	}
 	if bos24.IsEnabled(dbToken) {
-		bos24Client = bos24.NewClient(dbToken, rdb)
+		bos24Client = bos24.NewClient(dbToken, cfg.BOS24BaseURL, rdb)
 		log.Println("BuyOrSell24 integration enabled")
 	}
 
