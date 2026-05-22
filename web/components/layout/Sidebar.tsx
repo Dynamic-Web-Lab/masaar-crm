@@ -204,20 +204,22 @@ export function Sidebar() {
   const isAdmin = user?.role === 'admin'
 
   return (
-    <aside className="flex flex-col w-56 min-h-screen bg-gray-900 text-white shrink-0 overflow-y-auto">
+    <aside className="flex flex-col w-60 min-h-screen bg-white border-e border-surface-200/70 shrink-0 overflow-y-auto">
       {/* Logo */}
-      <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-700 shrink-0">
-        <span className="text-brand-500 text-xl font-bold">M</span>
-        <span className="font-semibold text-base tracking-tight">
+      <div className="flex items-center gap-2.5 px-5 h-16 shrink-0">
+        <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-primary-600 text-white text-sm font-bold shadow-card">
+          M
+        </span>
+        <span className="font-semibold text-[15px] tracking-tight text-surface-900">
           {isAr ? 'مسار' : 'Masaar'}
         </span>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-3 space-y-4">
+      <nav className="flex-1 px-3 py-2 space-y-5">
         {sections.map((section) => (
           <div key={section.title.en}>
-            <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-surface-400">
               {isAr ? section.title.ar : section.title.en}
             </p>
             <div className="space-y-0.5">
@@ -234,13 +236,22 @@ export function Sidebar() {
                     key={item.href}
                     href={item.href}
                     className={clsx(
-                      'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                      'group relative flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-all duration-150 ease-soft',
                       active
-                        ? 'bg-brand-600 text-white'
-                        : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                        ? 'bg-primary-50 text-primary-700'
+                        : 'text-surface-600 hover:bg-surface-100 hover:text-surface-900'
                     )}
                   >
-                    {item.icon}
+                    {/* Active indicator bar */}
+                    {active && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-y-1.5 start-0 w-0.5 rounded-full bg-primary-600"
+                      />
+                    )}
+                    <span className={clsx(active ? 'text-primary-600' : 'text-surface-400 group-hover:text-surface-600')}>
+                      {item.icon}
+                    </span>
                     <span>{isAr ? item.label.ar : item.label.en}</span>
                   </Link>
                 )
@@ -251,7 +262,7 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-gray-700 text-[10px] text-gray-500 text-center shrink-0">
+      <div className="px-5 py-4 border-t border-surface-200/70 text-[10px] text-surface-400 text-center shrink-0">
         Masaar CRM · MIT
       </div>
     </aside>

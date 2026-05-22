@@ -212,7 +212,7 @@ export default function PipelinePage() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+      <div className="flex-1 flex items-center justify-center text-surface-400 text-sm">
         {t('جاري التحميل...', 'Loading...')}
       </div>
     )
@@ -222,13 +222,16 @@ export default function PipelinePage() {
     <div className="flex flex-col flex-1 overflow-hidden">
       <Header title={t('خط الأنابيب', 'Sales Pipeline')} />
 
-      <div className="flex-1 overflow-x-auto p-6">
-        <div className="flex justify-end mb-4">
+      <div className="flex-1 overflow-x-auto p-6 bg-surface-50">
+        <div className="flex justify-end mb-5">
           <button
             onClick={handleOpenAddModal}
-            className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-xl shadow-card hover:bg-primary-700 hover:shadow-card-hover transition-all duration-200 ease-soft"
           >
-            + {t('-lead جديد', 'New Lead')}
+            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+            {t('Lead جديد', 'New Lead')}
           </button>
         </div>
 
@@ -266,7 +269,7 @@ export default function PipelinePage() {
             <select
               name="contact_id"
               required
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              className="w-full px-3.5 py-2.5 border border-surface-200 rounded-xl text-sm bg-white placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 transition-shadow"
             >
               <option value="">{t('اختر جهة اتصال', 'Select a contact')}</option>
               {contacts.map((c) => (
@@ -281,7 +284,7 @@ export default function PipelinePage() {
             <select
               name="source"
               defaultValue="whatsapp"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              className="w-full px-3.5 py-2.5 border border-surface-200 rounded-xl text-sm bg-white placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 transition-shadow"
             >
               <option value="whatsapp">{t('واتساب', 'WhatsApp')}</option>
               <option value="web">{t('الموقع', 'Website')}</option>
@@ -297,7 +300,7 @@ export default function PipelinePage() {
               min="0"
               step="1"
               placeholder="0"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              className="w-full px-3.5 py-2.5 border border-surface-200 rounded-xl text-sm bg-white placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 transition-shadow"
             />
           </FormField>
 
@@ -307,14 +310,14 @@ export default function PipelinePage() {
             <button
               type="button"
               onClick={() => setShowAddModal(false)}
-              className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex-1 px-4 py-2.5 border border-surface-200 text-surface-700 text-sm font-medium rounded-xl bg-white hover:bg-surface-50 transition-colors"
             >
               {t('إلغاء', 'Cancel')}
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors disabled:opacity-60"
+              className="flex-1 px-4 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl shadow-card hover:bg-primary-700 hover:shadow-card-hover transition-all disabled:opacity-60"
             >
               {submitting ? t('جاري الإضافة...', 'Adding...') : t('إضافة', 'Add')}
             </button>
@@ -331,53 +334,53 @@ export default function PipelinePage() {
         {selectedLead && (
           <div className="space-y-4">
             {/* Lead meta */}
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-400 mb-0.5">{t('المرحلة', 'Stage')}</p>
-                <p className="font-medium text-gray-800 capitalize">{selectedLead.stage}</p>
+            <div className="grid grid-cols-2 gap-2.5 text-sm">
+              <div className="bg-surface-50 border border-surface-200/70 rounded-xl p-3">
+                <p className="text-[11px] uppercase tracking-wide text-surface-500 mb-1 font-medium">{t('المرحلة', 'Stage')}</p>
+                <p className="font-semibold text-surface-900 capitalize">{selectedLead.stage}</p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-400 mb-0.5">{t('القيمة', 'Value')}</p>
-                <p className="font-medium text-gray-800">
+              <div className="bg-surface-50 border border-surface-200/70 rounded-xl p-3">
+                <p className="text-[11px] uppercase tracking-wide text-surface-500 mb-1 font-medium">{t('القيمة', 'Value')}</p>
+                <p className="font-semibold text-surface-900 tabular-nums">
                   {selectedLead.currency} {selectedLead.deal_value.toLocaleString()}
                 </p>
               </div>
               {selectedLead.contact?.phone_wa && (
-                <div className="bg-gray-50 rounded-lg p-3 col-span-2">
-                  <p className="text-xs text-gray-400 mb-0.5">{t('واتساب', 'WhatsApp')}</p>
-                  <p className="font-medium text-gray-800">{selectedLead.contact.phone_wa}</p>
+                <div className="bg-surface-50 border border-surface-200/70 rounded-xl p-3 col-span-2">
+                  <p className="text-[11px] uppercase tracking-wide text-surface-500 mb-1 font-medium">{t('واتساب', 'WhatsApp')}</p>
+                  <p className="font-semibold text-surface-900 font-mono">{selectedLead.contact.phone_wa}</p>
                 </div>
               )}
             </div>
 
             {/* Tabs */}
-            <div className="border-b border-gray-200 flex gap-4">
+            <div className="border-b border-surface-200 flex gap-5">
               <button
                 onClick={() => setActiveTab('history')}
-                className={`py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+                className={`py-2 px-0.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
                   activeTab === 'history'
-                    ? 'text-brand-600 border-brand-600'
-                    : 'text-gray-600 border-transparent hover:text-gray-800'
+                    ? 'text-primary-600 border-primary-600'
+                    : 'text-surface-500 border-transparent hover:text-surface-900'
                 }`}
               >
                 {t('السجل', 'History')}
               </button>
               <button
                 onClick={() => setActiveTab('assist')}
-                className={`py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+                className={`py-2 px-0.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
                   activeTab === 'assist'
-                    ? 'text-brand-600 border-brand-600'
-                    : 'text-gray-600 border-transparent hover:text-gray-800'
+                    ? 'text-primary-600 border-primary-600'
+                    : 'text-surface-500 border-transparent hover:text-surface-900'
                 }`}
               >
                 💡 {t('المساعد', 'Assist')}
               </button>
               <button
                 onClick={() => setActiveTab('notes')}
-                className={`py-2 px-1 text-sm font-medium border-b-2 transition-colors ${
+                className={`py-2 px-0.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
                   activeTab === 'notes'
-                    ? 'text-brand-600 border-brand-600'
-                    : 'text-gray-600 border-transparent hover:text-gray-800'
+                    ? 'text-primary-600 border-primary-600'
+                    : 'text-surface-500 border-transparent hover:text-surface-900'
                 }`}
               >
                 {t('الملاحظات', 'Notes')}
@@ -410,14 +413,14 @@ export default function PipelinePage() {
             )}
 
             {activeTab === 'assist' && !threadId && (
-              <div className="py-6 text-center text-gray-400">
+              <div className="py-8 text-center text-surface-400 text-sm">
                 {t('لا توجد محادثة لهذا العميل', 'No conversation for this lead')}
               </div>
             )}
 
             {activeTab === 'notes' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-[13px] font-medium text-surface-700 mb-1.5">
                   {t('الملاحظات', 'Notes')}
                 </label>
                 <textarea
@@ -425,23 +428,23 @@ export default function PipelinePage() {
                   onChange={(e) => { setNotes(e.target.value); setNotesSaved(false) }}
                   rows={5}
                   placeholder={t('أضف ملاحظات حول هذا العميل المحتمل...', 'Add notes about this lead...')}
-                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent resize-none"
+                  className="w-full text-sm border border-surface-200 rounded-xl px-3.5 py-2.5 bg-white placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 resize-none transition-shadow"
                 />
               </div>
             )}
 
             {notesError && (
-              <p className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{notesError}</p>
+              <p className="text-xs text-red-600 bg-red-50 border border-red-100 px-3 py-2 rounded-lg">{notesError}</p>
             )}
             {notesSaved && (
-              <p className="text-xs text-green-600">{t('تم الحفظ', 'Saved')}</p>
+              <p className="text-xs text-emerald-600 font-medium">{t('تم الحفظ', 'Saved')}</p>
             )}
 
             <div className="flex gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => setSelectedLead(null)}
-                className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2.5 border border-surface-200 text-surface-700 text-sm font-medium rounded-xl bg-white hover:bg-surface-50 transition-colors"
               >
                 {t('إغلاق', 'Close')}
               </button>
@@ -450,7 +453,7 @@ export default function PipelinePage() {
                   type="button"
                   onClick={handleSaveNotes}
                   disabled={notesSaving}
-                  className="flex-1 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 disabled:opacity-60 transition-colors"
+                  className="flex-1 px-4 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl shadow-card hover:bg-primary-700 hover:shadow-card-hover disabled:opacity-60 transition-all"
                 >
                   {notesSaving ? t('جاري الحفظ...', 'Saving...') : t('حفظ الملاحظات', 'Save Notes')}
                 </button>

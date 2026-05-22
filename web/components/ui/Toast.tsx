@@ -40,15 +40,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       
       {/* Toast container */}
-      <div className="fixed bottom-4 right-4 z-50 space-y-2">
+      <div className="fixed bottom-6 end-6 z-50 space-y-2 max-w-sm">
         {toasts.map((toast) => (
           <div
             key={toast.id}
+            role="status"
             className={clsx(
-              'px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-slide-up',
-              toast.type === 'success' && 'bg-green-600 text-white',
-              toast.type === 'error' && 'bg-red-600 text-white',
-              toast.type === 'info' && 'bg-gray-800 text-white'
+              'flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-pop text-sm font-medium animate-slide-up cursor-pointer ring-1',
+              toast.type === 'success' && 'bg-white text-surface-900 ring-emerald-100 border-s-4 border-emerald-500',
+              toast.type === 'error'   && 'bg-white text-surface-900 ring-red-100 border-s-4 border-red-500',
+              toast.type === 'info'    && 'bg-white text-surface-900 ring-surface-200 border-s-4 border-primary-500'
             )}
             onClick={() => removeToast(toast.id)}
           >

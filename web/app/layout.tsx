@@ -22,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className="bg-gray-50 text-gray-900 antialiased">
+      <body className="bg-surface-50 text-surface-900 antialiased">
         <ErrorBoundary>
           <LangProvider>
             <ToastProvider>

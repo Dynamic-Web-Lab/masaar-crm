@@ -63,9 +63,9 @@ export default function ContactsPage() {
   }
 
   const scoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600 bg-green-50'
-    if (score >= 50) return 'text-yellow-700 bg-yellow-50'
-    return 'text-gray-500 bg-gray-50'
+    if (score >= 80) return 'text-emerald-700 bg-emerald-50 ring-1 ring-emerald-100'
+    if (score >= 50) return 'text-gold-700 bg-gold-50 ring-1 ring-gold-100'
+    return 'text-surface-600 bg-surface-100 ring-1 ring-surface-200'
   }
 
   const contacts = result?.data ?? []
@@ -76,80 +76,90 @@ export default function ContactsPage() {
     <div className="flex flex-col flex-1 overflow-hidden">
       <Header title={t('جهات الاتصال', 'Contacts')} />
 
-      <div className="flex-1 overflow-auto">
-        <div className="max-w-5xl mx-auto px-6 py-6">
+      <div className="flex-1 overflow-auto bg-surface-50">
+        <div className="max-w-6xl mx-auto px-6 py-8">
 
           {/* Search bar + Add button */}
           <div className="flex gap-2 mb-6">
             <form onSubmit={handleSearch} className="flex-1 flex gap-2">
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t('ابحث بالاسم أو الهاتف أو البريد...', 'Search by name, phone, or email...')}
-                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-              />
+              <div className="relative flex-1">
+                <span className="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3.5 text-surface-400">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </span>
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t('ابحث بالاسم أو الهاتف أو البريد...', 'Search by name, phone, or email...')}
+                  className="w-full ps-10 pe-4 py-2.5 border border-surface-200 rounded-xl text-sm bg-white placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 transition-shadow"
+                />
+              </div>
               <button
                 type="submit"
-                className="px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors"
+                className="px-4 py-2.5 bg-white border border-surface-200 text-surface-700 text-sm font-medium rounded-xl hover:bg-surface-50 transition-colors"
               >
                 {t('بحث', 'Search')}
               </button>
             </form>
             <button
               onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl shadow-card hover:bg-primary-700 hover:shadow-card-hover transition-all duration-200 ease-soft"
             >
-              + {t('إضافة', 'Add')}
+              <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+              {t('إضافة', 'Add')}
             </button>
           </div>
 
           {/* Stats */}
-          <p className="text-xs text-gray-400 mb-4">
-            {total} {t('جهة اتصال', 'contacts')}
+          <p className="text-xs text-surface-500 mb-4 font-medium">
+            {total.toLocaleString()} {t('جهة اتصال', 'contacts')}
           </p>
 
           {/* Table */}
           {loading ? (
-            <div className="text-center py-16 text-sm text-gray-400">
+            <div className="text-center py-20 text-sm text-surface-400">
               {t('جاري التحميل...', 'Loading...')}
             </div>
           ) : contacts.length === 0 ? (
-            <div className="text-center py-16 text-sm text-gray-400">
+            <div className="text-center py-20 text-sm text-surface-400 bg-white border border-surface-200/70 rounded-2xl shadow-card">
               {t('لا توجد نتائج', 'No results found')}
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-2xl border border-surface-200/70 shadow-card overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50 text-gray-500 text-xs font-medium">
-                    <th className="text-start px-4 py-3">{t('الاسم', 'Name')}</th>
-                    <th className="text-start px-4 py-3">{t('واتساب', 'WhatsApp')}</th>
-                    <th className="text-start px-4 py-3">{t('البريد', 'Email')}</th>
-                    <th className="text-start px-4 py-3">{t('اللغة', 'Lang')}</th>
-                    <th className="text-start px-4 py-3">{t('النقاط', 'Score')}</th>
+                  <tr className="border-b border-surface-200/70 bg-surface-50/60 text-surface-500 text-[11px] font-semibold uppercase tracking-wide">
+                    <th className="text-start px-5 py-3.5">{t('الاسم', 'Name')}</th>
+                    <th className="text-start px-5 py-3.5">{t('واتساب', 'WhatsApp')}</th>
+                    <th className="text-start px-5 py-3.5">{t('البريد', 'Email')}</th>
+                    <th className="text-start px-5 py-3.5">{t('اللغة', 'Lang')}</th>
+                    <th className="text-start px-5 py-3.5">{t('النقاط', 'Score')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-surface-100">
                   {contacts.map((c) => (
-                    <tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-brand-100 text-brand-700 text-xs font-semibold flex items-center justify-center shrink-0">
+                    <tr key={c.id} className="hover:bg-surface-50/60 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 text-primary-700 text-xs font-semibold flex items-center justify-center shrink-0 ring-1 ring-primary-200/50">
                             {c.full_name[0]?.toUpperCase()}
                           </div>
-                          <span className="font-medium text-gray-900 truncate max-w-[160px]">{c.full_name}</span>
+                          <span className="font-medium text-surface-900 truncate max-w-[180px]">{c.full_name}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-gray-500 font-mono text-xs">{c.phone_wa}</td>
-                      <td className="px-4 py-3 text-gray-500 truncate max-w-[180px]">{c.email || '—'}</td>
-                      <td className="px-4 py-3">
-                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
+                      <td className="px-5 py-3.5 text-surface-600 font-mono text-xs tabular-nums">{c.phone_wa}</td>
+                      <td className="px-5 py-3.5 text-surface-600 truncate max-w-[200px]">{c.email || '—'}</td>
+                      <td className="px-5 py-3.5">
+                        <span className="text-[11px] font-medium px-2 py-0.5 bg-surface-100 text-surface-600 rounded-md">
                           {c.language.toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
-                        <span className={clsx('text-xs font-semibold px-2 py-0.5 rounded-full', scoreColor(c.lead_score))}>
+                      <td className="px-5 py-3.5">
+                        <span className={clsx('text-[11px] font-semibold px-2 py-0.5 rounded-full tabular-nums', scoreColor(c.lead_score))}>
                           {c.lead_score}
                         </span>
                       </td>
@@ -181,7 +191,7 @@ export default function ContactsPage() {
               name="phone_wa"
               required
               placeholder={t('971501234567', '971501234567')}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              className="w-full px-3.5 py-2.5 border border-surface-200 rounded-xl text-sm bg-white placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 transition-shadow"
             />
           </FormField>
           
@@ -191,7 +201,7 @@ export default function ContactsPage() {
               name="full_name"
               required
               placeholder={t('أدخل الاسم الكامل', 'Enter full name')}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              className="w-full px-3.5 py-2.5 border border-surface-200 rounded-xl text-sm bg-white placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 transition-shadow"
             />
           </FormField>
           
@@ -200,7 +210,7 @@ export default function ContactsPage() {
               type="email"
               name="email"
               placeholder={t('example@email.com', 'example@email.com')}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              className="w-full px-3.5 py-2.5 border border-surface-200 rounded-xl text-sm bg-white placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 transition-shadow"
             />
           </FormField>
           
@@ -208,7 +218,7 @@ export default function ContactsPage() {
             <select
               name="language"
               defaultValue="en"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              className="w-full px-3.5 py-2.5 border border-surface-200 rounded-xl text-sm bg-white placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 transition-shadow"
             >
               <option value="en">English</option>
               <option value="ar">العربية</option>
@@ -221,14 +231,14 @@ export default function ContactsPage() {
             <button
               type="button"
               onClick={() => setShowAddModal(false)}
-              className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex-1 px-4 py-2.5 border border-surface-200 text-surface-700 text-sm font-medium rounded-xl bg-white hover:bg-surface-50 transition-colors"
             >
               {t('إلغاء', 'Cancel')}
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="flex-1 px-4 py-2 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 transition-colors disabled:opacity-60"
+              className="flex-1 px-4 py-2.5 bg-primary-600 text-white text-sm font-medium rounded-xl shadow-card hover:bg-primary-700 hover:shadow-card-hover transition-all disabled:opacity-60"
             >
               {submitting ? t('جاري الإضافة...', 'Adding...') : t('إضافة', 'Add')}
             </button>
