@@ -56,6 +56,26 @@ export const api = {
         method: 'DELETE',
         body: JSON.stringify({ refresh_token: refreshToken }),
       }),
+    requestSMSOTP: (phone: string, lang?: string) =>
+      request('/api/v1/auth/sms/request', {
+        method: 'POST',
+        body: JSON.stringify({ phone, lang }),
+      }),
+    verifySMSOTP: (phone: string, otp: string) =>
+      request('/api/v1/auth/sms/verify', {
+        method: 'POST',
+        body: JSON.stringify({ phone, otp }),
+      }),
+    forgotPassword: (email: string) =>
+      request('/api/v1/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }),
+    resetPassword: (token: string, password: string) =>
+      request('/api/v1/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, password }),
+      }),
   },
 
   // ─── Contacts ───────────────────────────────────────────────────────────────

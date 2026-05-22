@@ -118,6 +118,48 @@ Return only valid JSON.`, contactName, conversation)
 	return c.Generate(ctx, prompt)
 }
 
+// DescribePropertyListing generates professional marketing copy for a property.
+// Uses only public, non-PII data — safe for cloud AI providers.
+func (c *Client) DescribePropertyListing(ctx context.Context, area, propertyType, bedrooms string, sizeSqft int, amenities []string, lang string) (string, error) {
+	language := "English"
+	if lang == "ar" {
+		language = "Arabic"
+	}
+
+	amenityList := "N/A"
+	if len(amenities) > 0 {
+		amenityList = ""
+		for i, a := range amenities {
+			if i > 0 {
+				amenityList += ", "
+			}
+			amenityList += a
+		}
+	}
+
+	sizeStr := ""
+	if sizeSqft > 0 {
+		sizeStr = fmt.Sprintf("%d sq ft", sizeSqft)
+	}
+
+	prompt := fmt.Sprintf(`You are a professional UAE real estate copywriter.
+
+Write a compelling property listing description in %s. Keep it under 120 words.
+Be specific, highlight lifestyle benefits, and use a professional tone.
+Do NOT mention prices. Do NOT invent details not provided.
+
+Property:
+- Location: %s
+- Type: %s
+- Bedrooms: %s
+- Size: %s
+- Key amenities: %s
+
+Write only the description text, no headers or labels.`, language, area, propertyType, bedrooms, sizeStr, amenityList)
+
+	return c.Generate(ctx, prompt)
+}
+
 // SuggestAction recommends the next best action for the agent.
 func (c *Client) SuggestAction(ctx context.Context, message, threadSummary string) (string, error) {
 	prompt := fmt.Sprintf(`You are a UAE real estate sales coach.

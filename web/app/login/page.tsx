@@ -7,12 +7,15 @@ import { useAuthStore } from '@/store/auth'
 import { useLang } from '@/context/LangContext'
 import type { LoginResponse } from '@/types'
 
-type LoginMode = 'password' | 'magic-link'
+type LoginMode = 'password' | 'magic-link' | 'sms'
 
 export default function LoginPage() {
   const [mode, setMode] = useState<LoginMode>('password')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [phone, setPhone] = useState('')
+  const [otp, setOtp] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [magicSent, setMagicSent] = useState(false)
@@ -55,9 +58,46 @@ export default function LoginPage() {
     }
   }
 
+  const handleSMSRequest = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      await api.auth.requestSMSOTP(phone, lang)
+      setOtpSent(true)
+    } catch (err: any) {
+      setError(err.message || t('حدث خطأ', 'Something went wrong'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSMSVerify = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      const res = await api.auth.verifySMSOTP(phone, otp) as LoginResponse
+      setSession(res.access_token, res.refresh_token, res.user)
+      if (res.user.lang_pref) setLang(res.user.lang_pref)
+      router.push('/pipeline')
+    } catch (err: any) {
+      setError(err.message || t('رمز التحقق غير صحيح', 'Invalid OTP'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const resetMode = (next: LoginMode) => {
+    setMode(next)
+    setError('')
+    setOtpSent(false)
+    setOtp('')
+    setMagicSent(false)
+  }
+
   return (
     <div className="relative min-h-screen flex items-center justify-center px-4 bg-surface-50 overflow-hidden">
-      {/* Soft ambient gradient backdrop */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -top-32 -start-32 w-[420px] h-[420px] rounded-full bg-primary-200/40 blur-3xl" />
         <div className="absolute -bottom-32 -end-32 w-[420px] h-[420px] rounded-full bg-gold-200/40 blur-3xl" />
@@ -79,6 +119,7 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {/* Magic link sent state */}
         {magicSent ? (
           <div className="bg-white rounded-2xl shadow-card border border-surface-200/70 p-8 space-y-4 text-center">
             <div className="mx-auto w-12 h-12 rounded-2xl bg-primary-50 text-primary-600 flex items-center justify-center mb-1">
@@ -90,43 +131,119 @@ export default function LoginPage() {
               {t('تم إرسال رابط الدخول', 'Magic link sent!')}
             </h3>
             <p className="text-sm text-surface-500">
-              {t(
-                'تحقق من بريدك الإلكتروني وانقر على الرابط لتسجيل الدخول',
-                'Check your email and click the link to sign in'
-              )}
+              {t('تحقق من بريدك الإلكتروني وانقر على الرابط لتسجيل الدخول', 'Check your email and click the link to sign in')}
             </p>
-            <button
-              onClick={() => { setMagicSent(false); setError('') }}
-              className="text-sm font-medium text-primary-600 hover:text-primary-700"
-            >
+            <button onClick={() => resetMode('magic-link')} className="text-sm font-medium text-primary-600 hover:text-primary-700">
               {t('العودة لتسجيل الدخول', 'Back to sign in')}
             </button>
           </div>
-        ) : (
-          <form
-            onSubmit={mode === 'password' ? handlePasswordLogin : handleMagicLinkRequest}
-            className="bg-white rounded-2xl shadow-card border border-surface-200/70 p-7 space-y-4"
-          >
+
+        /* OTP entry state */
+        ) : otpSent ? (
+          <form onSubmit={handleSMSVerify} className="bg-white rounded-2xl shadow-card border border-surface-200/70 p-7 space-y-4">
+            <div className="text-center pb-1">
+              <div className="mx-auto w-12 h-12 rounded-2xl bg-primary-50 text-primary-600 flex items-center justify-center mb-3">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h3 className="text-base font-semibold text-surface-900">
+                {t('أدخل رمز التحقق', 'Enter your OTP')}
+              </h3>
+              <p className="text-xs text-surface-500 mt-1">
+                {t(`تم الإرسال إلى ${phone}`, `Sent to ${phone}`)}
+              </p>
+            </div>
+
             <div>
               <label className="block text-[13px] font-medium text-surface-700 mb-1.5">
-                {t('البريد الإلكتروني', 'Email')}
+                {t('رمز التحقق', 'One-time code')}
               </label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                 required
-                autoComplete="email"
-                className="w-full px-3.5 py-2.5 border border-surface-200 rounded-xl text-sm bg-white placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 transition-shadow"
-                placeholder={t('أدخل بريدك الإلكتروني', 'Enter your email')}
+                autoFocus
+                className="w-full px-3.5 py-2.5 border border-surface-200 rounded-xl text-sm text-center tracking-[0.3em] font-mono bg-white placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 transition-shadow"
+                placeholder="000000"
               />
             </div>
 
-            {mode === 'password' && (
+            {error && (
+              <p className="text-red-600 text-xs bg-red-50 border border-red-100 px-3 py-2 rounded-lg">{error}</p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading || otp.length !== 6}
+              className="w-full py-2.5 bg-primary-600 text-white font-medium rounded-xl text-sm shadow-card hover:bg-primary-700 hover:shadow-card-hover transition-all duration-200 ease-soft disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? t('جاري التحقق...', 'Verifying...') : t('تحقق وادخل', 'Verify & sign in')}
+            </button>
+
+            <div className="text-center">
+              <button type="button" onClick={() => { setOtpSent(false); setOtp(''); setError('') }}
+                className="text-xs font-medium text-primary-600 hover:text-primary-700">
+                {t('تغيير رقم الهاتف', 'Change phone number')}
+              </button>
+            </div>
+          </form>
+
+        /* Main login form */
+        ) : (
+          <form
+            onSubmit={mode === 'password' ? handlePasswordLogin : mode === 'magic-link' ? handleMagicLinkRequest : handleSMSRequest}
+            className="bg-white rounded-2xl shadow-card border border-surface-200/70 p-7 space-y-4"
+          >
+            {mode === 'sms' ? (
               <div>
                 <label className="block text-[13px] font-medium text-surface-700 mb-1.5">
-                  {t('كلمة المرور', 'Password')}
+                  {t('رقم الهاتف', 'Phone number')}
                 </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  autoComplete="tel"
+                  className="w-full px-3.5 py-2.5 border border-surface-200 rounded-xl text-sm bg-white placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 transition-shadow"
+                  placeholder="+971 50 123 4567"
+                />
+                <p className="mt-1 text-[11px] text-surface-400">
+                  {t('أدخل الرقم بصيغة دولية مثل +971501234567', 'Include country code, e.g. +971501234567')}
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-[13px] font-medium text-surface-700 mb-1.5">
+                  {t('البريد الإلكتروني', 'Email')}
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  className="w-full px-3.5 py-2.5 border border-surface-200 rounded-xl text-sm bg-white placeholder:text-surface-400 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 transition-shadow"
+                  placeholder={t('أدخل بريدك الإلكتروني', 'Enter your email')}
+                />
+              </div>
+            )}
+
+            {mode === 'password' && (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[13px] font-medium text-surface-700">
+                    {t('كلمة المرور', 'Password')}
+                  </label>
+                  <a href="/forgot-password" className="text-[12px] text-primary-600 hover:text-primary-700 font-medium">
+                    {t('نسيت كلمة المرور؟', 'Forgot password?')}
+                  </a>
+                </div>
                 <input
                   type="password"
                   value={password}
@@ -152,19 +269,31 @@ export default function LoginPage() {
                 ? t('جاري المعالجة...', 'Processing...')
                 : mode === 'password'
                   ? t('تسجيل الدخول', 'Sign in')
-                  : t('إرسال رابط الدخول', 'Send magic link')}
+                  : mode === 'magic-link'
+                    ? t('إرسال رابط الدخول', 'Send magic link')
+                    : t('إرسال رمز التحقق', 'Send OTP')}
             </button>
 
-            <div className="text-center pt-1">
-              <button
-                type="button"
-                onClick={() => { setMode(mode === 'password' ? 'magic-link' : 'password'); setError('') }}
-                className="text-xs font-medium text-primary-600 hover:text-primary-700"
-              >
-                {mode === 'password'
-                  ? t('تسجيل الدخول بدون كلمة مرور', 'Sign in with magic link')
-                  : t('العودة لتسجيل الدخول بالكلمة', 'Back to password login')}
-              </button>
+            {/* Mode switcher */}
+            <div className="flex flex-col items-center gap-1.5 pt-1">
+              {mode !== 'password' && (
+                <button type="button" onClick={() => resetMode('password')}
+                  className="text-xs font-medium text-primary-600 hover:text-primary-700">
+                  {t('تسجيل الدخول بكلمة المرور', 'Sign in with password')}
+                </button>
+              )}
+              {mode !== 'magic-link' && (
+                <button type="button" onClick={() => resetMode('magic-link')}
+                  className="text-xs font-medium text-surface-500 hover:text-primary-600">
+                  {t('تسجيل الدخول برابط البريد', 'Sign in with magic link')}
+                </button>
+              )}
+              {mode !== 'sms' && (
+                <button type="button" onClick={() => resetMode('sms')}
+                  className="text-xs font-medium text-surface-500 hover:text-primary-600">
+                  {t('تسجيل الدخول برقم الهاتف', 'Sign in with phone (SMS)')}
+                </button>
+              )}
             </div>
           </form>
         )}

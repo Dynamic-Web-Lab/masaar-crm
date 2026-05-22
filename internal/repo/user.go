@@ -193,10 +193,10 @@ func (r *UserRepo) CreateWithDefaults(ctx context.Context, email string, langPre
 	`
 	u := &domain.User{
 		ID:           uuid.New(),
-		Name:         email, // Use email as initial name
+		Name:         email,
 		Email:        email,
-		PasswordHash: "", // No password for magic link users
-		Role:         domain.RoleViewer, // Default role for magic link signups
+		PasswordHash: "",
+		Role:         domain.RoleViewer,
 		LangPref:     langPref,
 		WANumber:     "",
 	}
@@ -208,4 +208,54 @@ func (r *UserRepo) CreateWithDefaults(ctx context.Context, email string, langPre
 		return nil, err
 	}
 	return u, nil
+}
+
+func (r *UserRepo) FindByPhone(ctx context.Context, phone string) (*domain.User, error) {
+	const q = `
+		SELECT id, name, email, password_hash, role, lang_pref,
+		       COALESCE(wa_number, ''), COALESCE(phone, ''), is_active, created_at
+		FROM users
+		WHERE phone = $1
+	`
+	u := &domain.User{}
+	err := r.db.QueryRow(ctx, q, phone).Scan(
+		&u.ID, &u.Name, &u.Email, &u.PasswordHash,
+		&u.Role, &u.LangPref, &u.WANumber, &u.Phone, &u.IsActive, &u.CreatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("find user by phone: %w", err)
+	}
+	return u, nil
+}
+
+func (r *UserRepo) CreateWithPhone(ctx context.Context, phone, langPref string) (*domain.User, error) {
+	const q = `
+		INSERT INTO users (id, name, email, password_hash, role, lang_pref, wa_number, phone)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING created_at
+	`
+	u := &domain.User{
+		ID:           uuid.New(),
+		Name:         phone,
+		Email:        fmt.Sprintf("sms_%s@masaar.local", phone),
+		PasswordHash: "",
+		Role:         domain.RoleViewer,
+		LangPref:     langPref,
+		WANumber:     "",
+		Phone:        phone,
+	}
+	err := r.db.QueryRow(ctx, q,
+		u.ID, u.Name, u.Email, u.PasswordHash,
+		u.Role, u.LangPref, u.WANumber, u.Phone,
+	).Scan(&u.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
+func (r *UserRepo) UpdatePhone(ctx context.Context, id uuid.UUID, phone string) error {
+	const q = `UPDATE users SET phone = $1 WHERE id = $2`
+	_, err := r.db.Exec(ctx, q, phone, id)
+	return err
 }
