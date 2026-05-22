@@ -1,28 +1,64 @@
 package handler
 
 import (
+	"context"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/maidulcu/masaar-crm/internal/ai"
 	"github.com/maidulcu/masaar-crm/internal/domain"
 	"github.com/maidulcu/masaar-crm/internal/repo"
-	"github.com/maidulcu/masaar-crm/internal/webhook"
 	"github.com/maidulcu/masaar-crm/internal/ws"
 )
 
-type LeadHandler struct {
-	leads          *repo.LeadRepo
-	contacts       *repo.ContactRepo
-	commHistRepo   *repo.CommunicationHistoryRepo
-	scoringService *ai.ScoringService
-	hub            *ws.Hub
-	audit          *repo.AuditLogRepo
-	dispatcher     *webhook.Dispatcher
+// LeadRepository defines the interface for lead data access.
+type LeadRepository interface {
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Lead, error)
+	Create(ctx context.Context, lead *domain.Lead) error
+	UpdateStage(ctx context.Context, id uuid.UUID, stage domain.LeadStage, reason string) error
+	UpdateNotes(ctx context.Context, id uuid.UUID, notes string) error
+	Assign(ctx context.Context, id uuid.UUID, userID *uuid.UUID) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	List(ctx context.Context, filter repo.LeadFilter) ([]domain.Lead, error)
+	KanbanBoard(ctx context.Context) (map[domain.LeadStage][]domain.Lead, error)
 }
 
-func NewLeadHandler(leads *repo.LeadRepo, contacts *repo.ContactRepo, commHistRepo *repo.CommunicationHistoryRepo, scoringService *ai.ScoringService, hub *ws.Hub, audit *repo.AuditLogRepo, dispatcher *webhook.Dispatcher) *LeadHandler {
+// ContactRepository defines the interface for contact data access used by the lead handler.
+type ContactRepository interface {
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Contact, error)
+}
+
+// CommunicationHistoryRepository defines the interface for communication history data access.
+type CommunicationHistoryRepository interface {
+	GetByLead(ctx context.Context, leadID uuid.UUID, limit int) ([]domain.CommunicationHistory, error)
+}
+
+// ScoringService defines the interface for AI lead scoring.
+type ScoringService interface {
+	UpdateScoreOnStageChange(ctx context.Context, leadID uuid.UUID, newStage domain.LeadStage) error
+}
+
+// AuditLogRepository defines the interface for audit logging.
+type AuditLogRepository interface {
+	Log(ctx context.Context, actorID uuid.UUID, action, entityType string, entityID uuid.UUID, diff any)
+}
+
+// WebhookDispatcher defines the interface for dispatching webhook events.
+type WebhookDispatcher interface {
+	Dispatch(companyID uuid.UUID, event string, data interface{})
+}
+
+type LeadHandler struct {
+	leads          LeadRepository
+	contacts       ContactRepository
+	commHistRepo   CommunicationHistoryRepository
+	scoringService ScoringService
+	hub            *ws.Hub
+	audit          AuditLogRepository
+	dispatcher     WebhookDispatcher
+}
+
+func NewLeadHandler(leads LeadRepository, contacts ContactRepository, commHistRepo CommunicationHistoryRepository, scoringService ScoringService, hub *ws.Hub, audit AuditLogRepository, dispatcher WebhookDispatcher) *LeadHandler {
 	return &LeadHandler{leads: leads, contacts: contacts, commHistRepo: commHistRepo, scoringService: scoringService, hub: hub, audit: audit, dispatcher: dispatcher}
 }
 

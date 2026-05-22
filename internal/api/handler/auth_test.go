@@ -14,11 +14,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/maidulcu/masaar-crm/internal/config"
 	"github.com/maidulcu/masaar-crm/internal/domain"
-	"github.com/maidulcu/masaar-crm/internal/repo"
 	"golang.org/x/crypto/bcrypt"
 )
 
-// MockUserRepo implements a mock repository for testing
+// MockUserRepo implements UserRepository for testing.
 type MockUserRepo struct {
 	users map[uuid.UUID]*domain.User
 }
@@ -45,6 +44,14 @@ func (m *MockUserRepo) FindByID(ctx context.Context, id uuid.UUID) (*domain.User
 	return nil, fiber.NewError(fiber.StatusNotFound, "user not found")
 }
 
+func (m *MockUserRepo) CreatePasswordResetToken(ctx context.Context, userID uuid.UUID) (string, error) {
+	return "reset-token", nil
+}
+
+func (m *MockUserRepo) ConsumePasswordResetToken(ctx context.Context, token string) (uuid.UUID, error) {
+	return uuid.Nil, fiber.NewError(fiber.StatusUnauthorized, "invalid token")
+}
+
 func (m *MockUserRepo) UpdatePassword(ctx context.Context, userID uuid.UUID, hash string) error {
 	if u, ok := m.users[userID]; ok {
 		u.PasswordHash = hash
@@ -53,26 +60,42 @@ func (m *MockUserRepo) UpdatePassword(ctx context.Context, userID uuid.UUID, has
 	return fiber.NewError(fiber.StatusNotFound, "user not found")
 }
 
-func (m *MockUserRepo) UpdateLangPref(ctx context.Context, userID uuid.UUID, lang string) error {
-	if u, ok := m.users[userID]; ok {
-		u.LangPref = lang
-		return nil
+func (m *MockUserRepo) CreateWithDefaults(ctx context.Context, email string, langPref string) (*domain.User, error) {
+	u := &domain.User{
+		ID:       uuid.New(),
+		Email:    email,
+		Name:     email,
+		Role:     domain.RoleAgent,
+		LangPref: langPref,
+		IsActive: true,
 	}
-	return fiber.NewError(fiber.StatusNotFound, "user not found")
+	m.users[u.ID] = u
+	return u, nil
+}
+
+// stubAuthAuditLog implements AuthAuditLogRepository for testing.
+type stubAuthAuditLog struct{}
+
+func (s *stubAuthAuditLog) Log(ctx context.Context, actorID uuid.UUID, action, entityType string, entityID uuid.UUID, diff any) {
+}
+
+// stubEmailService implements EmailService for testing.
+type stubEmailService struct{}
+
+func (s *stubEmailService) Send(email *domain.EmailHistory) error {
+	return nil
 }
 
 func TestAuthLogin_Success(t *testing.T) {
-	// Setup
 	app := fiber.New()
 	mockRepo := NewMockUserRepo()
 	mockRedis, _ := redismock.NewClientMock()
 	cfg := &config.Config{
-		JWTSecret:             "test-secret-key-32-characters!",
-		JWTAccessExpiryMin:    15,
-		JWTRefreshExpiryDays:  7,
+		JWTSecret:            "test-secret-key-32-characters!",
+		JWTAccessExpiryMin:   15,
+		JWTRefreshExpiryDays: 7,
 	}
 
-	// Create test user
 	password := "testpassword123"
 	hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	userID := uuid.New()
@@ -83,16 +106,15 @@ func TestAuthLogin_Success(t *testing.T) {
 		PasswordHash: string(hash),
 		Role:         domain.RoleAgent,
 		LangPref:     "en",
+		IsActive:     true,
 	}
 	mockRepo.users[userID] = user
 
-	// Mock Redis Set
 	mockRedis.ExpectSet("refresh:*", userID.String(), time.Duration(7*24)*time.Hour).SetVal("OK")
 
-	handler := NewAuthHandler(mockRepo, mockRedis, cfg)
+	handler := NewAuthHandler(mockRepo, mockRedis, cfg, &stubAuthAuditLog{}, &stubEmailService{})
 	app.Post("/login", handler.Login)
 
-	// Test
 	body := bytes.NewReader([]byte(`{"email":"test@example.com","password":"testpassword123"}`))
 	req := httptest.NewRequest(http.MethodPost, "/login", body)
 	req.Header.Set("Content-Type", "application/json")
@@ -120,12 +142,12 @@ func TestAuthLogin_InvalidCredentials(t *testing.T) {
 	mockRepo := NewMockUserRepo()
 	mockRedis, _ := redismock.NewClientMock()
 	cfg := &config.Config{
-		JWTSecret:             "test-secret-key-32-characters!",
-		JWTAccessExpiryMin:    15,
-		JWTRefreshExpiryDays:  7,
+		JWTSecret:            "test-secret-key-32-characters!",
+		JWTAccessExpiryMin:   15,
+		JWTRefreshExpiryDays: 7,
 	}
 
-	handler := NewAuthHandler(mockRepo, mockRedis, cfg)
+	handler := NewAuthHandler(mockRepo, mockRedis, cfg, &stubAuthAuditLog{}, &stubEmailService{})
 	app.Post("/login", handler.Login)
 
 	body := bytes.NewReader([]byte(`{"email":"nonexistent@example.com","password":"password"}`))
@@ -145,12 +167,11 @@ func TestAuthLogin_WrongPassword(t *testing.T) {
 	mockRepo := NewMockUserRepo()
 	mockRedis, _ := redismock.NewClientMock()
 	cfg := &config.Config{
-		JWTSecret:             "test-secret-key-32-characters!",
-		JWTAccessExpiryMin:    15,
-		JWTRefreshExpiryDays:  7,
+		JWTSecret:            "test-secret-key-32-characters!",
+		JWTAccessExpiryMin:   15,
+		JWTRefreshExpiryDays: 7,
 	}
 
-	// Create test user
 	hash, _ := bcrypt.GenerateFromPassword([]byte("correctpassword"), bcrypt.DefaultCost)
 	userID := uuid.New()
 	user := &domain.User{
@@ -159,10 +180,11 @@ func TestAuthLogin_WrongPassword(t *testing.T) {
 		Name:         "Test User",
 		PasswordHash: string(hash),
 		Role:         domain.RoleAgent,
+		IsActive:     true,
 	}
 	mockRepo.users[userID] = user
 
-	handler := NewAuthHandler(mockRepo, mockRedis, cfg)
+	handler := NewAuthHandler(mockRepo, mockRedis, cfg, &stubAuthAuditLog{}, &stubEmailService{})
 	app.Post("/login", handler.Login)
 
 	body := bytes.NewReader([]byte(`{"email":"test@example.com","password":"wrongpassword"}`))
@@ -182,15 +204,14 @@ func TestAuthLogin_InvalidRequest(t *testing.T) {
 	mockRepo := NewMockUserRepo()
 	mockRedis, _ := redismock.NewClientMock()
 	cfg := &config.Config{
-		JWTSecret:             "test-secret-key-32-characters!",
-		JWTAccessExpiryMin:    15,
-		JWTRefreshExpiryDays:  7,
+		JWTSecret:            "test-secret-key-32-characters!",
+		JWTAccessExpiryMin:   15,
+		JWTRefreshExpiryDays: 7,
 	}
 
-	handler := NewAuthHandler(mockRepo, mockRedis, cfg)
+	handler := NewAuthHandler(mockRepo, mockRedis, cfg, &stubAuthAuditLog{}, &stubEmailService{})
 	app.Post("/login", handler.Login)
 
-	// Invalid JSON
 	body := bytes.NewReader([]byte(`{invalid json}`))
 	req := httptest.NewRequest(http.MethodPost, "/login", body)
 	req.Header.Set("Content-Type", "application/json")

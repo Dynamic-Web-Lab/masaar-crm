@@ -40,15 +40,35 @@ func validatePasswordStrength(p string) string {
 	return ""
 }
 
-type AuthHandler struct {
-	users  *repo.UserRepo
-	redis  *redis.Client
-	config *config.Config
-	audit  *repo.AuditLogRepo
-	email  *email.Service
+// UserRepository defines the interface for user data access used by the auth handler.
+type UserRepository interface {
+	FindByEmail(ctx context.Context, email string) (*domain.User, error)
+	FindByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	CreatePasswordResetToken(ctx context.Context, userID uuid.UUID) (string, error)
+	ConsumePasswordResetToken(ctx context.Context, token string) (uuid.UUID, error)
+	UpdatePassword(ctx context.Context, userID uuid.UUID, hash string) error
+	CreateWithDefaults(ctx context.Context, email string, langPref string) (*domain.User, error)
 }
 
-func NewAuthHandler(users *repo.UserRepo, rdb *redis.Client, cfg *config.Config, audit *repo.AuditLogRepo, emailSvc *email.Service) *AuthHandler {
+// AuthAuditLogRepository defines the interface for audit logging used by the auth handler.
+type AuthAuditLogRepository interface {
+	Log(ctx context.Context, actorID uuid.UUID, action, entityType string, entityID uuid.UUID, diff any)
+}
+
+// EmailService defines the interface for sending emails.
+type EmailService interface {
+	Send(email *domain.EmailHistory) error
+}
+
+type AuthHandler struct {
+	users  UserRepository
+	redis  *redis.Client
+	config *config.Config
+	audit  AuthAuditLogRepository
+	email  EmailService
+}
+
+func NewAuthHandler(users UserRepository, rdb *redis.Client, cfg *config.Config, audit AuthAuditLogRepository, emailSvc EmailService) *AuthHandler {
 	return &AuthHandler{users: users, redis: rdb, config: cfg, audit: audit, email: emailSvc}
 }
 

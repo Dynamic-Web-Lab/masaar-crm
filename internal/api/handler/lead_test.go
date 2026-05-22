@@ -3,7 +3,6 @@ package handler
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,10 +10,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/maidulcu/masaar-crm/internal/domain"
+	"github.com/maidulcu/masaar-crm/internal/repo"
 	"github.com/maidulcu/masaar-crm/internal/ws"
 )
 
-// MockLeadRepo for testing
+// MockLeadRepo implements LeadRepository for testing.
 type MockLeadRepo struct {
 	leads map[uuid.UUID]*domain.Lead
 }
@@ -23,14 +23,6 @@ func NewMockLeadRepo() *MockLeadRepo {
 	return &MockLeadRepo{
 		leads: make(map[uuid.UUID]*domain.Lead),
 	}
-}
-
-func (m *MockLeadRepo) UpdateStage(ctx context.Context, id uuid.UUID, stage domain.LeadStage) error {
-	if lead, ok := m.leads[id]; ok {
-		lead.Stage = stage
-		return nil
-	}
-	return fiber.NewError(fiber.StatusNotFound, "lead not found")
 }
 
 func (m *MockLeadRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Lead, error) {
@@ -48,12 +40,36 @@ func (m *MockLeadRepo) Create(ctx context.Context, lead *domain.Lead) error {
 	return nil
 }
 
-func (m *MockLeadRepo) KanbanBoard(ctx context.Context) (map[domain.LeadStage][]*domain.Lead, error) {
-	board := make(map[domain.LeadStage][]*domain.Lead)
-	return board, nil
+func (m *MockLeadRepo) UpdateStage(ctx context.Context, id uuid.UUID, stage domain.LeadStage, reason string) error {
+	if lead, ok := m.leads[id]; ok {
+		lead.Stage = stage
+		lead.ClosedReason = reason
+		return nil
+	}
+	return fiber.NewError(fiber.StatusNotFound, "lead not found")
 }
 
-// MockContactRepo for testing
+func (m *MockLeadRepo) UpdateNotes(ctx context.Context, id uuid.UUID, notes string) error {
+	return nil
+}
+
+func (m *MockLeadRepo) Assign(ctx context.Context, id uuid.UUID, userID *uuid.UUID) error {
+	return nil
+}
+
+func (m *MockLeadRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+
+func (m *MockLeadRepo) List(ctx context.Context, filter repo.LeadFilter) ([]domain.Lead, error) {
+	return nil, nil
+}
+
+func (m *MockLeadRepo) KanbanBoard(ctx context.Context) (map[domain.LeadStage][]domain.Lead, error) {
+	return make(map[domain.LeadStage][]domain.Lead), nil
+}
+
+// MockContactRepo implements ContactRepository for testing.
 type MockContactRepo struct {
 	contacts map[uuid.UUID]*domain.Contact
 }
@@ -71,12 +87,36 @@ func (m *MockContactRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Co
 	return nil, fiber.NewError(fiber.StatusNotFound, "contact not found")
 }
 
-func (m *MockContactRepo) Create(ctx context.Context, contact *domain.Contact) error {
-	if contact.ID == uuid.Nil {
-		contact.ID = uuid.New()
-	}
-	m.contacts[contact.ID] = contact
+// stubCommHistRepo implements CommunicationHistoryRepository for testing.
+type stubCommHistRepo struct{}
+
+func (s *stubCommHistRepo) GetByLead(ctx context.Context, leadID uuid.UUID, limit int) ([]domain.CommunicationHistory, error) {
+	return nil, nil
+}
+
+// stubScoringService implements ScoringService for testing.
+type stubScoringService struct{}
+
+func (s *stubScoringService) UpdateScoreOnStageChange(ctx context.Context, leadID uuid.UUID, newStage domain.LeadStage) error {
 	return nil
+}
+
+// stubAuditLog implements AuditLogRepository for testing.
+type stubAuditLog struct{}
+
+func (s *stubAuditLog) Log(ctx context.Context, actorID uuid.UUID, action, entityType string, entityID uuid.UUID, diff any) {
+}
+
+func newTestLeadHandler(leadRepo LeadRepository, contactRepo ContactRepository, hub *ws.Hub) *LeadHandler {
+	return NewLeadHandler(
+		leadRepo,
+		contactRepo,
+		&stubCommHistRepo{},
+		&stubScoringService{},
+		hub,
+		&stubAuditLog{},
+		nil, // dispatcher — nil-safe in UpdateStage
+	)
 }
 
 func TestLeadUpdateStage_ValidStage(t *testing.T) {
@@ -85,7 +125,6 @@ func TestLeadUpdateStage_ValidStage(t *testing.T) {
 	mockContactRepo := NewMockContactRepo()
 	hub := ws.NewHub()
 
-	// Create test lead
 	leadID := uuid.New()
 	lead := &domain.Lead{
 		ID:      leadID,
@@ -94,7 +133,7 @@ func TestLeadUpdateStage_ValidStage(t *testing.T) {
 	}
 	mockLeadRepo.leads[leadID] = lead
 
-	handler := NewLeadHandler(mockLeadRepo, mockContactRepo, hub)
+	handler := newTestLeadHandler(mockLeadRepo, mockContactRepo, hub)
 	app.Patch("/leads/:id/stage", handler.UpdateStage)
 
 	body := bytes.NewReader([]byte(`{"stage":"contacted"}`))
@@ -108,7 +147,6 @@ func TestLeadUpdateStage_ValidStage(t *testing.T) {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 
-	// Verify stage was updated
 	if mockLeadRepo.leads[leadID].Stage != domain.StageContacted {
 		t.Errorf("expected stage to be 'contacted', got '%s'", mockLeadRepo.leads[leadID].Stage)
 	}
@@ -120,7 +158,6 @@ func TestLeadUpdateStage_InvalidStage(t *testing.T) {
 	mockContactRepo := NewMockContactRepo()
 	hub := ws.NewHub()
 
-	// Create test lead
 	leadID := uuid.New()
 	lead := &domain.Lead{
 		ID:    leadID,
@@ -128,10 +165,9 @@ func TestLeadUpdateStage_InvalidStage(t *testing.T) {
 	}
 	mockLeadRepo.leads[leadID] = lead
 
-	handler := NewLeadHandler(mockLeadRepo, mockContactRepo, hub)
+	handler := newTestLeadHandler(mockLeadRepo, mockContactRepo, hub)
 	app.Patch("/leads/:id/stage", handler.UpdateStage)
 
-	// Try to set invalid stage
 	body := bytes.NewReader([]byte(`{"stage":"invalid_stage"}`))
 	req := httptest.NewRequest(http.MethodPatch, "/leads/"+leadID.String()+"/stage", body)
 	req.Header.Set("Content-Type", "application/json")
@@ -139,12 +175,10 @@ func TestLeadUpdateStage_InvalidStage(t *testing.T) {
 	resp, _ := app.Test(req)
 	defer resp.Body.Close()
 
-	// Must reject invalid stage
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400 for invalid stage, got %d", resp.StatusCode)
 	}
 
-	// Verify stage was NOT updated
 	if mockLeadRepo.leads[leadID].Stage != domain.StageNew {
 		t.Errorf("stage should not have been updated to invalid value")
 	}
@@ -170,7 +204,7 @@ func TestLeadUpdateStage_AllValidStages(t *testing.T) {
 		lead := &domain.Lead{ID: leadID, Stage: domain.StageNew}
 		mockLeadRepo.leads[leadID] = lead
 
-		handler := NewLeadHandler(mockLeadRepo, mockContactRepo, hub)
+		handler := newTestLeadHandler(mockLeadRepo, mockContactRepo, hub)
 		app.Patch("/leads/:id/stage", handler.UpdateStage)
 
 		body := bytes.NewReader([]byte(`{"stage":"` + string(stage) + `"}`))
@@ -196,10 +230,9 @@ func TestLeadUpdateStage_MissingStage(t *testing.T) {
 	lead := &domain.Lead{ID: leadID, Stage: domain.StageNew}
 	mockLeadRepo.leads[leadID] = lead
 
-	handler := NewLeadHandler(mockLeadRepo, mockContactRepo, hub)
+	handler := newTestLeadHandler(mockLeadRepo, mockContactRepo, hub)
 	app.Patch("/leads/:id/stage", handler.UpdateStage)
 
-	// Request without stage field
 	body := bytes.NewReader([]byte(`{}`))
 	req := httptest.NewRequest(http.MethodPatch, "/leads/"+leadID.String()+"/stage", body)
 	req.Header.Set("Content-Type", "application/json")
@@ -218,7 +251,7 @@ func TestLeadUpdateStage_InvalidID(t *testing.T) {
 	mockContactRepo := NewMockContactRepo()
 	hub := ws.NewHub()
 
-	handler := NewLeadHandler(mockLeadRepo, mockContactRepo, hub)
+	handler := newTestLeadHandler(mockLeadRepo, mockContactRepo, hub)
 	app.Patch("/leads/:id/stage", handler.UpdateStage)
 
 	body := bytes.NewReader([]byte(`{"stage":"contacted"}`))

@@ -1,22 +1,40 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/maidulcu/masaar-crm/internal/domain"
 	"github.com/maidulcu/masaar-crm/internal/pdf"
-	"github.com/maidulcu/masaar-crm/internal/repo"
 )
 
-type InvoiceHandler struct {
-	invoices *repo.InvoiceRepo
-	deals    *repo.DealRepo
-	company  *repo.CompanySettingsRepo
+// InvoiceRepository defines the interface for invoice data access.
+type InvoiceRepository interface {
+	Create(ctx context.Context, inv *domain.VATInvoice) error
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.VATInvoice, error)
+	UpdateStatus(ctx context.Context, id uuid.UUID, status domain.InvoiceStatus) error
+	NextInvoiceNo(ctx context.Context) (string, error)
 }
 
-func NewInvoiceHandler(invoices *repo.InvoiceRepo, deals *repo.DealRepo, company *repo.CompanySettingsRepo) *InvoiceHandler {
+// DealRepository defines the interface for deal data access used by the invoice handler.
+type DealRepository interface {
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.Deal, error)
+}
+
+// CompanySettingsRepository defines the interface for company settings data access.
+type CompanySettingsRepository interface {
+	Get(ctx context.Context) (*domain.CompanySettings, error)
+}
+
+type InvoiceHandler struct {
+	invoices InvoiceRepository
+	deals    DealRepository
+	company  CompanySettingsRepository
+}
+
+func NewInvoiceHandler(invoices InvoiceRepository, deals DealRepository, company CompanySettingsRepository) *InvoiceHandler {
 	return &InvoiceHandler{
 		invoices: invoices,
 		deals:    deals,
