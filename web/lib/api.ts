@@ -66,6 +66,16 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ phone, otp }),
       }),
+    forgotPassword: (email: string) =>
+      request('/api/v1/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }),
+    resetPassword: (token: string, password: string) =>
+      request('/api/v1/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, password }),
+      }),
   },
 
   // ─── Contacts ───────────────────────────────────────────────────────────────

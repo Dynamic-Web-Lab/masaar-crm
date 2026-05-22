@@ -236,9 +236,14 @@ export default function LoginPage() {
 
             {mode === 'password' && (
               <div>
-                <label className="block text-[13px] font-medium text-surface-700 mb-1.5">
-                  {t('كلمة المرور', 'Password')}
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[13px] font-medium text-surface-700">
+                    {t('كلمة المرور', 'Password')}
+                  </label>
+                  <a href="/forgot-password" className="text-[12px] text-primary-600 hover:text-primary-700 font-medium">
+                    {t('نسيت كلمة المرور؟', 'Forgot password?')}
+                  </a>
+                </div>
                 <input
                   type="password"
                   value={password}
