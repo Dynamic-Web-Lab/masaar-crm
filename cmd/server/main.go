@@ -23,6 +23,7 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/config"
 	"github.com/maidulcu/masaar-crm/internal/email"
 	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/maidulcu/masaar-crm/internal/sms"
 	"github.com/maidulcu/masaar-crm/internal/webhook"
 	"github.com/maidulcu/masaar-crm/internal/whatsapp"
 	"github.com/maidulcu/masaar-crm/internal/ws"
@@ -149,25 +150,46 @@ func main() {
 	// ── WebSocket hub ────────────────────────────────────────────────────────
 	hub := ws.NewHub()
 
-	// ── AI client (Ollama local or Gemini cloud, based on AI_PROVIDER) ────────
-	var aiClient *ai.Client
-	switch cfg.AIProvider {
-	case "gemini":
-		if cfg.GeminiAPIKey == "" {
-			log.Fatal("AI_PROVIDER=gemini but GEMINI_API_KEY is not set")
+	// ── AI clients — dual-provider routing ───────────────────────────────────
+	//
+	// sensitiveAI (Ollama, local): ALWAYS used for anything touching customer
+	// data — WhatsApp messages, contacts, leads, payment details. Data never
+	// leaves the server. Required for UAE PDPL compliance.
+	//
+	// cloudAI (Gemini): ONLY used for non-PII tasks — property listing copy,
+	// market summaries, public content. Falls back to sensitiveAI if not set.
+	sensitiveAI := ai.NewClient(cfg.OllamaBaseURL, cfg.OllamaModel)
+	log.Printf("AI sensitive (local): Ollama %s @ %s", cfg.OllamaModel, cfg.OllamaBaseURL)
+
+	var cloudAI *ai.Client
+	if cfg.GeminiAPIKey != "" {
+		cloudAI = ai.NewGeminiClient(cfg.GeminiAPIKey, cfg.GeminiModel)
+		log.Printf("AI cloud (non-PII): Gemini %s", cfg.GeminiModel)
+	} else {
+		log.Println("AI cloud: not configured — Ollama handles all tasks")
+	}
+
+	// cloudOrLocal returns cloudAI when available, sensitiveAI otherwise.
+	cloudOrLocal := func() *ai.Client {
+		if cloudAI != nil {
+			return cloudAI
 		}
-		aiClient = ai.NewGeminiClient(cfg.GeminiAPIKey, cfg.GeminiModel)
-		log.Printf("AI provider: Gemini (%s)", cfg.GeminiModel)
-	default:
-		aiClient = ai.NewClient(cfg.OllamaBaseURL, cfg.OllamaModel)
-		log.Printf("AI provider: Ollama (%s @ %s)", cfg.OllamaModel, cfg.OllamaBaseURL)
+		return sensitiveAI
 	}
 
 	// ── Scoring service for automatic lead scoring ───────────────────────────
 	scoringService := ai.NewScoringService(leadRepo, commHistRepo, leadTagRepo)
 
 	// ── Tagging service for auto-tagging on messages ────────────────────────
-	taggingService := ai.NewTaggingService(aiClient, leadRepo, waRepo, leadTagRepo, contactRepo)
+	// Uses sensitiveAI — parses raw customer WhatsApp messages (PII)
+	taggingService := ai.NewTaggingService(sensitiveAI, leadRepo, waRepo, leadTagRepo, contactRepo)
+
+	// ── SMSCountry client (optional SMS OTP login) ───────────────────────────
+	var smsClient *sms.Client
+	if sms.IsEnabled(cfg.SMSCountryAuthKey, cfg.SMSCountryAuthToken) {
+		smsClient = sms.NewClient(cfg.SMSCountryAuthKey, cfg.SMSCountryAuthToken, cfg.SMSCountrySenderID)
+		log.Println("SMSCountry integration enabled")
+	}
 
 	// ── BuyOrSell24 client (optional real estate integration) ─────────────────
 	var bos24Client *bos24.Client
@@ -216,15 +238,15 @@ func main() {
 
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	handlers := &api.Handlers{
-		Auth:                handler.NewAuthHandler(userRepo, rdb, cfg, auditLogRepo, emailService),
+		Auth:                handler.NewAuthHandler(userRepo, rdb, cfg, auditLogRepo, emailService, smsClient),
 		User:                handler.NewUserHandler(userRepo, auditLogRepo, emailService, cfg),
 		Stats:               handler.NewStatsHandler(statsRepo),
 		Contact:             handler.NewContactHandler(contactRepo, auditLogRepo),
 		Lead:                handler.NewLeadHandler(leadRepo, contactRepo, commHistRepo, scoringService, hub, auditLogRepo, dispatcher),
 		WhatsApp:            handler.NewWhatsAppHandler(waRepo, contactRepo, taggingService, hub, cfg),
 		WhatsAppOutbound:    handler.NewWhatsAppOutboundHandler(whatsappSender, outboundRepo, waRepo),
-		AI:                  handler.NewAIHandler(aiClient, contactRepo, leadRepo, waRepo),
-		Message:             handler.NewMessageHandler(aiClient, waRepo, contactRepo, leadRepo, commHistRepo, leadTagRepo, scoringService, hub),
+		AI:                  handler.NewAIHandler(sensitiveAI, cloudOrLocal(), contactRepo, leadRepo, waRepo),
+		Message:             handler.NewMessageHandler(sensitiveAI, waRepo, contactRepo, leadRepo, commHistRepo, leadTagRepo, scoringService, hub),
 		Notification:        handler.NewNotificationHandler(notificationRepo),
 		Deal:                handler.NewDealHandler(dealRepo, invoiceRepo, auditLogRepo),
 		Invoice:             handler.NewInvoiceHandler(invoiceRepo, dealRepo, companySettingsRepo),

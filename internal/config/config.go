@@ -60,6 +60,12 @@ type Config struct {
 	MagicLinkExpiryMin int
 	MagicLinkRateLimit int
 
+	// SMSCountry (SMS OTP Login)
+	SMSCountryEnabled   bool
+	SMSCountryAuthKey   string
+	SMSCountryAuthToken string
+	SMSCountrySenderID  string
+
 	// App
 	AppEnv string
 	AppURL string // base URL for generating links in emails, e.g. https://crm.yourcompany.ae
@@ -116,6 +122,10 @@ func Load() *Config {
 		MagicLinkBaseURL:     getEnv("MAGIC_LINK_BASE_URL", "http://localhost:3000"),
 		MagicLinkExpiryMin:   getEnvInt("MAGIC_LINK_EXPIRY_MIN", 15),
 		MagicLinkRateLimit:   getEnvInt("MAGIC_LINK_RATE_LIMIT", 3),
+		SMSCountryEnabled:    getEnv("SMSCOUNTRY_ENABLED", "") == "true",
+		SMSCountryAuthKey:    getEnv("SMSCOUNTRY_AUTH_KEY", ""),
+		SMSCountryAuthToken:  getEnv("SMSCOUNTRY_AUTH_TOKEN", ""),
+		SMSCountrySenderID:   getEnv("SMSCOUNTRY_SENDER_ID", ""),
 		AppEnv:               getEnv("APP_ENV", "development"),
 		AppURL:               getEnv("APP_URL", "http://localhost:3000"),
 		CompanyID:             getEnv("APP_COMPANY_ID", "00000000-0000-0000-0000-000000000001"),

@@ -9,11 +9,16 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"crypto/rand"
+	"math/big"
+	"strings"
+
 	"github.com/maidulcu/masaar-crm/internal/api/middleware"
 	"github.com/maidulcu/masaar-crm/internal/config"
 	"github.com/maidulcu/masaar-crm/internal/domain"
 	"github.com/maidulcu/masaar-crm/internal/email"
 	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/maidulcu/masaar-crm/internal/sms"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -46,10 +51,11 @@ type AuthHandler struct {
 	config *config.Config
 	audit  *repo.AuditLogRepo
 	email  *email.Service
+	sms    *sms.Client
 }
 
-func NewAuthHandler(users *repo.UserRepo, rdb *redis.Client, cfg *config.Config, audit *repo.AuditLogRepo, emailSvc *email.Service) *AuthHandler {
-	return &AuthHandler{users: users, redis: rdb, config: cfg, audit: audit, email: emailSvc}
+func NewAuthHandler(users *repo.UserRepo, rdb *redis.Client, cfg *config.Config, audit *repo.AuditLogRepo, emailSvc *email.Service, smsClient *sms.Client) *AuthHandler {
+	return &AuthHandler{users: users, redis: rdb, config: cfg, audit: audit, email: emailSvc, sms: smsClient}
 }
 
 // Login godoc
@@ -543,4 +549,176 @@ func split(s, sep string) []string {
 		return []string{s}
 	}
 	return []string{s[:idx], s[idx+len(sep):]}
+}
+
+// ─── SMS OTP Login ────────────────────────────────────────────────────────────
+
+func generateOTP() (string, error) {
+	const digits = "0123456789"
+	otp := make([]byte, 6)
+	for i := range otp {
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(digits))))
+		if err != nil {
+			return "", err
+		}
+		otp[i] = digits[n.Int64()]
+	}
+	return string(otp), nil
+}
+
+// RequestSMSOTP godoc
+// @Summary      Request SMS OTP
+// @Description  Send a 6-digit OTP to a phone number for passwordless login. Rate limited to 3 per hour.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{phone=string,lang=string}  true  "Phone number (E.164 format, e.g. +971501234567)"
+// @Success      200   {object}  object{message=string}
+// @Failure      400   {object}  object{error=string}
+// @Failure      503   {object}  object{error=string}
+// @Router       /auth/sms/request [post]
+func (h *AuthHandler) RequestSMSOTP(c *fiber.Ctx) error {
+	if h.sms == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "SMS service not configured"})
+	}
+
+	var body struct {
+		Phone string `json:"phone"`
+		Lang  string `json:"lang"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+
+	phone := strings.TrimSpace(body.Phone)
+	if phone == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "phone is required"})
+	}
+	if len(phone) < 7 || len(phone) > 20 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid phone number"})
+	}
+
+	ctx := context.Background()
+
+	// Rate limit: 3 OTPs per phone per hour
+	rateKey := fmt.Sprintf("sms_rate:%s", phone)
+	count, _ := h.redis.Get(ctx, rateKey).Int()
+	if count >= 3 {
+		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "too many OTP requests, please try again later"})
+	}
+
+	otp, err := generateOTP()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to generate OTP"})
+	}
+
+	lang := body.Lang
+	if lang == "" {
+		lang = "en"
+	}
+
+	// Store OTP in Redis (10 min TTL)
+	otpKey := fmt.Sprintf("sms_otp:%s", phone)
+	if err := h.redis.Set(ctx, otpKey, otp+"|"+lang, 10*time.Minute).Err(); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "session error"})
+	}
+
+	// Increment rate counter
+	h.redis.Incr(ctx, rateKey)
+	h.redis.Expire(ctx, rateKey, 1*time.Hour)
+
+	if err := h.sms.SendOTP(ctx, phone, otp); err != nil {
+		h.redis.Del(ctx, otpKey)
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "failed to send SMS"})
+	}
+
+	return c.JSON(fiber.Map{"message": "OTP sent"})
+}
+
+// VerifySMSOTP godoc
+// @Summary      Verify SMS OTP
+// @Description  Validate OTP and issue JWT tokens. Finds existing user by phone or creates a new account.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{phone=string,otp=string}  true  "Phone and OTP"
+// @Success      200   {object}  object{access_token=string,refresh_token=string,expires_in=int,user=object}
+// @Failure      400   {object}  object{error=string}
+// @Failure      401   {object}  object{error=string}
+// @Router       /auth/sms/verify [post]
+func (h *AuthHandler) VerifySMSOTP(c *fiber.Ctx) error {
+	var body struct {
+		Phone string `json:"phone"`
+		OTP   string `json:"otp"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+
+	phone := strings.TrimSpace(body.Phone)
+	otp := strings.TrimSpace(body.OTP)
+	if phone == "" || otp == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "phone and otp are required"})
+	}
+
+	ctx := context.Background()
+	otpKey := fmt.Sprintf("sms_otp:%s", phone)
+
+	stored, err := h.redis.Get(ctx, otpKey).Result()
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid or expired OTP"})
+	}
+
+	parts := split(stored, "|")
+	storedOTP := parts[0]
+	langPref := "en"
+	if len(parts) == 2 {
+		langPref = parts[1]
+	}
+
+	if otp != storedOTP {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid OTP"})
+	}
+
+	// Consume OTP (single-use)
+	h.redis.Del(ctx, otpKey)
+	h.redis.Del(ctx, fmt.Sprintf("sms_rate:%s", phone))
+
+	// Find or create user by phone
+	user, err := h.users.FindByPhone(ctx, phone)
+	if err != nil {
+		user, err = h.users.CreateWithPhone(ctx, phone, langPref)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create account"})
+		}
+	}
+
+	if !user.IsActive {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "account is deactivated"})
+	}
+
+	access, refresh, err := h.generateTokenPair(user)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "token generation failed"})
+	}
+
+	key := fmt.Sprintf("refresh:%s", refresh)
+	ttl := time.Duration(h.config.JWTRefreshExpiryDays) * 24 * time.Hour
+	if err := h.redis.Set(ctx, key, user.ID.String(), ttl).Err(); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "session error"})
+	}
+
+	return c.JSON(fiber.Map{
+		"access_token":  access,
+		"refresh_token": refresh,
+		"expires_in":    h.config.JWTAccessExpiryMin * 60,
+		"user": fiber.Map{
+			"id":        user.ID,
+			"name":      user.Name,
+			"email":     user.Email,
+			"role":      user.Role,
+			"lang_pref": user.LangPref,
+			"phone":     user.Phone,
+		},
+	})
 }

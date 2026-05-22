@@ -84,6 +84,15 @@ var magicLinkLimiter = limiter.New(limiter.Config{
 	},
 })
 
+// smsOTPLimiter caps SMS OTP requests to 3 per minute per IP.
+var smsOTPLimiter = limiter.New(limiter.Config{
+	Max:        3,
+	Expiration: 1 * time.Minute,
+	LimitReached: func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "too many requests, please try again later"})
+	},
+})
+
 // apiLimiter caps general authenticated API usage to 100 requests/min per IP.
 var apiLimiter = limiter.New(limiter.Config{
 	Max:        100,
@@ -103,6 +112,8 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	app.Post("/api/v1/auth/login", loginLimiter, h.Auth.Login)
 	app.Post("/api/v1/auth/magic-link/request", magicLinkLimiter, h.Auth.RequestMagicLink)
 	app.Post("/api/v1/auth/magic-link/verify", h.Auth.VerifyMagicLink)
+	app.Post("/api/v1/auth/sms/request", smsOTPLimiter, h.Auth.RequestSMSOTP)
+	app.Post("/api/v1/auth/sms/verify", h.Auth.VerifySMSOTP)
 	app.Post("/api/v1/auth/refresh", h.Auth.Refresh)
 	app.Post("/api/v1/auth/forgot-password", loginLimiter, h.Auth.ForgotPassword)
 	app.Post("/api/v1/auth/reset-password", h.Auth.ResetPassword)
@@ -302,6 +313,12 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		aiQuota, aiUserQuota,
 		h.AI.SummarizeThread,
+	)
+	// Non-PII: uses Gemini if configured, falls back to Ollama
+	v1.Post("/ai/describe-listing",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		aiQuota,
+		h.AI.DescribePropertyListing,
 	)
 
 	// Message Analysis — agents and admin only (intent parsing, enrichment, auto-lead)

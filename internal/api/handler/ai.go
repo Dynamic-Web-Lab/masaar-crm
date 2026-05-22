@@ -11,19 +11,25 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/repo"
 )
 
-// ollamaTimeout caps Ollama inference calls. Model inference can legitimately
-// take 30-60 s on CPU; 90 s is generous but prevents goroutine leaks.
+// ollamaTimeout caps local inference calls (CPU can be slow, 90 s is generous).
 const ollamaTimeout = 90 * time.Second
 
+// cloudTimeout caps cloud API calls — they're fast, fail quickly if down.
+const cloudTimeout = 15 * time.Second
+
 type AIHandler struct {
-	ollama   *ai.Client
+	// sensitive handles anything containing customer PII — always local Ollama.
+	sensitive *ai.Client
+	// cloud handles non-PII tasks (property copy, market summaries).
+	// May be Gemini or fall back to Ollama if Gemini is not configured.
+	cloud    *ai.Client
 	contacts *repo.ContactRepo
 	leads    *repo.LeadRepo
 	wa       *repo.WhatsAppRepo
 }
 
-func NewAIHandler(ollama *ai.Client, contacts *repo.ContactRepo, leads *repo.LeadRepo, wa *repo.WhatsAppRepo) *AIHandler {
-	return &AIHandler{ollama: ollama, contacts: contacts, leads: leads, wa: wa}
+func NewAIHandler(sensitive, cloud *ai.Client, contacts *repo.ContactRepo, leads *repo.LeadRepo, wa *repo.WhatsAppRepo) *AIHandler {
+	return &AIHandler{sensitive: sensitive, cloud: cloud, contacts: contacts, leads: leads, wa: wa}
 }
 
 // POST /api/v1/ai/score-lead/:id
@@ -46,7 +52,7 @@ func (h *AIHandler) ScoreLead(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "contact not found"})
 	}
 
-	result, err := h.ollama.ScoreLead(ctx, contact.FullName, lead.Notes, string(lead.Source))
+	result, err := h.sensitive.ScoreLead(ctx, contact.FullName, lead.Notes, string(lead.Source))
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
 	}
@@ -83,7 +89,7 @@ func (h *AIHandler) DraftReply(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "thread not found"})
 	}
 
-	summary, err := h.ollama.SummarizeThread(ctx, bodies)
+	summary, err := h.sensitive.SummarizeThread(ctx, bodies)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
 	}
@@ -97,7 +103,7 @@ func (h *AIHandler) DraftReply(c *fiber.Ctx) error {
 		name = contact.FullName
 	}
 
-	draft, err := h.ollama.DraftReply(ctx, name, lang, summary)
+	draft, err := h.sensitive.DraftReply(ctx, name, lang, summary)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
 	}
@@ -138,10 +144,50 @@ func (h *AIHandler) SummarizeThread(c *fiber.Ctx) error {
 		bodies = append(bodies, m.Body)
 	}
 
-	summary, err := h.ollama.SummarizeThread(ctx, bodies)
+	summary, err := h.sensitive.SummarizeThread(ctx, bodies)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
 	}
 
 	return c.JSON(fiber.Map{"summary": summary})
+}
+
+// DescribePropertyListing godoc
+// @Summary      AI property listing description
+// @Description  Generates professional marketing copy for a property listing using public specs only (no customer PII). Uses Gemini if configured, falls back to Ollama.
+// @Tags         AI
+// @Accept       json
+// @Produce      json
+// @Param        body  body  object{}  true  "Property details: area, property_type, bedrooms, size_sqft, amenities, lang"
+// @Success      200   {object}  object{description=string,provider=string}
+// @Failure      400   {object}  object{error=string}
+// @Failure      503   {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /ai/describe-listing [post]
+func (h *AIHandler) DescribePropertyListing(c *fiber.Ctx) error {
+	if h.cloud == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
+	}
+
+	var req struct {
+		Area         string   `json:"area"`
+		PropertyType string   `json:"property_type"`
+		Bedrooms     string   `json:"bedrooms"`
+		SizeSqft     int      `json:"size_sqft"`
+		Amenities    []string `json:"amenities"`
+		Lang         string   `json:"lang"`
+	}
+	if err := c.BodyParser(&req); err != nil || req.Area == "" || req.PropertyType == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "area and property_type are required"})
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), cloudTimeout)
+	defer cancel()
+
+	description, err := h.cloud.DescribePropertyListing(ctx, req.Area, req.PropertyType, req.Bedrooms, req.SizeSqft, req.Amenities, req.Lang)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
+	}
+
+	return c.JSON(fiber.Map{"description": description})
 }

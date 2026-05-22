@@ -56,6 +56,16 @@ export const api = {
         method: 'DELETE',
         body: JSON.stringify({ refresh_token: refreshToken }),
       }),
+    requestSMSOTP: (phone: string, lang?: string) =>
+      request('/api/v1/auth/sms/request', {
+        method: 'POST',
+        body: JSON.stringify({ phone, lang }),
+      }),
+    verifySMSOTP: (phone: string, otp: string) =>
+      request('/api/v1/auth/sms/verify', {
+        method: 'POST',
+        body: JSON.stringify({ phone, otp }),
+      }),
   },
 
   // ─── Contacts ───────────────────────────────────────────────────────────────
