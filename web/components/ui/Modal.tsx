@@ -1,6 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
-import { useLang } from '@/context/LangContext'
+import { useEffect, useRef } from 'react'
 import clsx from 'clsx'
 
 interface ModalProps {
@@ -11,7 +10,6 @@ interface ModalProps {
 }
 
 export function Modal({ open, onClose, title, children }: ModalProps) {
-  const { isRtl } = useLang()
   const dialogRef = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
@@ -40,14 +38,13 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
       ref={dialogRef}
       className={clsx(
         'backdrop:bg-surface-900/50 backdrop:backdrop-blur-sm bg-transparent p-0 m-auto',
-        'open:animate-fade-in',
-        isRtl ? 'ml-auto mr-0 rtl' : 'mr-auto ml-0'
+        'open:animate-fade-in'
       )}
       onClick={(e) => {
         if (e.target === dialogRef.current) onClose()
       }}
     >
-      <div className="bg-white rounded-2xl shadow-pop ring-1 ring-surface-200/60 w-full max-w-md p-6 animate-scale-in">
+      <div className="bg-white rounded-2xl shadow-pop ring-1 ring-surface-200/60 w-full max-w-lg p-6 animate-scale-in">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold text-surface-900 tracking-tight">{title}</h2>
           <button
