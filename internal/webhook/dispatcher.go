@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -35,6 +36,33 @@ type Payload struct {
 	Event     string      `json:"event"`
 	Timestamp string      `json:"timestamp"`
 	Data      interface{} `json:"data"`
+}
+
+// createSafeTransport creates an http.Transport that prevents SSRF by blocking internal IP ranges
+func createSafeTransport() *http.Transport {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+
+	dialer := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+		Control: func(network, address string, c syscall.RawConn) error {
+			host, _, err := net.SplitHostPort(address)
+			if err != nil {
+				return err
+			}
+			ip := net.ParseIP(host)
+			if ip == nil {
+				return errors.New("invalid IP address")
+			}
+			if ip.IsPrivate() || ip.IsLoopback() || ip.IsUnspecified() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+				return errors.New("blocked private/internal IP address")
+			}
+			return nil
+		},
+	}
+
+	transport.DialContext = dialer.DialContext
+	return transport
 }
 
 // Dispatcher fires outbound webhooks for CRM events.
