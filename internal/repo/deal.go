@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -17,23 +18,35 @@ func NewDealRepo(db *pgxpool.Pool) *DealRepo {
 	return &DealRepo{db: db}
 }
 
-func (r *DealRepo) List(ctx context.Context, ownerID *uuid.UUID, page, limit int) (*domain.PaginatedResult[domain.Deal], error) {
+func (r *DealRepo) List(ctx context.Context, ownerID *uuid.UUID, stage string, page, limit int) (*domain.PaginatedResult[domain.Deal], error) {
 	offset := (page - 1) * limit
 
-	const countQ = `SELECT COUNT(*) FROM deals WHERE ($1::uuid IS NULL OR owner_id = $1)`
+	args := []any{}
+	where := "true"
+
+	if ownerID != nil {
+		args = append(args, *ownerID)
+		where = "owner_id = $" + strconv.Itoa(len(args))
+	}
+	if stage != "" {
+		args = append(args, stage)
+		where += " AND stage = $" + strconv.Itoa(len(args))
+	}
+
+	countQ := "SELECT COUNT(*) FROM deals WHERE " + where
 	var total int
-	if err := r.db.QueryRow(ctx, countQ, ownerID).Scan(&total); err != nil {
+	if err := r.db.QueryRow(ctx, countQ, args...).Scan(&total); err != nil {
 		return nil, fmt.Errorf("count deals: %w", err)
 	}
 
-	const q = `
+	args = append(args, limit, offset)
+	q := `
 		SELECT id, lead_id, title, stage, amount, currency, close_date, probability, owner_id, created_at, updated_at
 		FROM deals
-		WHERE ($1::uuid IS NULL OR owner_id = $1)
+		WHERE ` + where + `
 		ORDER BY created_at DESC
-		LIMIT $2 OFFSET $3
-	`
-	rows, err := r.db.Query(ctx, q, ownerID, limit, offset)
+		LIMIT $` + strconv.Itoa(len(args)-1) + ` OFFSET $` + strconv.Itoa(len(args))
+	rows, err := r.db.Query(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list deals: %w", err)
 	}
@@ -91,11 +104,11 @@ func (r *DealRepo) Create(ctx context.Context, d *domain.Deal) error {
 
 func (r *DealRepo) Update(ctx context.Context, d *domain.Deal) error {
 	const q = `
-		UPDATE deals SET amount=$1, probability=$2, close_date=$3, updated_at=NOW()
-		WHERE id=$4
+		UPDATE deals SET title=$1, amount=$2, currency=$3, probability=$4, close_date=$5, updated_at=NOW()
+		WHERE id=$6
+		RETURNING updated_at
 	`
-	_, err := r.db.Exec(ctx, q, d.Amount, d.Probability, d.CloseDate, d.ID)
-	return err
+	return r.db.QueryRow(ctx, q, d.Title, d.Amount, d.Currency, d.Probability, d.CloseDate, d.ID).Scan(&d.UpdatedAt)
 }
 
 func (r *DealRepo) UpdateStage(ctx context.Context, id uuid.UUID, stage domain.DealStage) error {

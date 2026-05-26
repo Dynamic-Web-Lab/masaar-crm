@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-
-const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
+import { api } from '@/lib/api'
 
 interface Signature {
   id: string
@@ -38,11 +37,7 @@ export default function PublicSignPage() {
 
   useEffect(() => {
     if (!id) return
-    fetch(`${BASE}/api/public/sign/${id}`)
-      .then(async (res) => {
-        if (!res.ok) throw new Error('Signature not found')
-        return res.json()
-      })
+    api.public.getSignature(id)
       .then((d: SignatureData) => {
         setData(d)
         if (d.signature.signature_status === 'signed') {
@@ -61,8 +56,7 @@ export default function PublicSignPage() {
     if (!agreed || !id) return
     setPageState('signing')
     try {
-      const res = await fetch(`${BASE}/api/public/sign/${id}`, { method: 'POST' })
-      if (!res.ok) throw new Error('Failed to sign')
+      await api.public.sign(id)
       setPageState('signed')
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Signing failed')

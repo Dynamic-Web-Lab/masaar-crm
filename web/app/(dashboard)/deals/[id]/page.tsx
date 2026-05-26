@@ -7,6 +7,7 @@ import { useLang } from '@/context/LangContext'
 import type { Deal, VATInvoice } from '@/types'
 import clsx from 'clsx'
 import DocumentAttachmentSection from '@/components/DocumentAttachmentSection'
+import EmailComposeModal from '@/components/communication/EmailComposeModal'
 
 const invoiceStatusColor: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-600',
@@ -33,6 +34,10 @@ export default function DealDetailPage() {
   const [editProbability, setEditProbability] = useState('')
   const [editCloseDate, setEditCloseDate] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
+  const [error, setError] = useState('')
+  const [emailOpen, setEmailOpen] = useState(false)
+  const [contactEmail, setContactEmail] = useState('')
+  const [contactName, setContactName] = useState('')
   const { lang, t } = useLang()
 
   const load = () => {
@@ -46,6 +51,13 @@ export default function DealDetailPage() {
       setEditAmount(d.amount?.toString() || '')
       setEditProbability(d.probability?.toString() || '')
       setEditCloseDate(d.close_date || '')
+      if (d.lead_id) {
+        api.leads.get(d.lead_id).then((lead: any) => {
+          const c = lead?.contact
+          if (c?.email) setContactEmail(c.email)
+          if (c?.full_name) setContactName(c.full_name)
+        }).catch(() => {})
+      }
     }).finally(() => setLoading(false))
   }
 
@@ -68,29 +80,39 @@ export default function DealDetailPage() {
   const handleSaveEdit = async () => {
     if (!deal) return
     setSavingEdit(true)
+    setError('')
     try {
       await api.deals.update(id, {
-        amount: editAmount ? parseFloat(editAmount) : null,
-        probability: editProbability ? parseInt(editProbability) : null,
+        title: deal.title,
+        amount: editAmount !== '' ? parseFloat(editAmount) : 0,
+        probability: editProbability !== '' ? parseInt(editProbability) : 0,
         close_date: editCloseDate || null,
       })
       setShowEditForm(false)
       load()
-    } catch {
-      console.error('Failed to update deal')
+    } catch (e) {
+      setError((e as Error).message || t('فشل تحديث الصفقة', 'Failed to update deal'))
     } finally {
       setSavingEdit(false)
     }
   }
 
   const handleSend = async (invId: string) => {
-    await api.invoices.send(invId).catch(() => {})
-    load()
+    try {
+      await api.invoices.send(invId)
+      load()
+    } catch (e) {
+      setError((e as Error).message || t('فشل إرسال الفاتورة', 'Failed to send invoice'))
+    }
   }
 
   const handleMarkPaid = async (invId: string) => {
-    await api.invoices.updateStatus(invId, 'paid').catch(() => {})
-    load()
+    try {
+      await api.invoices.updateStatus(invId, 'paid')
+      load()
+    } catch (e) {
+      setError((e as Error).message || t('فشل تحديث الفاتورة', 'Failed to update invoice'))
+    }
   }
 
   const formatAmount = (amount: number) =>
@@ -122,6 +144,12 @@ export default function DealDetailPage() {
       <Header title={deal.title} />
 
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 flex items-center justify-between">
+            <span>{error}</span>
+            <button onClick={() => setError('')} className="text-red-400 hover:text-red-600">✕</button>
+          </div>
+        )}
 
         {/* Deal summary with edit button */}
         <div>
@@ -211,6 +239,21 @@ export default function DealDetailPage() {
                 {savingEdit ? t('جاري الحفظ...', 'Saving...') : t('حفظ', 'Save')}
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Contact Email */}
+        {contactEmail && (
+          <div className="bg-white rounded-xl border border-gray-100 p-5 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-gray-400 mb-1">{t('جهة الاتصال', 'Contact')}</p>
+              <p className="font-medium text-gray-700">{contactName || contactEmail}</p>
+              <p className="text-xs text-gray-400">{contactEmail}</p>
+            </div>
+            <button onClick={() => setEmailOpen(true)}
+              className="px-4 py-2 text-sm font-medium bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors">
+              ✉ {t('إرسال بريد', 'Send Email')}
+            </button>
           </div>
         )}
 
@@ -364,6 +407,15 @@ export default function DealDetailPage() {
             </div>
           </div>
         )}
+
+        <EmailComposeModal
+          open={emailOpen}
+          onClose={() => setEmailOpen(false)}
+          toEmail={contactEmail}
+          toName={contactName}
+          relatedTo="deal"
+          relatedId={id}
+        />
       </div>
     </div>
   )

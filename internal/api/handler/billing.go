@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -234,7 +235,9 @@ func (h *BillingHandler) StripeWebhook(c *fiber.Ctx) error {
 			subID = sess.Subscription.ID
 		}
 		exp := time.Now().AddDate(0, 1, 0)
-		_ = h.billingRepo.SetPlan(ctx, planID, customerID, subID, &exp)
+		if err := h.billingRepo.SetPlan(ctx, planID, customerID, subID, &exp); err != nil {
+			log.Printf("billing: SetPlan (checkout) failed: %v", err)
+		}
 
 	case "customer.subscription.updated":
 		var sub stripe.Subscription
@@ -250,7 +253,9 @@ func (h *BillingHandler) StripeWebhook(c *fiber.Ctx) error {
 			customerID = sub.Customer.ID
 		}
 		exp := time.Unix(sub.CurrentPeriodEnd, 0)
-		_ = h.billingRepo.SetPlan(ctx, planID, customerID, sub.ID, &exp)
+		if err := h.billingRepo.SetPlan(ctx, planID, customerID, sub.ID, &exp); err != nil {
+			log.Printf("billing: SetPlan (updated) failed: %v", err)
+		}
 
 	case "customer.subscription.deleted":
 		var sub stripe.Subscription
@@ -261,7 +266,9 @@ func (h *BillingHandler) StripeWebhook(c *fiber.Ctx) error {
 		if sub.Customer != nil {
 			customerID = sub.Customer.ID
 		}
-		_ = h.billingRepo.SetPlan(ctx, billing.PlanCommunity, customerID, "", nil)
+		if err := h.billingRepo.SetPlan(ctx, billing.PlanCommunity, customerID, "", nil); err != nil {
+			log.Printf("billing: SetPlan (deleted) failed: %v", err)
+		}
 	}
 
 	return c.SendStatus(fiber.StatusOK)

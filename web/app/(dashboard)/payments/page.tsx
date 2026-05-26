@@ -117,7 +117,7 @@ export default function PaymentsPage() {
                       <td className="px-4 py-3 font-medium text-gray-900">{p.currency} {p.amount.toLocaleString()}</td>
                       <td className="px-4 py-3 text-gray-500 text-xs">{fmtDate(p.due_date)}</td>
                       <td className="px-4 py-3 text-gray-600 capitalize text-xs">{p.payment_method?.replace('_', ' ')}</td>
-                      <td className="px-4 py-3 text-gray-500 text-xs">{fmtDate(p.received_date)}</td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">{fmtDate(p.paid_date)}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded text-xs font-medium ${statusColor(p.status)}`}>{statusLabel(p.status)}</span>
                       </td>

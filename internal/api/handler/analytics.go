@@ -32,7 +32,7 @@ func NewAnalyticsHandler(analyticsRepo *repo.AnalyticsRepository) *AnalyticsHand
 // @Failure 500 {object} map[string]interface{} "Server error"
 // @Router /api/v1/analytics/tenant-overview [get]
 func (h *AnalyticsHandler) GetTenantOverview(c *fiber.Ctx) error {
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 
 	analytics, err := h.analyticsRepo.GetTenantAnalytics(c.Context(), companyID)
 	if err != nil {
@@ -59,7 +59,7 @@ func (h *AnalyticsHandler) GetTenantOverview(c *fiber.Ctx) error {
 // @Failure 500 {object} map[string]interface{} "Server error"
 // @Router /api/v1/analytics/properties [get]
 func (h *AnalyticsHandler) ListPropertiesAnalytics(c *fiber.Ctx) error {
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 
 	limit, err := strconv.Atoi(c.Query("limit", "10"))
 	if err != nil || limit < 1 || limit > 100 {
@@ -102,7 +102,7 @@ func (h *AnalyticsHandler) ListPropertiesAnalytics(c *fiber.Ctx) error {
 // @Failure 500 {object} map[string]interface{} "Server error"
 // @Router /api/v1/analytics/properties/{propertyID} [get]
 func (h *AnalyticsHandler) GetPropertyAnalytics(c *fiber.Ctx) error {
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 
 	propertyIDStr := c.Params("propertyID")
 	propertyID, err := uuid.Parse(propertyIDStr)
@@ -142,7 +142,7 @@ func (h *AnalyticsHandler) GetPropertyAnalytics(c *fiber.Ctx) error {
 // @Failure 500 {object} map[string]interface{} "Server error"
 // @Router /api/v1/analytics/tenants [get]
 func (h *AnalyticsHandler) ListTenantsPerformance(c *fiber.Ctx) error {
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 
 	limit, err := strconv.Atoi(c.Query("limit", "10"))
 	if err != nil || limit < 1 || limit > 100 {
@@ -185,7 +185,7 @@ func (h *AnalyticsHandler) ListTenantsPerformance(c *fiber.Ctx) error {
 // @Failure 500 {object} map[string]interface{} "Server error"
 // @Router /api/v1/analytics/tenants/{tenantID} [get]
 func (h *AnalyticsHandler) GetTenantPerformance(c *fiber.Ctx) error {
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 
 	tenantIDStr := c.Params("tenantID")
 	tenantID, err := uuid.Parse(tenantIDStr)
@@ -225,7 +225,7 @@ func (h *AnalyticsHandler) GetTenantPerformance(c *fiber.Ctx) error {
 // @Failure 500 {object} map[string]interface{} "Server error"
 // @Router /api/v1/analytics/financial [get]
 func (h *AnalyticsHandler) GetFinancialAnalytics(c *fiber.Ctx) error {
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 
 	startDateStr := c.Query("startDate", time.Now().AddDate(0, -1, 0).Format("2006-01-02"))
 	endDateStr := c.Query("endDate", time.Now().Format("2006-01-02"))
@@ -266,7 +266,7 @@ func (h *AnalyticsHandler) GetFinancialAnalytics(c *fiber.Ctx) error {
 // @Failure 500 {object} map[string]interface{} "Server error"
 // @Router /api/v1/analytics/maintenance [get]
 func (h *AnalyticsHandler) GetMaintenanceAnalytics(c *fiber.Ctx) error {
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 
 	analytics, err := h.analyticsRepo.GetMaintenanceAnalytics(c.Context(), companyID)
 	if err != nil {

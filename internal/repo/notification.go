@@ -78,6 +78,11 @@ func (r *NotificationRepo) MarkRead(ctx context.Context, id, userID uuid.UUID) e
 	return err
 }
 
+func (r *NotificationRepo) MarkAllRead(ctx context.Context, userID uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `UPDATE notifications SET read = true WHERE user_id = $1 AND read = false`, userID)
+	return err
+}
+
 func (r *NotificationRepo) UnreadCount(ctx context.Context, userID uuid.UUID) (int, error) {
 	var count int
 	query := `SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND read = false`

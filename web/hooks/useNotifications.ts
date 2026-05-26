@@ -42,5 +42,16 @@ export function useNotifications(userId: string | null) {
     setUnread((c) => Math.max(0, c - 1))
   }
 
-  return { notifications, unread, markRead }
+  const markAllRead = async () => {
+    await api.notifications.markAllRead().catch(() => {})
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    setUnread(0)
+  }
+
+  const loadMore = async (page: number) => {
+    const res: any = await api.notifications.list({ page }).catch(() => ({ data: [] }))
+    return res?.data ?? []
+  }
+
+  return { notifications, unread, markRead, markAllRead, loadMore }
 }

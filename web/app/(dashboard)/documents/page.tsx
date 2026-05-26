@@ -1,241 +1,177 @@
 'use client'
-
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import api from '@/lib/api'
+import Link from 'next/link'
+import { Header } from '@/components/layout/Header'
+import { useLang } from '@/context/LangContext'
+import { useAuthStore } from '@/store/auth'
+import { api } from '@/lib/api'
+import type { DocumentTemplate, PaginatedResult } from '@/types'
+import clsx from 'clsx'
 
-interface DocumentTemplate {
-  id: string
-  company_id: string
-  template_name: string
-  document_type: string
-  template_content: string
-  language?: string
-  signature_required?: boolean
-  signature_fields?: string[]
-  created_by: string
-  created_at: string
-}
-
-interface PaginatedResult {
-  data: DocumentTemplate[]
-  total: number
-  page: number
-  limit: number
-}
+const docTypes = ['lease', 'contract', 'invoice', 'agreement', 'other'] as const
 
 export default function DocumentsPage() {
-  const router = useRouter()
+  const { t, lang } = useLang()
+  const { user } = useAuthStore()
+  const isAgent = user?.role === 'admin' || user?.role === 'agent'
+
   const [templates, setTemplates] = useState<DocumentTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const limit = 20
 
-  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [showCreate, setShowCreate] = useState(false)
   const [creating, setCreating] = useState(false)
-  const [formData, setFormData] = useState({
-    template_name: '',
-    document_type: '',
-    template_content: '',
-    language: 'en',
-    signature_required: false,
-  })
+  const [form, setForm] = useState({ template_name: '', document_type: '', template_content: '', language: 'en', signature_required: false })
+  const [error, setError] = useState('')
 
-  useEffect(() => {
-    loadTemplates()
-  }, [page])
+  useEffect(() => { load() }, [page])
 
-  async function loadTemplates() {
+  const load = async () => {
     setLoading(true)
     try {
-      const result = await api.documents.templates.list(page, limit)
-      if (result && typeof result === 'object') {
-        const paginatedResult = result as PaginatedResult
-        setTemplates(paginatedResult.data || [])
-        setTotal(paginatedResult.total || 0)
-      }
-    } catch (err) {
-      console.error('Failed to load templates:', err)
-    } finally {
-      setLoading(false)
-    }
+      const res = await api.documents.templates.list(page, limit) as PaginatedResult<DocumentTemplate>
+      setTemplates(res.data ?? [])
+      setTotal(res.total ?? 0)
+    } catch { setTemplates([]) } finally { setLoading(false) }
   }
 
-  async function handleCreateTemplate() {
-    if (!formData.template_name || !formData.document_type) {
-      alert('Template name and document type are required')
-      return
-    }
-
-    setCreating(true)
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault(); setError(''); setCreating(true)
     try {
-      await api.documents.templates.create(formData)
-      setFormData({
-        template_name: '',
-        document_type: '',
-        template_content: '',
-        language: 'en',
-        signature_required: false,
+      await api.documents.templates.create({
+        template_name: form.template_name,
+        document_type: form.document_type,
+        template_content: form.template_content,
+        language: form.language,
+        signature_required: form.signature_required,
       })
-      setShowCreateForm(false)
-      setPage(1)
-      loadTemplates()
-    } catch (err) {
-      console.error('Failed to create template:', err)
-      alert('Failed to create template')
-    } finally {
-      setCreating(false)
-    }
+      setShowCreate(false)
+      setForm({ template_name: '', document_type: '', template_content: '', language: 'en', signature_required: false })
+      setPage(1); load()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : t('حدث خطأ', 'Failed'))
+    } finally { setCreating(false) }
   }
 
-  async function handleDeleteTemplate(id: string) {
-    if (!confirm('Delete this template?')) return
-
-    try {
-      await api.documents.templates.delete(id)
-      loadTemplates()
-    } catch (err) {
-      console.error('Failed to delete template:', err)
-      alert('Failed to delete template')
-    }
+  const handleDelete = async (id: string) => {
+    if (!confirm(t('حذف القالب؟', 'Delete this template?'))) return
+    try { await api.documents.templates.delete(id); load() } catch {}
   }
 
   const totalPages = Math.ceil(total / limit)
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Document Templates</h1>
-            <p className="text-gray-600 mt-1">Create and manage reusable document templates</p>
-          </div>
-          <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium"
-          >
-            {showCreateForm ? 'Cancel' : '+ New Template'}
-          </button>
+    <div className="flex flex-col flex-1 overflow-hidden">
+      <Header title={t('قوالب المستندات', 'Document Templates')} />
+      <div className="flex-1 overflow-auto p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-surface-900">
+            {t('قوالب المستندات', 'Templates')}
+            <span className="ml-2 text-sm font-normal text-surface-500">({total})</span>
+          </h2>
+          {isAgent && (
+            <button onClick={() => setShowCreate(!showCreate)}
+              className="px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors">
+              + {t('قالب جديد', 'New Template')}
+            </button>
+          )}
         </div>
 
         {/* Create Form */}
-        {showCreateForm && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">Create Template</h2>
-            <div className="space-y-4">
+        {showCreate && (
+          <div className="bg-white rounded-xl border border-surface-200/70 p-5 mb-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-surface-900 mb-4">{t('إنشاء قالب', 'Create Template')}</h3>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-surface-600 mb-1">{t('اسم القالب', 'Template Name')} *</label>
+                  <input required value={form.template_name} onChange={e => setForm(f => ({ ...f, template_name: e.target.value }))}
+                    className="w-full px-3 py-2 border border-surface-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                    placeholder={t('مثل: عقد إيجار قياسي', 'e.g. Standard Lease')} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-surface-600 mb-1">{t('نوع المستند', 'Document Type')} *</label>
+                  <select required value={form.document_type} onChange={e => setForm(f => ({ ...f, document_type: e.target.value }))}
+                    className="w-full px-3 py-2 border border-surface-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/40">
+                    <option value="">{t('اختر...', 'Select...')}</option>
+                    {docTypes.map(dt => <option key={dt} value={dt}>{dt}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-surface-600 mb-1">{t('اللغة', 'Language')}</label>
+                  <select value={form.language} onChange={e => setForm(f => ({ ...f, language: e.target.value }))}
+                    className="w-full px-3 py-2 border border-surface-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/40">
+                    <option value="en">English</option>
+                    <option value="ar">العربية</option>
+                  </select>
+                </div>
+                <div className="flex items-end pb-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={form.signature_required} onChange={e => setForm(f => ({ ...f, signature_required: e.target.checked }))}
+                      className="w-4 h-4 rounded accent-primary-600" />
+                    <span className="text-xs font-medium text-surface-600">{t('يتطلب توقيع', 'Requires signature')}</span>
+                  </label>
+                </div>
+              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Template Name</label>
-                <input
-                  type="text"
-                  value={formData.template_name}
-                  onChange={(e) => setFormData({ ...formData, template_name: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Standard Lease Agreement"
-                />
+                <label className="block text-xs font-medium text-surface-600 mb-1">{t('المحتوى', 'Content')}</label>
+                <textarea rows={6} value={form.template_content} onChange={e => setForm(f => ({ ...f, template_content: e.target.value }))}
+                  className="w-full px-3 py-2 border border-surface-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                  placeholder={t('استخدم {{placeholders}} للحقول المتغيرة', 'Use {{placeholders}} for dynamic fields')} />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Document Type</label>
-                <select
-                  value={formData.document_type}
-                  onChange={(e) => setFormData({ ...formData, document_type: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select type</option>
-                  <option value="lease">Lease Agreement</option>
-                  <option value="contract">Contract</option>
-                  <option value="invoice">Invoice</option>
-                  <option value="agreement">Agreement</option>
-                  <option value="other">Other</option>
-                </select>
+              {error && <p className="text-xs text-red-500 bg-red-50 p-2 rounded">{error}</p>}
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => { setShowCreate(false); setError('') }}
+                  className="flex-1 py-2 border border-surface-200 rounded-lg text-sm text-surface-600 hover:bg-surface-50">{t('إلغاء', 'Cancel')}</button>
+                <button type="submit" disabled={creating}
+                  className="flex-1 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-60">
+                  {creating ? t('جاري الإنشاء...', 'Creating...') : t('إنشاء', 'Create')}
+                </button>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Language</label>
-                <select
-                  value={formData.language}
-                  onChange={(e) => setFormData({ ...formData, language: e.target.value })}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="en">English</option>
-                  <option value="ar">Arabic</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Template Content</label>
-                <textarea
-                  value={formData.template_content}
-                  onChange={(e) => setFormData({ ...formData, template_content: e.target.value })}
-                  rows={6}
-                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                  placeholder="Enter template content with {{placeholders}} for dynamic fields"
-                />
-              </div>
-
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={formData.signature_required}
-                  onChange={(e) => setFormData({ ...formData, signature_required: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 rounded"
-                  id="signature_required"
-                />
-                <label htmlFor="signature_required" className="ml-2 text-sm text-gray-700">
-                  Requires signatures
-                </label>
-              </div>
-
-              <button
-                onClick={handleCreateTemplate}
-                disabled={creating}
-                className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 font-medium"
-              >
-                {creating ? 'Creating...' : 'Create Template'}
-              </button>
-            </div>
+            </form>
           </div>
         )}
 
         {/* Templates List */}
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="text-gray-600 mt-4">Loading templates...</p>
-          </div>
+          <div className="text-center py-12 text-surface-400 text-sm">{t('جاري التحميل...', 'Loading...')}</div>
         ) : templates.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <p className="text-gray-600">No templates yet. Create your first template to get started.</p>
+          <div className="bg-white rounded-xl border border-surface-200/70 p-12 text-center">
+            <p className="text-surface-400 text-sm mb-3">{t('لا توجد قوالب', 'No templates yet')}</p>
+            {isAgent && <button onClick={() => setShowCreate(true)} className="text-primary-600 text-sm font-medium hover:underline">+ {t('أنشئ أول قالب', 'Create your first template')}</button>}
           </div>
         ) : (
-          <div className="space-y-4">
-            {templates.map((template) => (
-              <div key={template.id} className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg text-gray-900">{template.template_name}</h3>
-                    <p className="text-sm text-gray-600 mt-1">Type: {template.document_type}</p>
-                    {template.signature_required && (
-                      <span className="inline-block mt-2 px-2 py-1 text-xs font-medium bg-amber-100 text-amber-800 rounded">
-                        Requires Signatures
-                      </span>
-                    )}
+          <div className="space-y-2">
+            {templates.map(tmpl => (
+              <div key={tmpl.id} className="bg-white rounded-xl border border-surface-200/70 p-4 hover:shadow-sm transition-shadow">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <Link href={`/documents/templates/${tmpl.id}`} className="font-medium text-surface-900 hover:text-primary-600 text-sm">
+                      {tmpl.template_name}
+                    </Link>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 bg-surface-100 text-surface-600 rounded">{tmpl.document_type}</span>
+                      <span className="text-[10px] text-surface-400">{tmpl.language?.toUpperCase()}</span>
+                      {tmpl.signature_required && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">{t('توقيع', 'Signature')}</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => router.push(`/documents/templates/${template.id}`)}
-                      className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded text-gray-700 font-medium"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteTemplate(template.id)}
-                      className="px-3 py-1 text-sm bg-red-100 hover:bg-red-200 rounded text-red-700 font-medium"
-                    >
-                      Delete
-                    </button>
+                  <div className="flex gap-1.5 shrink-0">
+                    <Link href={`/documents/templates/${tmpl.id}`}
+                      className="px-3 py-1 text-xs bg-surface-100 text-surface-700 rounded-md hover:bg-surface-200 font-medium">
+                      {t('تعديل', 'Edit')}
+                    </Link>
+                    {isAgent && (
+                      <button onClick={() => handleDelete(tmpl.id)}
+                        className="px-3 py-1 text-xs bg-red-50 text-red-600 rounded-md hover:bg-red-100 font-medium">
+                        {t('حذف', 'Delete')}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -243,26 +179,13 @@ export default function DocumentsPage() {
           </div>
         )}
 
-        {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex justify-center gap-2 mt-8">
-            <button
-              onClick={() => setPage(Math.max(1, page - 1))}
-              disabled={page === 1}
-              className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <span className="px-3 py-1">
-              Page {page} of {totalPages}
-            </span>
-            <button
-              onClick={() => setPage(Math.min(totalPages, page + 1))}
-              disabled={page === totalPages}
-              className="px-3 py-1 border border-gray-300 rounded disabled:opacity-50"
-            >
-              Next
-            </button>
+          <div className="flex justify-center gap-2 mt-6">
+            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+              className="px-4 py-2 border border-surface-200 rounded-lg disabled:opacity-40 hover:bg-surface-50 text-sm">{t('السابق', 'Prev')}</button>
+            <span className="flex items-center px-3 text-sm text-surface-500">{page} / {totalPages}</span>
+            <button onClick={() => setPage(p => p + 1)} disabled={page >= totalPages}
+              className="px-4 py-2 border border-surface-200 rounded-lg disabled:opacity-40 hover:bg-surface-50 text-sm">{t('التالي', 'Next')}</button>
           </div>
         )}
       </div>

@@ -36,7 +36,7 @@ func NewLeaseRenewalHandler(renewalRepo *repo.LeaseRenewalRepo, templateRepo *re
 // @Success 200 {object} map[string]interface{}
 // @Router /api/v1/lease-renewals [get]
 func (h *LeaseRenewalHandler) List(c *fiber.Ctx) error {
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID := uuid.Parse(c.Locals("company_id").(string))
 
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	if limit < 1 || limit > 100 {
@@ -102,7 +102,7 @@ func (h *LeaseRenewalHandler) Get(c *fiber.Ctx) error {
 // @Success 201 {object} map[string]interface{}
 // @Router /api/v1/lease-renewals/{lease_id}/initiate [post]
 func (h *LeaseRenewalHandler) Initiate(c *fiber.Ctx) error {
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID := uuid.Parse(c.Locals("company_id").(string))
 	leaseID, err := uuid.Parse(c.Params("lease_id"))
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Invalid lease ID"})
@@ -245,8 +245,6 @@ func (h *LeaseRenewalHandler) Accept(c *fiber.Ctx) error {
 
 	renewal.RenewalStatus = domain.RenewalAccepted
 	renewal.TenantResponse = domain.ResponseAccepted
-	now := time.Now()
-	renewal.CounterOfferDate = &now
 
 	if err := h.renewalRepo.Update(c.Context(), renewal); err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to accept renewal"})
@@ -328,7 +326,7 @@ func (h *LeaseRenewalHandler) CounterOffer(c *fiber.Ctx) error {
 // @Success 200 {object} map[string]interface{}
 // @Router /api/v1/renewal-templates [get]
 func (h *LeaseRenewalHandler) ListTemplates(c *fiber.Ctx) error {
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID := uuid.Parse(c.Locals("company_id").(string))
 
 	templates, err := h.templateRepo.List(c.Context(), companyID)
 	if err != nil {
@@ -346,7 +344,7 @@ func (h *LeaseRenewalHandler) ListTemplates(c *fiber.Ctx) error {
 // @Success 201 {object} map[string]interface{}
 // @Router /api/v1/renewal-templates [post]
 func (h *LeaseRenewalHandler) CreateTemplate(c *fiber.Ctx) error {
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID := uuid.Parse(c.Locals("company_id").(string))
 
 	var req struct {
 		TemplateName string `json:"template_name"`

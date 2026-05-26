@@ -63,19 +63,25 @@ func (r *WhatsAppRepo) UpdateThreadMeta(ctx context.Context, threadID uuid.UUID)
 	return err
 }
 
-func (r *WhatsAppRepo) ListThreads(ctx context.Context, status string, page, limit int) ([]domain.WhatsAppThread, error) {
+func (r *WhatsAppRepo) ListThreads(ctx context.Context, status string, contactID *uuid.UUID, page, limit int) ([]domain.WhatsAppThread, error) {
 	offset := (page - 1) * limit
-	const q = `
+	args := []any{status, limit, offset}
+	contactFilter := ""
+	if contactID != nil {
+		contactFilter = "AND t.contact_id = $4"
+		args = append(args, *contactID)
+	}
+	q := fmt.Sprintf(`
 		SELECT t.id, t.contact_id, t.wa_account_id, t.thread_status,
 		       t.last_message_at, t.message_count, t.ai_summary, t.created_at,
 		       c.id, c.phone_wa, c.full_name, c.language
 		FROM whatsapp_threads t
 		JOIN contacts c ON c.id = t.contact_id
-		WHERE ($1 = '' OR t.thread_status = $1)
+		WHERE ($1 = '' OR t.thread_status = $1) %s
 		ORDER BY t.last_message_at DESC NULLS LAST
 		LIMIT $2 OFFSET $3
-	`
-	rows, err := r.db.Query(ctx, q, status, limit, offset)
+	`, contactFilter)
+	rows, err := r.db.Query(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list threads: %w", err)
 	}
@@ -131,6 +137,16 @@ func (r *WhatsAppRepo) CloseThread(ctx context.Context, threadID uuid.UUID) erro
 		`UPDATE whatsapp_threads SET thread_status='closed' WHERE id=$1`,
 		threadID,
 	)
+	return err
+}
+
+func (r *WhatsAppRepo) UpdateAISummary(ctx context.Context, threadID uuid.UUID, summary string) error {
+	_, err := r.db.Exec(ctx, `UPDATE whatsapp_threads SET ai_summary = $2 WHERE id = $1`, threadID, summary)
+	return err
+}
+
+func (r *WhatsAppRepo) ReopenThread(ctx context.Context, threadID uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `UPDATE whatsapp_threads SET thread_status = 'open' WHERE id = $1`, threadID)
 	return err
 }
 

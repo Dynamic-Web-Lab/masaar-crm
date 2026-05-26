@@ -39,7 +39,7 @@ func (h *DocumentHandler) ListTemplates(c *fiber.Ctx) error {
 		limit = 20
 	}
 
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID := uuid.Parse(c.Locals("company_id").(string))
 	result, err := h.docs.ListTemplates(c.Context(), companyID, page, limit)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
@@ -89,7 +89,7 @@ func (h *DocumentHandler) CreateTemplate(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "template_name and document_type required"})
 	}
 
-	t.CompanyID = c.Locals("company_id").(uuid.UUID)
+	t.CompanyID = uuid.Parse(c.Locals("company_id").(string))
 	t.CreatedBy = c.Locals("user_id").(uuid.UUID)
 
 	if err := h.docs.CreateTemplate(c.Context(), &t); err != nil {
@@ -174,7 +174,7 @@ func (h *DocumentHandler) CreateDocument(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "document_title and document_type required"})
 	}
 
-	d.CompanyID = c.Locals("company_id").(uuid.UUID)
+	d.CompanyID = uuid.Parse(c.Locals("company_id").(string))
 	d.CreatedBy = c.Locals("user_id").(uuid.UUID)
 	d.SignatureStatus = domain.SignaturePending
 

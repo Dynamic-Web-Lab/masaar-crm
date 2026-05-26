@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import api from '@/lib/api'
+import { api } from '@/lib/api'
 
 interface ReportModalProps {
   leadId?: string
@@ -60,22 +60,7 @@ export function ReportModal({ leadId, defaultClientName = '', onClose }: ReportM
         payload.lng = parseFloat(form.lng)
       }
 
-      // Fetch as blob for PDF download
-      const res = await fetch('/api/v1/properties/report/pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`,
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || `HTTP ${res.status}`)
-      }
-
-      const blob = await res.blob()
+      const blob = await api.bos24.reportPdf(payload)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url

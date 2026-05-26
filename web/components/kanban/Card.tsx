@@ -64,16 +64,37 @@ export function KanbanCard({ lead, onOpen }: Props) {
           )}
         </div>
 
+        {/* Assigned agent */}
+        {lead.assigned_user && (
+          <p className="mt-2 text-[10px] text-surface-500 font-medium truncate">
+            👤 {lead.assigned_user.name}
+          </p>
+        )}
+
+        {/* Tags */}
+        {lead.tags && lead.tags.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {lead.tags.slice(0, 3).map((tag) => (
+              <span key={tag} className="text-[9px] px-1.5 py-0.5 bg-primary-50 text-primary-700 rounded-full font-medium">
+                {tag}
+              </span>
+            ))}
+            {lead.tags.length > 3 && (
+              <span className="text-[9px] text-surface-400">+{lead.tags.length - 3}</span>
+            )}
+          </div>
+        )}
+
         {/* Lead score */}
-        {lead.contact?.lead_score != null && lead.contact.lead_score > 0 && (
-          <div className="mt-2.5 flex items-center gap-1.5">
+        {lead.lead_score != null && lead.lead_score > 0 && (
+          <div className="mt-2 flex items-center gap-1.5">
             <div className="flex-1 h-1 bg-surface-100 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-primary-400 to-primary-600 rounded-full"
-                style={{ width: `${lead.contact.lead_score}%` }}
+                style={{ width: `${lead.lead_score}%` }}
               />
             </div>
-            <span className="text-[10px] text-surface-500 tabular-nums font-medium">{lead.contact.lead_score}</span>
+            <span className="text-[10px] text-surface-500 tabular-nums font-medium">{lead.lead_score}</span>
           </div>
         )}
 

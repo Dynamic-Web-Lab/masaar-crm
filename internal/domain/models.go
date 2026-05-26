@@ -1258,6 +1258,20 @@ const (
 	SignatureSigned      SignatureStatus = "signed"
 )
 
+type MessageTemplate struct {
+	ID        uuid.UUID  `json:"id"`
+	CompanyID uuid.UUID  `json:"company_id"`
+	Name      string     `json:"name"`
+	Body      string     `json:"body"`
+	Category  string     `json:"category"`
+	Variables []string   `json:"variables"`
+	IsActive  bool       `json:"is_active"`
+	CreatedBy *uuid.UUID `json:"created_by,omitempty"`
+	UpdatedBy *uuid.UUID `json:"updated_by,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+}
+
 type DocumentTemplate struct {
 	ID                 uuid.UUID                    `json:"id"`
 	CompanyID          uuid.UUID                    `json:"company_id"`

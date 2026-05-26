@@ -124,7 +124,18 @@ swag init -g cmd/server/main.go
 # Swagger UI automatically available at /docs
 ```
 
-**4. API Authentication**
+**4. WhatsApp Outbound Flow**
+
+1. **Ensure sender is configured** — `WA_PHONE_NUMBER_ID`, `WA_ACCESS_TOKEN`, and `WA_BASE_URL` must be set
+2. **Thread must exist** — Threads are auto-created on inbound webhook; for outbound-only, upsert a thread via `repo.WhatsAppRepo.UpsertThread()`
+3. **Pick a send method:**
+   - `send-message` — Free-form text, works with test numbers
+   - `send-template` — Requires Meta-approved template in Business Manager
+   - `send-media` — Requires publicly accessible media URL; type must be one of: `image`, `video`, `document`, `audio`
+4. **Outbound record lifecycle:** `pending` → `sent` (with `wa_message_id`) or `failed` (with `error_message`)
+5. **WebSocket events:** Outbound does NOT broadcast automatically — frontend polls `outbound-messages` or relies on inbound echo from Meta
+
+**5. API Authentication**
 - JWT middleware in `internal/api/middleware/auth.go`
 - Tokens stored in Redis blacklist on logout
 - All protected routes require `Authorization: Bearer <token>` header
@@ -195,11 +206,13 @@ JWT_SECRET=change-me-in-production
 JWT_ACCESS_EXPIRY_MIN=15
 JWT_REFRESH_EXPIRY_DAYS=7
 
-# WhatsApp Business API (required for webhook)
+# WhatsApp Business API (required for webhook + outbound messaging)
 WA_VERIFY_TOKEN=masaar-webhook-token
 WA_API_VERSION=v19.0
 WA_PHONE_NUMBER_ID=your-phone-id
 WA_ACCESS_TOKEN=your-access-token
+WA_APP_SECRET=your-app-secret       # HMAC validation of webhooks
+WA_BASE_URL=https://graph.facebook.com  # Meta Cloud API base
 
 # Ollama LLM
 OLLAMA_BASE_URL=http://ollama:11434
@@ -210,7 +223,7 @@ OLLAMA_MODEL=llama3
 
 **Users:** Authentication, roles, language preference
 **Contacts:** Unified contact profiles linked to WhatsApp numbers
-**WhatsApp:** Threads and messages from Meta Cloud API
+**WhatsApp:** Threads and messages from Meta Cloud API (inbound + outbound)
 **Leads:** Sales pipeline stages (New → Won/Lost) with notes
 **Deals:** Deal tracking with value and stage
 **Invoices:** Generated PDFs with UAE 5% VAT
@@ -266,6 +279,9 @@ Error: `{ "error": "message", "status": 400 }`
 - `cmd/server/main.go` — Server initialization, middleware setup
 - `web/lib/` — Frontend API client configuration
 - `migrations/` — Schema evolution history
+- `internal/whatsapp/sender.go` — Meta Cloud API outbound sender (text/media/template)
+- `internal/api/handler/whatsapp_outbound.go` — Outbound message handlers
+- `internal/api/handler/whatsapp.go` — Inbound webhook handler + thread/message CRUD
 
 ## Testing
 
@@ -283,3 +299,7 @@ Error: `{ "error": "message", "status": 400 }`
 5. **pgvector extension** — PostgreSQL requires `CREATE EXTENSION vector` (auto-applied in migrations)
 6. **RTL in Next.js** — Use Tailwind RTL plugin; CSS logical properties recommended
 7. **WhatsApp webhook secret** — `WA_VERIFY_TOKEN` must match Meta's configured token exactly
+8. **Outbound requires Meta app review** — Template messages require approved templates in Meta Business Manager. Free-form text + media messages work with any unverified number in development (up to 5 test numbers).
+9. **WA_BASE_URL default** — Must be `https://graph.facebook.com` (NOT `graph.instagram.com`). The WA_API_VERSION is appended automatically.
+10. **Media URL must be publicly accessible** — Meta Cloud API downloads media from the URL you provide. Localhost/file URLs will fail. Use a CDN or public storage bucket.
+11. **Outbound records are always created** — `whatsapp_outbound` rows are inserted before the API call. If the sender is not configured, the handler returns 503. Check `whatsapp_outbound.status` for delivery feedback.

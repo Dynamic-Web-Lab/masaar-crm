@@ -119,6 +119,7 @@ func main() {
 	renewalTemplateRepo := repo.NewRenewalTemplateRepo(pool)
 	renewalCommLogRepo := repo.NewRenewalCommunicationLogRepo(pool)
 	documentRepo := repo.NewDocumentRepo(pool)
+	messageTemplateRepo := repo.NewMessageTemplateRepo(pool)
 
 	// ── Email service (SMTP or Azure Communication Services) ─────────────────
 	emailService := email.NewService(&email.Config{
@@ -242,7 +243,7 @@ func main() {
 		User:                handler.NewUserHandler(userRepo, auditLogRepo, emailService, cfg),
 		Stats:               handler.NewStatsHandler(statsRepo),
 		Contact:             handler.NewContactHandler(contactRepo, auditLogRepo),
-		Lead:                handler.NewLeadHandler(leadRepo, contactRepo, commHistRepo, scoringService, hub, auditLogRepo, dispatcher),
+		Lead:                handler.NewLeadHandler(leadRepo, contactRepo, commHistRepo, scoringService, leadTagRepo, hub, auditLogRepo, dispatcher),
 		WhatsApp:            handler.NewWhatsAppHandler(waRepo, contactRepo, taggingService, hub, cfg),
 		WhatsAppOutbound:    handler.NewWhatsAppOutboundHandler(whatsappSender, outboundRepo, waRepo),
 		AI:                  handler.NewAIHandler(sensitiveAI, cloudOrLocal(), contactRepo, leadRepo, waRepo),
@@ -250,7 +251,7 @@ func main() {
 		Notification:        handler.NewNotificationHandler(notificationRepo),
 		Deal:                handler.NewDealHandler(dealRepo, invoiceRepo, auditLogRepo),
 		Invoice:             handler.NewInvoiceHandler(invoiceRepo, dealRepo, companySettingsRepo),
-		Property:            handler.NewPropertyHandler(bos24Client),
+		Property:            handler.NewPropertyHandler(bos24Client, companySettingsRepo),
 		Settings:            handler.NewSettingsHandler(settingsRepo, companySettingsRepo),
 		Email:               handler.NewEmailHandler(emailService, emailRepo),
 		RentalProperty:      handler.NewRentalPropertyHandler(rentalPropertyRepo),
@@ -271,6 +272,7 @@ func main() {
 		PublicLead:          handler.NewPublicLeadHandler(contactRepo, leadRepo, dispatcher),
 		WebhookSub:          handler.NewWebhookSubHandler(webhookRepo, dispatcher),
 		Billing:             handler.NewBillingHandler(billingRepo, companySettingsRepo, stripeCfg),
+		MessageTemplate:     handler.NewMessageTemplateHandler(messageTemplateRepo),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────

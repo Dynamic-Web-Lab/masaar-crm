@@ -60,7 +60,7 @@ export default function MaintenancePage() {
   const loadTasks = async () => {
     setLoading(true);
     try {
-      const res = (await api.maintenance.list(limit, page * limit, statusFilter)) as any;
+      const res = (await api.maintenance.list({ limit, page, status: statusFilter || undefined })) as any;
       setTasks(res.data || []);
     } catch (error) {
       console.error('Failed to fetch maintenance tasks:', error);

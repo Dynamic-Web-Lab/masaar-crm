@@ -213,6 +213,80 @@ func (h *WhatsAppOutboundHandler) GetOutboundMessages(c *fiber.Ctx) error {
 	})
 }
 
+// SendMedia sends a media message (image, document, audio, video)
+// @Summary Send WhatsApp media
+// @Description Send a media message via WhatsApp
+// @Tags WhatsApp
+// @Accept json
+// @Produce json
+// @Param id path string true "Thread ID"
+// @Param request body SendMediaRequest true "Media details"
+// @Success 201 {object} domain.WhatsAppOutbound
+// @Failure 400 {object} map[string]string
+// @Failure 503 {object} map[string]string
+// @Router /api/v1/threads/{id}/send-media [post]
+// @Security Bearer
+func (h *WhatsAppOutboundHandler) SendMedia(c *fiber.Ctx) error {
+	if !h.sender.IsConfigured() {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "WhatsApp integration not configured",
+		})
+	}
+
+	threadIDStr := c.Params("id")
+	threadID, err := uuid.Parse(threadIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid thread id"})
+	}
+
+	var req SendMediaRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+
+	if req.MediaURL == "" || req.MediaType == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "media_url and media_type are required"})
+	}
+
+	thread, err := h.threadRepo.GetThread(c.Context(), threadID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "thread not found"})
+	}
+
+	userID := c.Locals("user_id").(uuid.UUID)
+	outbound := &domain.WhatsAppOutbound{
+		ThreadID:    threadID,
+		ToNumber:    thread.Contact.PhoneWA,
+		MessageBody: req.Caption,
+		MediaURL:    req.MediaURL,
+		Status:      domain.OutboundPending,
+		CreatedBy:   &userID,
+		Metadata: map[string]any{
+			"media_type": req.MediaType,
+		},
+	}
+
+	if err := h.outboundRepo.Create(c.Context(), outbound); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to save message",
+		})
+	}
+
+	waMessageID, err := h.sender.SendMedia(c.Context(), outbound.ToNumber, req.MediaType, req.MediaURL)
+	if err != nil {
+		h.outboundRepo.UpdateStatus(c.Context(), outbound.ID, domain.OutboundFailed, "", err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to send media: " + err.Error(),
+		})
+	}
+
+	h.outboundRepo.UpdateStatus(c.Context(), outbound.ID, domain.OutboundSent, waMessageID, "")
+	outbound.WAMessageID = waMessageID
+	outbound.Status = domain.OutboundSent
+
+	return c.Status(fiber.StatusCreated).JSON(outbound)
+}
+
 // Request types
 type SendMessageRequest struct {
 	Message  string                 `json:"message"`
@@ -223,4 +297,10 @@ type SendTemplateRequest struct {
 	TemplateName string   `json:"template_name"`
 	Parameters   []string `json:"parameters"`
 	LanguageCode string   `json:"language_code"`
+}
+
+type SendMediaRequest struct {
+	MediaURL  string `json:"media_url"`
+	MediaType string `json:"media_type"`
+	Caption   string `json:"caption"`
 }

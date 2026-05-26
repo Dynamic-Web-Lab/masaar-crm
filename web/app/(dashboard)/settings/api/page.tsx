@@ -4,15 +4,7 @@ import { Header } from '@/components/layout/Header'
 import { useAuthStore } from '@/store/auth'
 import { useLang } from '@/context/LangContext'
 import { useRouter } from 'next/navigation'
-
-interface APISetting {
-  id: string
-  setting_key: string
-  setting_value: string
-  description: string
-  updated_at: string
-  updated_by: string | null
-}
+import { api } from '@/lib/api'
 
 export default function APISettingsPage() {
   const { user } = useAuthStore()
@@ -38,20 +30,12 @@ export default function APISettingsPage() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const response = await fetch('/api/v1/settings/bos24', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-          }
-        })
-        if (response.ok) {
-          const data = await response.json() as APISetting
-          setBos24Token(data.setting_value || '')
-          // Mask token display
-          if (data.setting_value) {
-            const masked = data.setting_value.substring(0, 4) + '****' +
-                          data.setting_value.substring(data.setting_value.length - 4)
-            setBos24TokenDisplay(masked)
-          }
+        const data = await api.settings.getBOS24() as any
+        setBos24Token(data.setting_value || '')
+        if (data.setting_value) {
+          const masked = data.setting_value.substring(0, 4) + '****' +
+                        data.setting_value.substring(data.setting_value.length - 4)
+          setBos24TokenDisplay(masked)
         }
       } catch (err) {
         console.error('Failed to load settings:', err)
@@ -75,29 +59,14 @@ export default function APISettingsPage() {
 
     setSubmitting(true)
     try {
-      const response = await fetch('/api/v1/settings/bos24', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        },
-        body: JSON.stringify({ token: bos24Token })
-      })
-
-      if (!response.ok) {
-        throw new Error(t('فشل تحديث الإعدادات', 'Failed to update settings'))
-      }
-
-      const data = await response.json() as APISetting
+      const data = await api.settings.updateBOS24({ token: bos24Token }) as any
       setSuccess(true)
       setBos24Token(data.setting_value || '')
-      // Mask token display
       const masked = data.setting_value.substring(0, 4) + '****' +
                     data.setting_value.substring(data.setting_value.length - 4)
       setBos24TokenDisplay(masked)
       setShowToken(false)
 
-      // Clear success message after 3 seconds
       setTimeout(() => setSuccess(false), 3000)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('حدث خطأ', 'Something went wrong'))

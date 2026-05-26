@@ -109,6 +109,14 @@ func (h *ContactHandler) Create(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(contact)
 }
 
+type contactUpdateRequest struct {
+	FullName   string     `json:"full_name"`
+	Email      string     `json:"email"`
+	Language   string     `json:"language"`
+	LeadScore  *int       `json:"lead_score"`
+	AssignedTo *uuid.UUID `json:"assigned_to"`
+}
+
 // Update godoc
 // @Summary      Update contact
 // @Description  Partial update — only provided fields are changed.
@@ -134,7 +142,7 @@ func (h *ContactHandler) Update(c *fiber.Ctx) error {
 	}
 
 	// Merge only provided fields
-	var patch domain.Contact
+	var patch contactUpdateRequest
 	if err := c.BodyParser(&patch); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
 	}
@@ -147,8 +155,8 @@ func (h *ContactHandler) Update(c *fiber.Ctx) error {
 	if patch.Language != "" {
 		existing.Language = patch.Language
 	}
-	if patch.LeadScore != 0 {
-		existing.LeadScore = patch.LeadScore
+	if patch.LeadScore != nil {
+		existing.LeadScore = *patch.LeadScore
 	}
 	if patch.AssignedTo != nil {
 		existing.AssignedTo = patch.AssignedTo

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -84,8 +85,8 @@ func (h *AIHandler) DraftReply(c *fiber.Ctx) error {
 		bodies = append(bodies, prefix+": "+m.Body)
 	}
 
-	threads, err := h.wa.ListThreads(ctx, "", 1, 1)
-	if err != nil || len(threads) == 0 {
+	thread, err := h.wa.GetThread(ctx, threadID)
+	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "thread not found"})
 	}
 
@@ -94,7 +95,7 @@ func (h *AIHandler) DraftReply(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
 	}
 
-	contact, _ := h.contacts.GetByID(ctx, threads[0].ContactID)
+	contact, _ := h.contacts.GetByID(ctx, thread.ContactID)
 
 	lang := "en"
 	name := ""
@@ -112,6 +113,39 @@ func (h *AIHandler) DraftReply(c *fiber.Ctx) error {
 		"draft":   draft,
 		"summary": summary,
 	})
+}
+
+// POST /api/v1/ai/extract-buyer-profile/:thread_id
+func (h *AIHandler) ExtractBuyerProfile(c *fiber.Ctx) error {
+	threadID, err := uuid.Parse(c.Params("thread_id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid thread_id"})
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), ollamaTimeout)
+	defer cancel()
+
+	msgs, err := h.wa.GetMessages(ctx, threadID, 50)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "thread not found"})
+	}
+
+	var bodies []string
+	for _, m := range msgs {
+		bodies = append(bodies, m.Body)
+	}
+
+	raw, err := h.sensitive.ExtractBuyerProfile(ctx, bodies)
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
+	}
+
+	var profile map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &profile); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to parse profile"})
+	}
+
+	return c.JSON(profile)
 }
 
 // SummarizeThread godoc
@@ -147,6 +181,11 @@ func (h *AIHandler) SummarizeThread(c *fiber.Ctx) error {
 	summary, err := h.sensitive.SummarizeThread(ctx, bodies)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
+	}
+
+	// Persist summary to the thread so it shows in the inbox list
+	if err := h.wa.UpdateAISummary(ctx, threadID, summary); err != nil {
+		log.Printf("summarize: failed to persist summary: %v", err)
 	}
 
 	return c.JSON(fiber.Map{"summary": summary})

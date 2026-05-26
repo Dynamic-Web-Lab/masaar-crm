@@ -60,6 +60,7 @@ tail -f /tmp/masaar-build.log
 
 ### 4. Restart containers
 
+**API only (Go code changed):**
 ```bash
 cd /root/projects/masaar-crm
 docker compose -f docker-compose.server.yml up -d api web
@@ -87,6 +88,7 @@ Use this when you only changed environment variables (API keys, tokens, secrets)
 
 ### Option 1: SFTP command line
 
+**Both:**
 ```bash
 sftp -i /Users/maidul/info/contabo/backup-buyorsell24-key root@109.123.240.239
 ```

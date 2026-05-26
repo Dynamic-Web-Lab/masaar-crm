@@ -30,7 +30,7 @@ func NewExpenseHandler(expenseRepo *repo.ExpenseRepository) *ExpenseHandler {
 // @Success 200 {object} map[string]interface{}
 // @Router /api/v1/expense-categories [get]
 func (h *ExpenseHandler) ListCategories(c *fiber.Ctx) error {
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID := uuid.Parse(c.Locals("company_id").(string))
 
 	categories, err := h.expenseRepo.ListCategories(c.Context(), companyID)
 	if err != nil {
@@ -48,7 +48,7 @@ func (h *ExpenseHandler) ListCategories(c *fiber.Ctx) error {
 // @Success 201 {object} map[string]interface{}
 // @Router /api/v1/expense-categories [post]
 func (h *ExpenseHandler) CreateCategory(c *fiber.Ctx) error {
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID := uuid.Parse(c.Locals("company_id").(string))
 
 	var req struct {
 		CategoryName string `json:"category_name"`
@@ -84,7 +84,7 @@ func (h *ExpenseHandler) CreateCategory(c *fiber.Ctx) error {
 // @Success 200 {object} map[string]interface{}
 // @Router /api/v1/expenses [get]
 func (h *ExpenseHandler) ListExpenses(c *fiber.Ctx) error {
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID := uuid.Parse(c.Locals("company_id").(string))
 
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	if limit < 1 || limit > 100 {
@@ -139,7 +139,7 @@ func (h *ExpenseHandler) GetExpense(c *fiber.Ctx) error {
 // @Success 201 {object} map[string]interface{}
 // @Router /api/v1/expenses [post]
 func (h *ExpenseHandler) CreateExpense(c *fiber.Ctx) error {
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID := uuid.Parse(c.Locals("company_id").(string))
 	userID := c.Locals("user_id").(uuid.UUID)
 
 	var req struct {
@@ -267,7 +267,9 @@ func (h *ExpenseHandler) ApproveExpense(c *fiber.Ctx) error {
 	var req struct {
 		Comments string `json:"comments"`
 	}
-	c.BodyParser(&req)
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
 
 	approval := &domain.ExpenseApproval{
 		ID:               uuid.New(),

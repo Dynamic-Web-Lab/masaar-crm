@@ -64,6 +64,9 @@ func (h *InvoiceHandler) Create(c *fiber.Ctx) error {
 	if body.DealID == uuid.Nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "deal_id is required"})
 	}
+	if _, err := h.deals.GetByID(c.Context(), body.DealID); err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "deal not found"})
+	}
 	if body.Subtotal <= 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "subtotal must be positive"})
 	}

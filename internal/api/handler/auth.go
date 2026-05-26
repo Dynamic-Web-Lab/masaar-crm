@@ -431,14 +431,14 @@ func (h *AuthHandler) RequestMagicLink(c *fiber.Ctx) error {
 	magicURL := fmt.Sprintf("%s/login?token=%s", h.config.MagicLinkBaseURL, token)
 
 	// Send email (don't fail the request if email fails - graceful degradation)
-	if emailService, ok := c.Locals("email_service").(*email.Service); ok && emailService.IsConfigured() {
-		htmlBody, err := emailService.RenderMagicLinkTemplate(email.MagicLinkData{
+	if h.email != nil && h.email.IsConfigured() {
+		htmlBody, err := h.email.RenderMagicLinkTemplate(email.MagicLinkData{
 			LoginURL:  magicURL,
 			ExpiryMin: h.config.MagicLinkExpiryMin,
 			Lang:      body.LangPref,
 		})
 		if err == nil {
-			_ = emailService.Send(&domain.EmailHistory{
+			_ = h.email.Send(&domain.EmailHistory{
 				ToEmail:   body.Email,
 				Subject:   "Your Masaar CRM Login Link",
 				HTMLBody:  htmlBody,
