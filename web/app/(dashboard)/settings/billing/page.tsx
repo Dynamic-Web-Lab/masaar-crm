@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
 import { useLang } from '@/context/LangContext'
 import api from '@/lib/api'
+import type { Company } from '@/types'
 
 interface Quota {
   used: number
@@ -106,7 +107,7 @@ function formatQuota(n: number) {
 }
 
 export default function BillingPage() {
-  const { user } = useAuthStore()
+  const { user, company } = useAuthStore()
   const { t } = useLang()
   const router = useRouter()
 
@@ -193,6 +194,26 @@ export default function BillingPage() {
       {error && (
         <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {/* Trial banner */}
+      {company?.on_trial && company.days_remaining > 0 && (
+        <div className={`rounded-xl border px-5 py-4 text-sm ${
+          company.days_remaining <= 7
+            ? 'bg-red-50 border-red-200 text-red-800'
+            : company.days_remaining <= 30
+              ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
+              : 'bg-green-50 border-green-200 text-green-800'
+        }`}>
+          <div className="flex items-center justify-between">
+            <span>
+              <strong>Trial:</strong> {company.days_remaining} day{company.days_remaining !== 1 ? 's' : ''} remaining on <strong>{company.plan}</strong> plan
+            </span>
+            {company.days_remaining <= 7 && (
+              <span className="font-semibold">Upgrade now →</span>
+            )}
+          </div>
         </div>
       )}
 

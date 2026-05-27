@@ -1,12 +1,13 @@
 'use client'
 import { create } from 'zustand'
-import type { AuthUser } from '@/types'
-import { getUser, getToken, saveSession, clearSession, updateUser, isLoggedIn } from '@/lib/auth'
+import type { AuthUser, Company } from '@/types'
+import { getUser, getToken, saveSession, clearSession, updateUser, isLoggedIn, getCompany, saveCompany, clearCompany } from '@/lib/auth'
 
 interface AuthState {
   user: AuthUser | null
+  company: Company | null
   token: string | null
-  setSession: (token: string, refreshToken: string, user: AuthUser) => void
+  setSession: (token: string, refreshToken: string, user: AuthUser, company?: Company) => void
   updateUser: (updates: Partial<AuthUser>) => void
   logout: () => void
   init: () => void
@@ -14,20 +15,23 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
+  company: null,
   token: null,
 
   init: () => {
     if (isLoggedIn()) {
-      set({ user: getUser(), token: getToken() })
+      set({ user: getUser(), company: getCompany(), token: getToken() })
     } else {
       clearSession()
-      set({ user: null, token: null })
+      clearCompany()
+      set({ user: null, company: null, token: null })
     }
   },
 
-  setSession: (token, refreshToken, user) => {
+  setSession: (token, refreshToken, user, company) => {
     saveSession(token, refreshToken, user)
-    set({ user, token })
+    if (company) saveCompany(company)
+    set({ user, company, token })
   },
 
   updateUser: (updates) => {
@@ -37,6 +41,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     clearSession()
-    set({ user: null, token: null })
+    clearCompany()
+    set({ user: null, company: null, token: null })
   },
 }))

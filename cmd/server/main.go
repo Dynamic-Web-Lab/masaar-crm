@@ -118,6 +118,7 @@ func main() {
 	leaseRenewalRepo := repo.NewLeaseRenewalRepo(pool)
 	renewalTemplateRepo := repo.NewRenewalTemplateRepo(pool)
 	renewalCommLogRepo := repo.NewRenewalCommunicationLogRepo(pool)
+	companyRepo := repo.NewCompanyRepo(pool)
 	documentRepo := repo.NewDocumentRepo(pool)
 	messageTemplateRepo := repo.NewMessageTemplateRepo(pool)
 
@@ -239,7 +240,7 @@ func main() {
 
 	// ── Handlers ─────────────────────────────────────────────────────────────
 	handlers := &api.Handlers{
-		Auth:                handler.NewAuthHandler(userRepo, rdb, cfg, auditLogRepo, emailService, smsClient),
+		Auth:                handler.NewAuthHandler(userRepo, companyRepo, rdb, cfg, auditLogRepo, emailService, smsClient),
 		User:                handler.NewUserHandler(userRepo, auditLogRepo, emailService, cfg),
 		Stats:               handler.NewStatsHandler(statsRepo),
 		Contact:             handler.NewContactHandler(contactRepo, auditLogRepo),
@@ -305,10 +306,9 @@ func main() {
 		AllowCredentials: cfg.AllowedOrigins != "*",
 	}))
 
-	api.RegisterRoutes(app, handlers, hub, cfg, rdb, pool, apiKeyRepo, billingRepo)
+	api.RegisterRoutes(app, handlers, hub, cfg, rdb, pool, apiKeyRepo, billingRepo, companyRepo)
 
 	// ── Background Jobs ──────────────────────────────────────────────────────
-	companyRepo := repo.NewCompanyRepo(pool)
 
 	go func() {
 		ticker := time.NewTicker(12 * time.Hour)
@@ -348,6 +348,31 @@ func main() {
 			for _, company := range companies {
 				if err := paymentReminderService.SendPendingReminders(ctx, company.ID); err != nil {
 					log.Printf("Error sending reminders for company %s: %v", company.ID, err)
+				}
+			}
+			cancel()
+		}
+	}()
+
+	// Trial expiry checker — runs every 6 hours
+	go func() {
+		ticker := time.NewTicker(6 * time.Hour)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+			log.Println("Checking for expired trials...")
+			expired, err := companyRepo.ListExpiredTrials(ctx)
+			if err != nil {
+				log.Printf("Error listing expired trials: %v", err)
+				cancel()
+				continue
+			}
+			for _, company := range expired {
+				if err := companyRepo.EndTrial(ctx, company.ID); err != nil {
+					log.Printf("Error ending trial for company %s: %v", company.ID, err)
+				} else {
+					log.Printf("Trial ended for company %s (%s)", company.ID, company.Name)
 				}
 			}
 			cancel()

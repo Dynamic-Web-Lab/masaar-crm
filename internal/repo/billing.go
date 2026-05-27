@@ -26,18 +26,17 @@ type CompanyPlan struct {
 	PlanExpiresAt  *time.Time
 }
 
-// GetPlan reads the current plan and Stripe IDs from company_settings.
-func (r *BillingRepo) GetPlan(ctx context.Context) (*CompanyPlan, error) {
+// GetPlan reads the current plan and Stripe IDs from the companies table.
+func (r *BillingRepo) GetPlan(ctx context.Context, companyID uuid.UUID) (*CompanyPlan, error) {
 	const q = `
 		SELECT COALESCE(plan, 'community'),
 		       COALESCE(stripe_customer_id, ''),
 		       COALESCE(stripe_sub_id, ''),
-		       plan_started_at,
-		       plan_expires_at
-		FROM company_settings LIMIT 1`
+		       NULL, NULL
+		FROM companies WHERE id = $1`
 
 	p := &CompanyPlan{}
-	err := r.db.QueryRow(ctx, q).Scan(
+	err := r.db.QueryRow(ctx, q, companyID).Scan(
 		&p.Plan,
 		&p.StripeCustomer,
 		&p.StripeSubID,
@@ -47,16 +46,15 @@ func (r *BillingRepo) GetPlan(ctx context.Context) (*CompanyPlan, error) {
 	return p, err
 }
 
-// SetPlan updates plan and Stripe identifiers after a successful webhook.
-func (r *BillingRepo) SetPlan(ctx context.Context, plan, customerID, subID string, expiresAt *time.Time) error {
+// SetPlan updates plan and Stripe identifiers on the companies table.
+func (r *BillingRepo) SetPlan(ctx context.Context, companyID uuid.UUID, plan, customerID, subID string) error {
 	const q = `
-		UPDATE company_settings SET
-			plan               = $1,
-			stripe_customer_id = $2,
-			stripe_sub_id      = $3,
-			plan_started_at    = NOW(),
-			plan_expires_at    = $4`
-	_, err := r.db.Exec(ctx, q, plan, customerID, subID, expiresAt)
+		UPDATE companies SET
+			plan               = $2,
+			stripe_customer_id = $3,
+			stripe_sub_id      = $4
+		WHERE id = $1`
+	_, err := r.db.Exec(ctx, q, companyID, plan, customerID, subID)
 	return err
 }
 

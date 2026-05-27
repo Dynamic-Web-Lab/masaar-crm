@@ -43,13 +43,13 @@ func NewBillingHandler(
 func (h *BillingHandler) GetBilling(c *fiber.Ctx) error {
 	ctx := c.Context()
 
-	companyPlan, err := h.billingRepo.GetPlan(ctx)
+	companyIDStr, _ := c.Locals("company_id").(string)
+	companyID, _ := uuid.Parse(companyIDStr)
+
+	companyPlan, err := h.billingRepo.GetPlan(ctx, companyID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to load plan"})
 	}
-
-	companyIDStr, _ := c.Locals("company_id").(string)
-	companyID, _ := uuid.Parse(companyIDStr)
 
 	usage, err := h.billingRepo.GetUsage(ctx, companyID)
 	if err != nil {
@@ -139,7 +139,10 @@ func (h *BillingHandler) CreateCheckout(c *fiber.Ctx) error {
 
 	ctx := c.Context()
 
-	companyPlan, err := h.billingRepo.GetPlan(ctx)
+	companyIDStr, _ := c.Locals("company_id").(string)
+	companyID, _ := uuid.Parse(companyIDStr)
+
+	companyPlan, err := h.billingRepo.GetPlan(ctx, companyID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to load billing state"})
 	}
@@ -155,7 +158,6 @@ func (h *BillingHandler) CreateCheckout(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "payment setup failed"})
 	}
 
-	companyIDStr, _ := c.Locals("company_id").(string)
 	url, err := billing.CreateCheckoutSession(h.stripeConfig, targetPlan, companyIDStr, customerID)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "failed to create checkout session"})
@@ -180,7 +182,10 @@ func (h *BillingHandler) CreatePortal(c *fiber.Ctx) error {
 		})
 	}
 
-	companyPlan, err := h.billingRepo.GetPlan(c.Context())
+	companyIDStr, _ := c.Locals("company_id").(string)
+	companyID, _ := uuid.Parse(companyIDStr)
+
+	companyPlan, err := h.billingRepo.GetPlan(c.Context(), companyID)
 	if err != nil || companyPlan.StripeCustomer == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "no active subscription found"})
 	}
@@ -226,6 +231,12 @@ func (h *BillingHandler) StripeWebhook(c *fiber.Ctx) error {
 		if planID == "" {
 			return c.SendStatus(fiber.StatusOK)
 		}
+		companyIDStr := sess.Metadata["company_id"]
+		companyID, err := uuid.Parse(companyIDStr)
+		if err != nil {
+			log.Printf("billing: checkout missing company_id")
+			return c.SendStatus(fiber.StatusOK)
+		}
 		customerID := ""
 		if sess.Customer != nil {
 			customerID = sess.Customer.ID
@@ -234,8 +245,7 @@ func (h *BillingHandler) StripeWebhook(c *fiber.Ctx) error {
 		if sess.Subscription != nil {
 			subID = sess.Subscription.ID
 		}
-		exp := time.Now().AddDate(0, 1, 0)
-		if err := h.billingRepo.SetPlan(ctx, planID, customerID, subID, &exp); err != nil {
+		if err := h.billingRepo.SetPlan(ctx, companyID, planID, customerID, subID); err != nil {
 			log.Printf("billing: SetPlan (checkout) failed: %v", err)
 		}
 
@@ -248,12 +258,17 @@ func (h *BillingHandler) StripeWebhook(c *fiber.Ctx) error {
 		if planID == "" {
 			return c.SendStatus(fiber.StatusOK)
 		}
+		companyIDStr := sub.Metadata["company_id"]
+		companyID, err := uuid.Parse(companyIDStr)
+		if err != nil {
+			// Fallback: try to find company by stripe_customer_id
+			companyID = uuid.Nil
+		}
 		customerID := ""
 		if sub.Customer != nil {
 			customerID = sub.Customer.ID
 		}
-		exp := time.Unix(sub.CurrentPeriodEnd, 0)
-		if err := h.billingRepo.SetPlan(ctx, planID, customerID, sub.ID, &exp); err != nil {
+		if err := h.billingRepo.SetPlan(ctx, companyID, planID, customerID, sub.ID); err != nil {
 			log.Printf("billing: SetPlan (updated) failed: %v", err)
 		}
 
@@ -262,11 +277,13 @@ func (h *BillingHandler) StripeWebhook(c *fiber.Ctx) error {
 		if err := json.Unmarshal(event.Data.Raw, &sub); err != nil {
 			return c.SendStatus(fiber.StatusOK)
 		}
+		companyIDStr := sub.Metadata["company_id"]
+		companyID, _ := uuid.Parse(companyIDStr)
 		customerID := ""
 		if sub.Customer != nil {
 			customerID = sub.Customer.ID
 		}
-		if err := h.billingRepo.SetPlan(ctx, billing.PlanCommunity, customerID, "", nil); err != nil {
+		if err := h.billingRepo.SetPlan(ctx, companyID, billing.PlanCommunity, customerID, ""); err != nil {
 			log.Printf("billing: SetPlan (deleted) failed: %v", err)
 		}
 	}
@@ -289,7 +306,7 @@ func (h *BillingHandler) GetUsage(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid company"})
 	}
 
-	companyPlan, _ := h.billingRepo.GetPlan(c.Context())
+	companyPlan, _ := h.billingRepo.GetPlan(c.Context(), companyID)
 	plan := billing.Get(companyPlan.Plan)
 
 	usage, err := h.billingRepo.GetUsage(c.Context(), companyID)

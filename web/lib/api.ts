@@ -101,6 +101,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ refresh_token: refreshToken }),
       }),
+    register: (data: { name: string; email: string; password: string; company_name: string; subdomain: string; turnstile_token?: string }) =>
+      request('/api/v1/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
   },
 
   // ─── Contacts ───────────────────────────────────────────────────────────────

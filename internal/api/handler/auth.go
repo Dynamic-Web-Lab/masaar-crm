@@ -3,9 +3,12 @@ package handler
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/big"
+	"net/http"
+	"net/url"
 	"strings"
 	"time"
 	"unicode"
@@ -47,16 +50,17 @@ func validatePasswordStrength(p string) string {
 }
 
 type AuthHandler struct {
-	users  *repo.UserRepo
-	redis  *redis.Client
-	config *config.Config
-	audit  *repo.AuditLogRepo
-	email  *email.Service
-	sms    *sms.Client
+	users       *repo.UserRepo
+	companyRepo *repo.CompanyRepo
+	redis       *redis.Client
+	config      *config.Config
+	audit       *repo.AuditLogRepo
+	email       *email.Service
+	sms         *sms.Client
 }
 
-func NewAuthHandler(users *repo.UserRepo, rdb *redis.Client, cfg *config.Config, audit *repo.AuditLogRepo, emailSvc *email.Service, smsClient *sms.Client) *AuthHandler {
-	return &AuthHandler{users: users, redis: rdb, config: cfg, audit: audit, email: emailSvc, sms: smsClient}
+func NewAuthHandler(users *repo.UserRepo, companyRepo *repo.CompanyRepo, rdb *redis.Client, cfg *config.Config, audit *repo.AuditLogRepo, emailSvc *email.Service, smsClient *sms.Client) *AuthHandler {
+	return &AuthHandler{users: users, companyRepo: companyRepo, redis: rdb, config: cfg, audit: audit, email: emailSvc, sms: smsClient}
 }
 
 // Login godoc
@@ -116,6 +120,29 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "account is deactivated"})
 	}
 
+	// Load company and check active/trial
+	var company *domain.Company
+	var daysRemaining int
+	if h.companyRepo != nil {
+		comp, cerr := h.companyRepo.GetByID(c.Context(), user.CompanyID)
+		if cerr != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "company not found"})
+		}
+		company = comp
+		if !company.IsActive {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "account_suspended"})
+		}
+		if company.OnTrial && company.TrialEndsAt != nil {
+			if company.TrialEndsAt.Before(time.Now()) {
+				h.companyRepo.EndTrial(c.Context(), user.CompanyID)
+				company.Plan = "community"
+				company.OnTrial = false
+			} else {
+				daysRemaining = int(time.Until(*company.TrialEndsAt).Hours() / 24)
+			}
+		}
+	}
+
 	// Successful login — clear failure counter
 	h.redis.Del(ctx, failKey, lockKey)
 
@@ -135,7 +162,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		"ip": c.IP(),
 	})
 
-	return c.JSON(fiber.Map{
+	resp := fiber.Map{
 		"access_token":  access,
 		"refresh_token": refresh,
 		"expires_in":    h.config.JWTAccessExpiryMin * 60,
@@ -146,7 +173,18 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 			"role":      user.Role,
 			"lang_pref": user.LangPref,
 		},
-	})
+	}
+	if company != nil {
+		resp["company"] = fiber.Map{
+			"id":             company.ID,
+			"name":           company.Name,
+			"plan":           company.Plan,
+			"on_trial":       company.OnTrial,
+			"trial_ends_at":  company.TrialEndsAt,
+			"days_remaining": daysRemaining,
+		}
+	}
+	return c.JSON(resp)
 }
 
 // Refresh godoc
@@ -339,15 +377,162 @@ func (h *AuthHandler) ResetPassword(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+// Register godoc
+// @Summary      Register new company
+// @Description  Creates a new company with a 90-day trial and an admin user. Rate-limited: 3 req/min/IP.
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      object{name=string,email=string,password=string,company_name=string,subdomain=string,turnstile_token=string}  true  "Registration details"
+// @Success      201   {object}  object{access_token=string,refresh_token=string,expires_in=int,user=object,company=object}
+// @Failure      400   {object}  object{error=string}
+// @Failure      409   {object}  object{error=string}
+// @Failure      422   {object}  object{error=string}
+// @Failure      503   {object}  object{error=string}
+// @Router       /auth/register [post]
+func (h *AuthHandler) Register(c *fiber.Ctx) error {
+	if !h.config.AllowRegistration {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "public registration is disabled on this instance",
+		})
+	}
+
+	var body struct {
+		Name          string `json:"name"`
+		Email         string `json:"email"`
+		Password      string `json:"password"`
+		CompanyName   string `json:"company_name"`
+		Subdomain     string `json:"subdomain"`
+		TurnstileToken string `json:"turnstile_token"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+
+	// Validate Turnstile (if configured)
+	if h.config.TurnstileSecretKey != "" && body.TurnstileToken == "" {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": "turnstile token required"})
+	}
+	if h.config.TurnstileSecretKey != "" {
+		if err := verifyTurnstile(h.config.TurnstileSecretKey, body.TurnstileToken); err != nil {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": "captcha verification failed"})
+		}
+	}
+
+	// Validate inputs
+	if body.Name == "" || body.Email == "" || body.Password == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name, email, and password are required"})
+	}
+	if body.CompanyName == "" || body.Subdomain == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "company_name and subdomain are required"})
+	}
+	if msg := validatePasswordStrength(body.Password); msg != "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": msg})
+	}
+
+	// Check email uniqueness
+	exists, err := h.users.EmailExists(c.Context(), body.Email)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal error"})
+	}
+	if exists {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "email_taken"})
+	}
+
+	// Check subdomain uniqueness
+	if h.companyRepo != nil {
+		existing, _ := h.companyRepo.GetBySubdomain(c.Context(), body.Subdomain)
+		if existing != nil {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "subdomain_taken"})
+		}
+	}
+
+	// Hash password
+	hash, err := bcrypt.GenerateFromPassword([]byte(body.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to hash password"})
+	}
+
+	// Create company with trial
+	company, err := h.companyRepo.Create(c.Context(), body.CompanyName, body.Subdomain, h.config.TrialDurationDays)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create company"})
+	}
+
+	// Create admin user
+	user, err := h.users.CreateWithCompany(c.Context(), body.Name, body.Email, string(hash), company.ID, domain.RoleAdmin)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create user"})
+	}
+
+	// Audit log
+	h.audit.Log(c.Context(), user.ID, repo.AuditCreate, repo.AuditUser, user.ID, fiber.Map{
+		"action":      "registration",
+		"company_id":  company.ID.String(),
+		"company_name": company.Name,
+	})
+
+	// Generate JWT
+	access, refresh, err := h.generateTokenPair(user)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "token generation failed"})
+	}
+
+	// Store refresh token
+	ttl := time.Duration(h.config.JWTRefreshExpiryDays) * 24 * time.Hour
+	h.redis.Set(context.Background(), fmt.Sprintf("refresh:%s", refresh), user.ID.String(), ttl)
+
+	daysRemaining := 0
+	if company.TrialEndsAt != nil {
+		daysRemaining = int(time.Until(*company.TrialEndsAt).Hours() / 24)
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"access_token":  access,
+		"refresh_token": refresh,
+		"expires_in":    h.config.JWTAccessExpiryMin * 60,
+		"user": fiber.Map{
+			"id":        user.ID,
+			"name":      user.Name,
+			"email":     user.Email,
+			"role":      user.Role,
+			"lang_pref": user.LangPref,
+		},
+		"company": fiber.Map{
+			"id":             company.ID,
+			"name":           company.Name,
+			"subdomain":      company.Subdomain,
+			"plan":           company.Plan,
+			"on_trial":       company.OnTrial,
+			"trial_ends_at":  company.TrialEndsAt,
+			"days_remaining": daysRemaining,
+		},
+	})
+}
+
 func (h *AuthHandler) generateTokenPair(user *domain.User) (access, refresh string, err error) {
 	now := time.Now()
 
+	// Load company details for JWT claims
+	plan := "community"
+	onTrial := false
+	if h.companyRepo != nil {
+		company, cerr := h.companyRepo.GetByID(context.Background(), user.CompanyID)
+		if cerr == nil {
+			plan = company.Plan
+			onTrial = company.OnTrial
+		}
+	}
+
 	accessClaims := jwt.MapClaims{
-		"sub":  user.ID.String(),
-		"name": user.Name,
-		"role": string(user.Role),
-		"exp":  now.Add(time.Duration(h.config.JWTAccessExpiryMin) * time.Minute).Unix(),
-		"iat":  now.Unix(),
+		"sub":        user.ID.String(),
+		"name":       user.Name,
+		"role":       string(user.Role),
+		"company_id": user.CompanyID.String(),
+		"plan":       plan,
+		"on_trial":   onTrial,
+		"exp":        now.Add(time.Duration(h.config.JWTAccessExpiryMin) * time.Minute).Unix(),
+		"iat":        now.Unix(),
 	}
 	access, err = jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims).
 		SignedString([]byte(h.config.JWTSecret))
@@ -539,6 +724,27 @@ func (h *AuthHandler) VerifyMagicLink(c *fiber.Ctx) error {
 			"lang_pref": user.LangPref,
 		},
 	})
+}
+
+// verifyTurnstile validates a Cloudflare Turnstile token.
+func verifyTurnstile(secret, token string) error {
+	resp, err := http.PostForm("https://challenges.cloudflare.com/turnstile/v0/siteverify",
+		url.Values{"secret": {secret}, "response": {token}},
+	)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	var result struct {
+		Success bool `json:"success"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return err
+	}
+	if !result.Success {
+		return fmt.Errorf("turnstile verification failed")
+	}
+	return nil
 }
 
 // split is a simple string split helper

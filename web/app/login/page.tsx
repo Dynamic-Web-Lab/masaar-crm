@@ -68,7 +68,7 @@ export default function LoginPage() {
     try {
       if (!await checkTurnstile()) return
       const res = await api.auth.login(email, password) as LoginResponse
-      setSession(res.access_token, res.refresh_token, res.user)
+      setSession(res.access_token, res.refresh_token, res.user, res.company)
       if (res.user.lang_pref) setLang(res.user.lang_pref)
       router.push('/pipeline')
     } catch (err: any) {
@@ -120,7 +120,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const res = await api.auth.verifySMSOTP(phone, otp) as LoginResponse
-      setSession(res.access_token, res.refresh_token, res.user)
+      setSession(res.access_token, res.refresh_token, res.user, res.company)
       if (res.user.lang_pref) setLang(res.user.lang_pref)
       router.push('/pipeline')
     } catch (err: any) {
@@ -382,8 +382,17 @@ export default function LoginPage() {
           </form>
         )}
 
+        <div className="mt-4 text-center">
+          <p className="text-xs text-surface-500">
+            {t('ليس لديك حساب؟', "Don't have an account?")}{' '}
+            <a href="/signup" className="text-primary-600 hover:text-primary-700 font-medium">
+              {t('إنشاء حساب', 'Sign up')}
+            </a>
+          </p>
+        </div>
+
         {/* Lang toggle */}
-        <div className="mt-5 text-center">
+        <div className="mt-4 text-center">
           <button
             onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
             className="text-xs text-surface-500 hover:text-surface-900 transition-colors"

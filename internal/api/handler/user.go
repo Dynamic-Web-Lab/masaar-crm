@@ -154,7 +154,11 @@ func (h *UserHandler) UpdateLang(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /users [get]
 func (h *UserHandler) ListUsers(c *fiber.Ctx) error {
-	users, err := h.users.List(c.Context())
+	claims := middleware.ClaimsFromCtx(c)
+	companyIDStr, _ := claims["company_id"].(string)
+	companyID, _ := uuid.Parse(companyIDStr)
+
+	users, _, err := h.users.ListByCompany(c.Context(), companyID, 1, 1000)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to fetch users"})
 	}
@@ -225,8 +229,13 @@ func (h *UserHandler) CreateUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to hash password"})
 	}
 
+	claims := middleware.ClaimsFromCtx(c)
+	companyIDStr, _ := claims["company_id"].(string)
+	companyID, _ := uuid.Parse(companyIDStr)
+
 	user := &domain.User{
 		Name:         body.Name,
+		CompanyID:    companyID,
 		Email:        body.Email,
 		PasswordHash: string(hash),
 		Role:         body.Role,
@@ -283,9 +292,18 @@ func (h *UserHandler) InviteUser(c *fiber.Ctx) error {
 		body.Role = domain.RoleAgent
 	}
 
+	// Get company_id from JWT claims
+	claims := middleware.ClaimsFromCtx(c)
+	companyIDStr, _ := claims["company_id"].(string)
+	companyID, err := uuid.Parse(companyIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid session"})
+	}
+
 	// Create user with empty password — they must set it via the invite link
 	user := &domain.User{
 		Name:         strings.TrimSpace(body.Name),
+		CompanyID:    companyID,
 		Email:        strings.ToLower(strings.TrimSpace(body.Email)),
 		PasswordHash: "",
 		Role:         body.Role,
@@ -317,7 +335,7 @@ func (h *UserHandler) InviteUser(c *fiber.Ctx) error {
 		fmt.Printf("[DEV] invite link for %s: %s\n", user.Email, setupURL)
 	}
 
-	callerID, _ := uuid.Parse(middleware.ClaimsFromCtx(c)["sub"].(string))
+	callerID, _ := uuid.Parse(claims["sub"].(string))
 	h.audit.Log(c.Context(), callerID, repo.AuditCreate, repo.AuditUser, user.ID,
 		fiber.Map{"email": user.Email, "role": body.Role, "method": "invite"})
 

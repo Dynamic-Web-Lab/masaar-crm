@@ -64,7 +64,7 @@ func BearerToken(c *fiber.Ctx) string {
 // ExtractClaims reads JWT claims and sets user_id (uuid.UUID), company_id (string),
 // and role (domain.Role) in Fiber locals so handlers can access them without
 // repeating assertion boilerplate.
-func ExtractClaims(companyID string) fiber.Handler {
+func ExtractClaims() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		claims := ClaimsFromCtx(c)
 		sub, _ := claims["sub"].(string)
@@ -73,7 +73,16 @@ func ExtractClaims(companyID string) fiber.Handler {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid token subject"})
 		}
 		c.Locals("user_id", userID)
-		c.Locals("company_id", companyID)
+
+		// Read company_id from JWT claims (added during login/register)
+		if cidStr, ok := claims["company_id"].(string); ok {
+			c.Locals("company_id", cidStr)
+		} else {
+			// Fallback for pre-migration tokens — use the env var
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "session expired, please login again",
+			})
+		}
 		if roleStr, ok := claims["role"].(string); ok {
 			c.Locals("role", domain.Role(roleStr))
 		}

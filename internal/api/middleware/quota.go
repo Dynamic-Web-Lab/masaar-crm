@@ -37,7 +37,7 @@ func CheckQuota(billingRepo *repo.BillingRepo, rdb *redis.Client, resource strin
 		// Load plan (cached in Redis for 5 min)
 		planID, _ := rdb.Get(ctx, planKey).Result()
 		if planID == "" {
-			cp, err := billingRepo.GetPlan(ctx)
+			cp, err := billingRepo.GetPlan(ctx, companyID)
 			if err == nil {
 				planID = cp.Plan
 				rdb.Set(ctx, planKey, planID, 5*time.Minute)

@@ -109,9 +109,10 @@ func makeAPIKeyLimiter(rdb *redis.Client) fiber.Handler {
 	return middleware.APIKeyRateLimit(rdb, 300, time.Minute)
 }
 
-func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config, rdb *redis.Client, pool *pgxpool.Pool, apiKeyRepo *repo.ApiKeyRepo, billingRepo *repo.BillingRepo) {
+func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config, rdb *redis.Client, pool *pgxpool.Pool, apiKeyRepo *repo.ApiKeyRepo, billingRepo *repo.BillingRepo, companyRepo *repo.CompanyRepo) {
 	// ── Public routes ────────────────────────────────────────────────────────
 	app.Post("/api/v1/auth/login", loginLimiter, h.Auth.Login)
+	app.Post("/api/v1/auth/register", loginLimiter, h.Auth.Register)
 	app.Post("/api/v1/auth/magic-link/request", magicLinkLimiter, h.Auth.RequestMagicLink)
 	app.Post("/api/v1/auth/magic-link/verify", h.Auth.VerifyMagicLink)
 	app.Post("/api/v1/auth/sms/request", smsOTPLimiter, h.Auth.RequestSMSOTP)
@@ -150,10 +151,12 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	})
 
 	// Personal notifications
+	trialCheck := middleware.TrialCheck(companyRepo)
 	app.Get("/ws/notifications",
 		middleware.JWT(cfg.JWTSecret),
 		middleware.CheckBlacklist(rdb),
-		middleware.ExtractClaims(cfg.CompanyID),
+		trialCheck,
+		middleware.ExtractClaims(),
 		fiberws.New(hub.Handler()),
 	)
 
@@ -162,7 +165,8 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		apiLimiter,
 		middleware.JWT(cfg.JWTSecret),
 		middleware.CheckBlacklist(rdb),
-		middleware.ExtractClaims(cfg.CompanyID),
+		trialCheck,
+		middleware.ExtractClaims(),
 	)
 
 	v1.Delete("/auth/logout", h.Auth.Logout)

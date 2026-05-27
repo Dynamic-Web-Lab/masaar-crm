@@ -15,6 +15,22 @@ const (
 	AuditEntityInvoice = "invoice"
 )
 
+// ─── Company ──────────────────────────────────────────────────────────────────
+
+type Company struct {
+	ID               uuid.UUID  `json:"id"`
+	Name             string     `json:"name"`
+	Subdomain        string     `json:"subdomain,omitempty"`
+	Plan             string     `json:"plan"`
+	TrialStartedAt   *time.Time `json:"trial_started_at,omitempty"`
+	TrialEndsAt      *time.Time `json:"trial_ends_at,omitempty"`
+	OnTrial          bool       `json:"on_trial"`
+	IsActive         bool       `json:"is_active"`
+	StripeCustomerID string     `json:"stripe_customer_id,omitempty"`
+	StripeSubID      string     `json:"stripe_sub_id,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+}
+
 // ─── User ────────────────────────────────────────────────────────────────────
 
 type Role string
@@ -27,6 +43,7 @@ const (
 
 type User struct {
 	ID           uuid.UUID `json:"id"`
+	CompanyID    uuid.UUID `json:"company_id"`
 	Name         string    `json:"name"`
 	Email        string    `json:"email"`
 	PasswordHash string    `json:"-"`

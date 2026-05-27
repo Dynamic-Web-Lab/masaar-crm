@@ -21,11 +21,22 @@ export interface AuthUser {
   lang_pref: 'ar' | 'en'
 }
 
+export interface Company {
+  id: string
+  name: string
+  subdomain?: string
+  plan: string
+  on_trial: boolean
+  trial_ends_at: string | null
+  days_remaining: number
+}
+
 export interface LoginResponse {
   access_token: string
   refresh_token: string
   expires_in: number
   user: AuthUser
+  company?: Company
 }
 
 // ─── Contact ─────────────────────────────────────────────────────────────────
