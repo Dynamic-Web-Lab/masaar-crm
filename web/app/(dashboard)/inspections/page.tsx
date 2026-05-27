@@ -60,8 +60,8 @@ export default function InspectionsPage() {
     setLoading(true)
     try {
       const res: any = await api.inspection.list({ limit, page })
-      setInspections(res?.data ?? res ?? [])
-      setTotal(res?.total ?? 0)
+      setInspections(res?.data ?? [])
+      setTotal(res?.meta?.total ?? 0)
     } catch {
       setInspections([])
     } finally {

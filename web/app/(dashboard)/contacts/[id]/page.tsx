@@ -48,7 +48,7 @@ export default function ContactDetailPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [editOpen, setEditOpen] = useState(false)
-  const [form, setForm] = useState({ full_name: '', email: '', language: 'en' as const, lead_score: 0, assigned_to: '' })
+  const [form, setForm] = useState({ full_name: '', email: '', language: 'en' as 'ar' | 'en', lead_score: 0, assigned_to: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')

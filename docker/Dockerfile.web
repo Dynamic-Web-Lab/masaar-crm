@@ -1,11 +1,13 @@
 FROM node:20-alpine AS builder
 ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
 WORKDIR /app
 COPY web/package.json web/package-lock.json* ./
 RUN npm install --prefer-offline
 COPY web/ .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
 RUN npm run build
 
 FROM node:20-alpine AS runner

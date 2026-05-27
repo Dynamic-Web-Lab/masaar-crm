@@ -122,7 +122,7 @@ export default function BillingPage() {
     if (user && !isAdmin) {
       // Viewers and agents can see usage but not change plan
     }
-    api.billing.get().then(r => {
+    api.billing.get().then((r: any) => {
       setData(r.data)
       setLoading(false)
     }).catch(() => {
@@ -137,7 +137,7 @@ export default function BillingPage() {
     if (params.get('success')) {
       setError('')
       // Reload data after successful payment
-      setTimeout(() => api.billing.get().then(r => setData(r.data)), 2000)
+      setTimeout(() => api.billing.get().then((r: any) => setData(r.data)), 2000)
     }
   }, [])
 

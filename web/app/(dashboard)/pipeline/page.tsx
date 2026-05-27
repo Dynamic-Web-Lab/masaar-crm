@@ -13,6 +13,7 @@ import EmailComposeModal from '@/components/communication/EmailComposeModal'
 import { AgentAssist } from '@/components/agent/AgentAssist'
 import { api } from '@/lib/api'
 import { useLang } from '@/context/LangContext'
+import { useAuthStore } from '@/store/auth'
 import type { KanbanBoard, Lead, LeadStage, Contact, PaginatedResult, CommunicationHistory, User } from '@/types'
 
 const STAGES: LeadStage[] = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost']

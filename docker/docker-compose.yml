@@ -68,10 +68,14 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.web
+      args:
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY}
     container_name: masaar-web
     restart: unless-stopped
     ports:
       - "3000:3000"
+    env_file:
+      - ../.env
     environment:
       NEXT_PUBLIC_API_URL: http://api:8080
     depends_on:
