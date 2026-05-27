@@ -83,22 +83,24 @@ func (s *AzureService) Send(email *domain.EmailHistory) error {
 		return fmt.Errorf("azure marshal payload: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/emails:send?api-version=2024-07-01-preview", s.endpoint)
-	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+	apiPath := "/emails:send?api-version=2024-07-01-preview"
+	reqURL := s.endpoint + apiPath
+	req, err := http.NewRequest("POST", reqURL, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("azure create request: %w", err)
 	}
 
-	date := time.Now().UTC().Format(time.RFC1123)
-	contentHash := sha256Hex(body)
+	// Azure requires GMT not UTC in the date string
+	date := time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
+	contentHashB64 := sha256Base64(body)
 	host := req.URL.Host
 
-	sig := s.sign(date, host, contentHash)
+	sig := s.sign("POST", apiPath, date, host, contentHashB64)
 	auth := fmt.Sprintf("HMAC-SHA256 SignedHeaders=x-ms-date;host;x-ms-content-sha256&Signature=%s", sig)
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-ms-date", date)
-	req.Header.Set("x-ms-content-sha256", contentHash)
+	req.Header.Set("x-ms-content-sha256", contentHashB64)
 	req.Header.Set("Authorization", auth)
 
 	resp, err := s.client.Do(req)
@@ -115,14 +117,14 @@ func (s *AzureService) Send(email *domain.EmailHistory) error {
 	return fmt.Errorf("azure email API error: %s - %s", resp.Status, string(respBody))
 }
 
-func (s *AzureService) sign(date, host, contentHash string) string {
-	stringToSign := fmt.Sprintf("x-ms-date:%s\nhost:%s\nx-ms-content-sha256:%s", date, host, contentHash)
+func (s *AzureService) sign(verb, pathAndQuery, date, host, contentHashBase64 string) string {
+	stringToSign := fmt.Sprintf("%s\n%s\n%s;%s;%s", verb, pathAndQuery, date, host, contentHashBase64)
 	mac := hmac.New(sha256.New, s.key)
 	mac.Write([]byte(stringToSign))
 	return base64.StdEncoding.EncodeToString(mac.Sum(nil))
 }
 
-func sha256Hex(data []byte) string {
+func sha256Base64(data []byte) string {
 	h := sha256.Sum256(data)
-	return fmt.Sprintf("%x", h)
+	return base64.StdEncoding.EncodeToString(h[:])
 }

@@ -1,6 +1,8 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { Turnstile } from '@marsidev/react-turnstile'
+import type { TurnstileInstance } from '@marsidev/react-turnstile'
 import { api } from '@/lib/api'
 import { isLoggedIn } from '@/lib/auth'
 import { useAuthStore } from '@/store/auth'
@@ -8,6 +10,18 @@ import { useLang } from '@/context/LangContext'
 import type { LoginResponse } from '@/types'
 
 type LoginMode = 'password' | 'magic-link' | 'sms'
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ''
+
+async function verifyTurnstile(token: string): Promise<boolean> {
+  const res = await fetch('/api/verify-turnstile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  })
+  const data = await res.json()
+  return data.success === true
+}
 
 export default function LoginPage() {
   const [mode, setMode] = useState<LoginMode>('password')
@@ -19,6 +33,8 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [magicSent, setMagicSent] = useState(false)
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const turnstileRef = useRef<TurnstileInstance>(null)
   const { setSession, init, token } = useAuthStore()
   const router = useRouter()
   const { lang, setLang, t } = useLang()
@@ -28,17 +44,36 @@ export default function LoginPage() {
     if (token && isLoggedIn()) router.replace('/pipeline')
   }, [token, router])
 
+  const checkTurnstile = async (): Promise<boolean> => {
+    if (!TURNSTILE_SITE_KEY) return true
+    if (!turnstileToken) {
+      setError(t('يرجى إكمال التحقق من الأمان', 'Please complete the security check'))
+      return false
+    }
+    const ok = await verifyTurnstile(turnstileToken)
+    if (!ok) {
+      setError(t('فشل التحقق الأمني، يرجى المحاولة مرة أخرى', 'Security check failed, please try again'))
+      turnstileRef.current?.reset()
+      setTurnstileToken(null)
+      return false
+    }
+    return true
+  }
+
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
     try {
+      if (!await checkTurnstile()) return
       const res = await api.auth.login(email, password) as LoginResponse
       setSession(res.access_token, res.refresh_token, res.user)
       if (res.user.lang_pref) setLang(res.user.lang_pref)
       router.push('/pipeline')
     } catch (err: any) {
       setError(err.message || t('حدث خطأ', 'Something went wrong'))
+      turnstileRef.current?.reset()
+      setTurnstileToken(null)
     } finally {
       setLoading(false)
     }
@@ -49,10 +84,13 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
+      if (!await checkTurnstile()) return
       await api.auth.requestMagicLink(email, lang)
       setMagicSent(true)
     } catch (err: any) {
       setError(err.message || t('حدث خطأ', 'Something went wrong'))
+      turnstileRef.current?.reset()
+      setTurnstileToken(null)
     } finally {
       setLoading(false)
     }
@@ -63,10 +101,13 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
+      if (!await checkTurnstile()) return
       await api.auth.requestSMSOTP(phone, lang)
       setOtpSent(true)
     } catch (err: any) {
       setError(err.message || t('حدث خطأ', 'Something went wrong'))
+      turnstileRef.current?.reset()
+      setTurnstileToken(null)
     } finally {
       setLoading(false)
     }
@@ -94,6 +135,8 @@ export default function LoginPage() {
     setOtpSent(false)
     setOtp('')
     setMagicSent(false)
+    turnstileRef.current?.reset()
+    setTurnstileToken(null)
   }
 
   return (
@@ -256,13 +299,26 @@ export default function LoginPage() {
               </div>
             )}
 
+            {TURNSTILE_SITE_KEY && (
+              <div className="flex justify-center">
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={TURNSTILE_SITE_KEY}
+                  onSuccess={setTurnstileToken}
+                  onExpire={() => setTurnstileToken(null)}
+                  onError={() => setTurnstileToken(null)}
+                  options={{ theme: 'light', language: lang === 'ar' ? 'ar' : 'en' }}
+                />
+              </div>
+            )}
+
             {error && (
               <p className="text-red-600 text-xs bg-red-50 border border-red-100 px-3 py-2 rounded-lg">{error}</p>
             )}
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (!!TURNSTILE_SITE_KEY && !turnstileToken)}
               className="w-full py-2.5 bg-primary-600 text-white font-medium rounded-xl text-sm shadow-card hover:bg-primary-700 hover:shadow-card-hover transition-all duration-200 ease-soft disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading
