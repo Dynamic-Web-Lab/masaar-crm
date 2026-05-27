@@ -222,7 +222,8 @@ func (h *WhatsAppHandler) Receive(c *fiber.Ctx) error {
 	}
 
 	if err := c.BodyParser(&payload); err != nil {
-		return c.SendStatus(fiber.StatusOK) // always 200 to Meta
+		log.Printf("whatsapp webhook: body parse error: %v", err)
+		return c.Status(fiber.StatusBadRequest).SendString("invalid body")
 	}
 
 	for _, entry := range payload.Entry {
@@ -264,6 +265,7 @@ func (h *WhatsAppHandler) Receive(c *fiber.Ctx) error {
 				}
 
 				if msgBody == "" {
+					log.Printf("whatsapp: skipping message %s — empty body (unsupported type %s)", msg.ID, msg.Type)
 					continue
 				}
 
@@ -277,14 +279,14 @@ func (h *WhatsAppHandler) Receive(c *fiber.Ctx) error {
 
 				contact, err := h.contacts.Upsert(c.Context(), msg.From, senderName)
 				if err != nil {
-					log.Printf("whatsapp: upsert contact error: %v", err)
-					continue
+					log.Printf("whatsapp: upsert contact error for msg %s: %v", msg.ID, err)
+					return c.Status(fiber.StatusInternalServerError).SendString("contact upsert failed")
 				}
 
 				thread, err := h.wa.UpsertThread(c.Context(), contact.ID, val.Metadata.PhoneNumberID)
 				if err != nil {
-					log.Printf("whatsapp: upsert thread error: %v", err)
-					continue
+					log.Printf("whatsapp: upsert thread error for msg %s: %v", msg.ID, err)
+					return c.Status(fiber.StatusInternalServerError).SendString("thread upsert failed")
 				}
 
 				waMsg := &domain.WhatsAppMessage{
@@ -295,8 +297,8 @@ func (h *WhatsAppHandler) Receive(c *fiber.Ctx) error {
 					WAMessageID: msg.ID,
 				}
 				if err := h.wa.SaveMessage(c.Context(), waMsg); err != nil {
-					log.Printf("whatsapp: save message error: %v", err)
-					continue
+					log.Printf("whatsapp: save message error for msg %s: %v", msg.ID, err)
+					return c.Status(fiber.StatusInternalServerError).SendString("message save failed")
 				}
 
 				_ = h.wa.UpdateThreadMeta(c.Context(), thread.ID)

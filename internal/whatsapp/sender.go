@@ -10,7 +10,7 @@ import (
 )
 
 type SenderConfig struct {
-	BaseURL       string // https://graph.instagram.com/v19.0
+	BaseURL       string // https://graph.facebook.com/v{version}
 	PhoneNumberID string
 	AccessToken   string
 }

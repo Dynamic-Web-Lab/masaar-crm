@@ -18,6 +18,10 @@ import type { KanbanBoard, Lead, LeadStage, Contact, PaginatedResult, Communicat
 const STAGES: LeadStage[] = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost']
 
 export default function PipelinePage() {
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'admin'
+  const isAgent = user?.role === 'agent' || isAdmin
+
   const [board, setBoard] = useState<KanbanBoard>({})
   const [activeCard, setActiveCard] = useState<Lead | null>(null)
   const [loading, setLoading] = useState(true)
