@@ -79,6 +79,7 @@ type LeadFilter struct {
 	Stage      domain.LeadStage // filter by stage
 	AssignedTo *uuid.UUID       // filter by agent
 	Source     string           // filter by source
+	ContactID  *uuid.UUID       // filter by contact
 	Limit      int              // default 50
 	Offset     int
 }
@@ -114,6 +115,11 @@ func (r *LeadRepo) List(ctx context.Context, f LeadFilter) ([]domain.Lead, error
 	if f.Source != "" {
 		conds = append(conds, fmt.Sprintf("l.source = $%d", n))
 		args = append(args, f.Source)
+		n++
+	}
+	if f.ContactID != nil {
+		conds = append(conds, fmt.Sprintf("l.contact_id = $%d", n))
+		args = append(args, *f.ContactID)
 		n++
 	}
 

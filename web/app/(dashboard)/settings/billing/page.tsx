@@ -122,7 +122,7 @@ export default function BillingPage() {
     if (user && !isAdmin) {
       // Viewers and agents can see usage but not change plan
     }
-    api.get<{ data: any }>('/billing').then(r => {
+    api.billing.get().then(r => {
       setData(r.data)
       setLoading(false)
     }).catch(() => {
@@ -137,7 +137,7 @@ export default function BillingPage() {
     if (params.get('success')) {
       setError('')
       // Reload data after successful payment
-      setTimeout(() => api.get<{ data: any }>('/billing').then(r => setData(r.data)), 2000)
+      setTimeout(() => api.billing.get().then(r => setData(r.data)), 2000)
     }
   }, [])
 
@@ -146,7 +146,7 @@ export default function BillingPage() {
     setCheckingOut(planID)
     setError('')
     try {
-      const res = await api.post<{ data: { checkout_url: string } }>('/billing/checkout', { plan: planID })
+      const res = await api.billing.checkout(planID) as { data: { checkout_url: string } }
       window.location.href = res.data.checkout_url
     } catch (e: any) {
       setError(e.response?.data?.error || 'Failed to start checkout')
@@ -159,7 +159,7 @@ export default function BillingPage() {
     setOpeningPortal(true)
     setError('')
     try {
-      const res = await api.post<{ data: { portal_url: string } }>('/billing/portal')
+      const res = await api.billing.portal() as { data: { portal_url: string } }
       window.location.href = res.data.portal_url
     } catch (e: any) {
       setError(e.response?.data?.error || 'Failed to open billing portal')

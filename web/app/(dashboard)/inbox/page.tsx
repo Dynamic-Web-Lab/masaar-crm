@@ -21,20 +21,36 @@ const statusColor: Record<string, string> = {
   closed:  'bg-surface-100 text-surface-600 ring-1 ring-surface-200',
 }
 
+const PAGE_SIZE = 40
+
 export default function InboxPage() {
   const [threads, setThreads] = useState<WhatsAppThread[]>([])
   const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
   const { lang, t } = useLang()
 
   const debouncedStatus = useDebounce(status, 300)
 
   useEffect(() => {
-    setLoading(true)
-    api.threads.list({ status: debouncedStatus, limit: 40 }).then((res: any) => {
-      setThreads(Array.isArray(res) ? res : [])
-    }).catch(() => setThreads([])).finally(() => setLoading(false))
+    setPage(1)
   }, [debouncedStatus])
+
+  useEffect(() => {
+    setLoading(true)
+    api.threads.list({ status: debouncedStatus, page, limit: PAGE_SIZE }).then((res: any) => {
+      const items = Array.isArray(res) ? res : []
+      if (page === 1) {
+        setThreads(items)
+      } else {
+        setThreads(prev => [...prev, ...items])
+      }
+      setHasMore(items.length === PAGE_SIZE)
+    }).catch(() => {
+      if (page === 1) setThreads([])
+    }).finally(() => setLoading(false))
+  }, [debouncedStatus, page])
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">
@@ -75,50 +91,63 @@ export default function InboxPage() {
             <p className="text-xs text-surface-400">{t('ستظهر المحادثات عند وصول رسائل واتساب', 'WhatsApp messages will appear here')}</p>
           </div>
         ) : (
-          <ul className="divide-y divide-surface-100">
-            {threads.map((thread) => (
-              <li key={thread.id}>
-                <Link
-                  href={`/inbox/${thread.id}`}
-                  className="flex items-center gap-4 px-6 py-4 hover:bg-surface-50/70 transition-colors"
-                >
-                  {/* Avatar */}
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 text-primary-700 font-semibold text-sm flex items-center justify-center shrink-0 ring-1 ring-primary-200/50">
-                    {thread.contact?.full_name?.[0]?.toUpperCase() ?? '?'}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-semibold text-sm text-surface-900 truncate">
-                        {thread.contact?.full_name ?? thread.contact_id}
-                      </p>
-                      <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 capitalize', statusColor[thread.thread_status])}>
-                        {thread.thread_status}
-                      </span>
+          <>
+            <ul className="divide-y divide-surface-100">
+              {threads.map((thread) => (
+                <li key={thread.id}>
+                  <Link
+                    href={`/inbox/${thread.id}`}
+                    className="flex items-center gap-4 px-6 py-4 hover:bg-surface-50/70 transition-colors"
+                  >
+                    {/* Avatar */}
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 text-primary-700 font-semibold text-sm flex items-center justify-center shrink-0 ring-1 ring-primary-200/50">
+                      {thread.contact?.full_name?.[0]?.toUpperCase() ?? '?'}
                     </div>
-                    <p className="text-xs text-surface-500 mt-0.5 truncate">
-                      <span className="font-mono">{thread.contact?.phone_wa}</span>
-                      <span className="text-surface-300"> · </span>
-                      {thread.message_count} {t('رسالة', 'messages')}
-                    </p>
-                    {thread.ai_summary && (
-                      <p className="text-xs text-surface-500 mt-1 truncate italic">{thread.ai_summary}</p>
-                    )}
-                  </div>
 
-                  {/* Time */}
-                  {thread.last_message_at && (
-                    <span className="text-[11px] text-surface-400 shrink-0 font-medium tabular-nums">
-                      {new Date(thread.last_message_at).toLocaleDateString(lang === 'ar' ? 'ar-AE' : 'en-AE', {
-                        month: 'short', day: 'numeric'
-                      })}
-                    </span>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-semibold text-sm text-surface-900 truncate">
+                          {thread.contact?.full_name ?? thread.contact_id}
+                        </p>
+                        <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 capitalize', statusColor[thread.thread_status])}>
+                          {thread.thread_status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-surface-500 mt-0.5 truncate">
+                        <span className="font-mono">{thread.contact?.phone_wa}</span>
+                        <span className="text-surface-300"> · </span>
+                        {thread.message_count} {t('رسالة', 'messages')}
+                      </p>
+                      {thread.ai_summary && (
+                        <p className="text-xs text-surface-500 mt-1 truncate italic">{thread.ai_summary}</p>
+                      )}
+                    </div>
+
+                    {/* Time */}
+                    {thread.last_message_at && (
+                      <span className="text-[11px] text-surface-400 shrink-0 font-medium tabular-nums">
+                        {new Date(thread.last_message_at).toLocaleDateString(lang === 'ar' ? 'ar-AE' : 'en-AE', {
+                          month: 'short', day: 'numeric'
+                        })}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            {hasMore && (
+              <div className="py-4 flex justify-center">
+                <button
+                  onClick={() => setPage(p => p + 1)}
+                  disabled={loading}
+                  className="px-6 py-2 text-sm font-medium bg-surface-100 text-surface-600 rounded-lg hover:bg-surface-200 disabled:opacity-50 transition-colors"
+                >
+                  {t('تحميل المزيد', 'Load More')}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

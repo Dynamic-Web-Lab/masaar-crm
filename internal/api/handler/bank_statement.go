@@ -104,7 +104,7 @@ func (h *BankStatementHandler) Upload(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid bank_integration_id"})
 	}
 
-	userID, _ := uuid.Parse(c.Locals("user_id").(string))
+	userID := c.Locals("user_id").(uuid.UUID)
 	companyID, err := uuid.Parse(c.Locals("company_id").(string))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid company_id"})

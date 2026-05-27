@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -47,9 +48,10 @@ func (h *WhatsAppHandler) Verify(c *fiber.Ctx) error {
 // @Description  Returns paginated WhatsApp conversation threads with contact details.
 // @Tags         WhatsApp
 // @Produce      json
-// @Param        status  query     string  false  "Filter by status: open|pending|closed"
-// @Param        page    query     int     false  "Page number (default 1)"
-// @Param        limit   query     int     false  "Page size (default 20)"
+// @Param        status      query     string  false  "Filter by status: open|pending|closed"
+// @Param        contact_id  query     string  false  "Filter by contact UUID"
+// @Param        page        query     int     false  "Page number (default 1)"
+// @Param        limit       query     int     false  "Page size (default 20)"
 // @Success      200     {array}   domain.WhatsAppThread
 // @Security     BearerAuth
 // @Router       /threads [get]
@@ -64,7 +66,14 @@ func (h *WhatsAppHandler) ListThreads(c *fiber.Ctx) error {
 		limit = 20
 	}
 
-	threads, err := h.wa.ListThreads(c.Context(), status, page, limit)
+	var contactID *uuid.UUID
+	if s := c.Query("contact_id"); s != "" {
+		if id, err := uuid.Parse(s); err == nil {
+			contactID = &id
+		}
+	}
+
+	threads, err := h.wa.ListThreads(c.Context(), status, contactID, page, limit)
 	if err != nil {
 		log.Printf("ListThreads error: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to load threads"})
@@ -95,6 +104,19 @@ func (h *WhatsAppHandler) GetMessages(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.JSON(msgs)
+}
+
+// ReopenThread manually reopens a closed thread.
+// POST /api/v1/threads/:id/reopen
+func (h *WhatsAppHandler) ReopenThread(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+	if err := h.wa.ReopenThread(c.Context(), id); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 // CloseThread godoc
@@ -282,7 +304,7 @@ func (h *WhatsAppHandler) Receive(c *fiber.Ctx) error {
 				// Auto-tag leads based on message content
 				if h.taggingService != nil && msg.Type == "text" {
 					go func() {
-						if err := h.taggingService.AutoTagFromMessage(c.Context(), contact.ID, msg.Text.Body); err != nil {
+						if err := h.taggingService.AutoTagFromMessage(context.Background(), contact.ID, msg.Text.Body); err != nil {
 							log.Printf("whatsapp: auto-tagging error: %v", err)
 						}
 					}()

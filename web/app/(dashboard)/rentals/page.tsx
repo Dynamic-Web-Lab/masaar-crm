@@ -1,8 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Header } from '@/components/layout/Header'
 import { Modal, FormField, FormError } from '@/components/ui/Modal'
 import { useLang } from '@/context/LangContext'
+import { useAuthStore } from '@/store/auth'
 import { api } from '@/lib/api'
 import type { RentalProperty, PaginatedResult } from '@/types'
 
@@ -17,6 +19,9 @@ const blank = {
 
 export default function RentalsPage() {
   const { t } = useLang()
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'admin'
+  const isAgent = user?.role === 'agent' || isAdmin
   const [properties, setProperties] = useState<RentalProperty[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -26,6 +31,12 @@ export default function RentalsPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const limit = 20
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation(); e.preventDefault()
+    if (!confirm(t('حذف هذا العقار؟', 'Delete this property? This cannot be undone.'))) return
+    try { await api.rentalProperties.delete(id); load() } catch {}
+  }
 
   useEffect(() => { load() }, [page])
 
@@ -95,16 +106,26 @@ export default function RentalsPage() {
                 </thead>
                 <tbody>
                   {properties.map(p => (
-                    <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
+                    <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer">
+                      <td className="px-4 py-3">
+                        <Link href={`/rentals/${p.id}`} className="font-medium text-gray-900 hover:text-brand-600">
+                          {p.name}
+                        </Link>
+                      </td>
                       <td className="px-4 py-3 text-gray-600 capitalize">{p.property_type}</td>
                       <td className="px-4 py-3 text-gray-600">{p.area}</td>
                       <td className="px-4 py-3 text-gray-600">{p.emirate}</td>
                       <td className="px-4 py-3 text-gray-600">{p.total_occupied_units}/{p.units_count}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 flex items-center gap-2">
                         <span className={`px-2 py-1 rounded text-xs font-medium ${p.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                           {p.status}
                         </span>
+                        {isAdmin && (
+                          <button onClick={e => handleDelete(p.id, e)}
+                            className="text-xs text-red-400 hover:text-red-600 font-medium ml-2">
+                            {t('حذف', 'Delete')}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}

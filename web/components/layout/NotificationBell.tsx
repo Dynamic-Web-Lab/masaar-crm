@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useAuthStore } from '@/store/auth'
 import { useLang } from '@/context/LangContext'
@@ -7,7 +8,7 @@ import clsx from 'clsx'
 
 export function NotificationBell() {
   const user = useAuthStore((s) => s.user)
-  const { notifications, unread, markRead } = useNotifications(user?.id ?? null)
+  const { notifications, unread, markRead, markAllRead } = useNotifications(user?.id ?? null)
   const [open, setOpen] = useState(false)
   const { t, isRtl } = useLang()
 
@@ -36,8 +37,18 @@ export function NotificationBell() {
             "absolute top-12 z-20 w-80 bg-white rounded-2xl shadow-pop border border-surface-200/70 overflow-hidden animate-scale-in origin-top",
             isRtl ? "start-0" : "end-0"
           )}>
-            <div className="px-4 py-3 border-b border-surface-200/70 font-semibold text-sm text-surface-900">
-              {t('الإشعارات', 'Notifications')}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-surface-200/70">
+              <span className="font-semibold text-sm text-surface-900">
+                {t('الإشعارات', 'Notifications')}
+              </span>
+              {unread > 0 && (
+                <button
+                  onClick={markAllRead}
+                  className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+                >
+                  {t('تحديد الكل كمقروء', 'Mark all read')}
+                </button>
+              )}
             </div>
             <div className="max-h-80 overflow-y-auto divide-y divide-surface-100">
               {notifications.length === 0 ? (
@@ -60,6 +71,13 @@ export function NotificationBell() {
                 ))
               )}
             </div>
+            <Link
+              href="/notifications"
+              onClick={() => setOpen(false)}
+              className="block px-4 py-2.5 text-sm text-center text-primary-600 hover:bg-surface-50 font-medium border-t border-surface-200/70"
+            >
+              {t('عرض الكل', 'View all')}
+            </Link>
           </div>
         </>
       )}

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
 import { Header } from '@/components/layout/Header'
 import { Modal, FormField, FormError } from '@/components/ui/Modal'
 import { Pagination } from '@/components/ui/Pagination'
@@ -142,14 +143,14 @@ export default function ContactsPage() {
                 </thead>
                 <tbody className="divide-y divide-surface-100">
                   {contacts.map((c) => (
-                    <tr key={c.id} className="hover:bg-surface-50/60 transition-colors">
+                    <tr key={c.id} className="hover:bg-surface-50/60 transition-colors cursor-pointer" onClick={() => window.location.href = `/contacts/${c.id}`}>
                       <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2.5">
+                        <Link href={`/contacts/${c.id}`} className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 text-primary-700 text-xs font-semibold flex items-center justify-center shrink-0 ring-1 ring-primary-200/50">
                             {c.full_name[0]?.toUpperCase()}
                           </div>
                           <span className="font-medium text-surface-900 truncate max-w-[180px]">{c.full_name}</span>
-                        </div>
+                        </Link>
                       </td>
                       <td className="px-5 py-3.5 text-surface-600 font-mono text-xs tabular-nums">{c.phone_wa}</td>
                       <td className="px-5 py-3.5 text-surface-600 truncate max-w-[200px]">{c.email || '—'}</td>

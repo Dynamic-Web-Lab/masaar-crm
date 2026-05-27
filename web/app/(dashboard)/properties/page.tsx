@@ -1,8 +1,8 @@
 'use client'
 import { useState } from 'react'
 import { Header } from '@/components/layout/Header'
-import { useAuthStore } from '@/store/auth'
 import { useLang } from '@/context/LangContext'
+import { api } from '@/lib/api'
 
 interface PropertyResult {
   id: number
@@ -25,7 +25,6 @@ interface TransactionFilters {
 }
 
 export default function PropertiesPage() {
-  const { user } = useAuthStore()
   const { t } = useLang()
 
   // Search state
@@ -59,27 +58,8 @@ export default function PropertiesPage() {
 
     setLoading(true)
     try {
-      const response = await fetch('/api/v1/properties/search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        },
-        body: JSON.stringify({
-          query: searchQuery,
-          limit: 20
-        })
-      })
-
-      if (!response.ok) {
-        if (response.status === 503) {
-          throw new Error(t('خدمة البيانات العقارية غير مفعلة. اتصل بالمسؤول.', 'Real estate service not enabled. Contact admin.'))
-        }
-        throw new Error(t('فشل البحث', 'Search failed'))
-      }
-
-      const data = await response.json()
-      setResults(data.results || [])
+      const data = await api.bos24.search(searchQuery)
+      setResults((data as any).results || [])
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('حدث خطأ', 'Something went wrong'))
     } finally {
@@ -101,26 +81,8 @@ export default function PropertiesPage() {
 
     setLoading(true)
     try {
-      const params = new URLSearchParams()
-      Object.entries(searchFilters).forEach(([key, value]) => {
-        params.append(key, String(value))
-      })
-
-      const response = await fetch(`/api/v1/properties/transactions?${params.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-        }
-      })
-
-      if (!response.ok) {
-        if (response.status === 503) {
-          throw new Error(t('خدمة البيانات العقارية غير مفعلة. اتصل بالمسؤول.', 'Real estate service not enabled. Contact admin.'))
-        }
-        throw new Error(t('فشل البحث', 'Search failed'))
-      }
-
-      const data = await response.json()
-      setResults(data.transactions || [])
+      const data = await api.bos24.transactions(searchFilters as Record<string, string | number | undefined>)
+      setResults((data as any).transactions || [])
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('حدث خطأ', 'Something went wrong'))
     } finally {

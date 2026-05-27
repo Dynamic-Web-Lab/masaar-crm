@@ -37,6 +37,9 @@ Masaar is a **free, open-source CRM designed specifically for UAE businesses**. 
 |---------|-------------|
 | **Dashboard Overview** | Real-time stats: total contacts, active leads, open WhatsApp threads, pipeline value, won revenue |
 | **WhatsApp Inbox** | Receive and manage inbound WhatsApp messages from Meta Cloud API |
+| **WhatsApp Outbound** | Send text, media (images/video/documents), and predefined templates via WhatsApp |
+| **AI Draft Reply** | One-click AI-generated draft replies to WhatsApp threads using local Ollama |
+| **AI Buyer Profile** | Extract structured buyer requirements from WhatsApp conversations |
 | **Sales Pipeline** | Kanban board with drag-and-drop stage management (New → Won/Lost) |
 | **Lead Notes** | Click any pipeline card to view and edit per-lead notes inline |
 | **AI Thread Summaries** | One-click AI summarization via local Ollama LLM — data never leaves your server |
@@ -208,8 +211,15 @@ All protected routes require `Authorization: Bearer <token>`. Full interactive d
 | `PATCH` | `/api/v1/leads/:id/stage` | Move lead to stage | Agent, Admin |
 | `PATCH` | `/api/v1/leads/:id/notes` | Update lead notes | Agent, Admin |
 | `GET` | `/api/v1/threads` | List WhatsApp threads | Auth |
+| `GET` | `/api/v1/threads/:id` | Get single thread | Auth |
 | `GET` | `/api/v1/threads/:id/messages` | Thread messages | Auth |
 | `POST` | `/api/v1/threads/:id/close` | Close thread | Agent, Admin |
+| `POST` | `/api/v1/threads/:id/send-message` | Send WhatsApp text message | Agent, Admin |
+| `POST` | `/api/v1/threads/:id/send-template` | Send WhatsApp template | Agent, Admin |
+| `POST` | `/api/v1/threads/:id/send-media` | Send media (image/video/doc) | Agent, Admin |
+| `GET` | `/api/v1/threads/:id/outbound-messages` | Sent outbound messages | Agent, Admin |
+| `POST` | `/api/v1/ai/draft-reply/:thread_id` | AI-generated draft reply | Agent, Admin |
+| `POST` | `/api/v1/ai/extract-buyer-profile/:thread_id` | Extract buyer profile from conversation | Agent, Admin |
 | `GET` | `/api/v1/deals` | List deals | Auth |
 | `POST` | `/api/v1/deals` | Create deal | Agent, Admin |
 | `PATCH` | `/api/v1/deals/:id/stage` | Update deal stage | Agent, Admin |
@@ -263,8 +273,8 @@ Need more for your UAE enterprise? The Enterprise edition adds:
 | **Multiple Pipelines** | Sales, HR, Ops — separate pipelines per team |
 | **ZATCA E-Invoicing** | UAE FTA compliant with QR code & tax signing |
 | **AI Automation** | Auto lead scoring and auto-replies |
-| **WhatsApp Sender** | Send outbound messages and media |
-| **WhatsApp Bots** | AI-powered chatbots and template messaging |
+| **WhatsApp Bots** | AI-powered chatbots and auto-replies |
+| **Advanced Templates** | Multi-language template management and analytics |
 | **War Room** | Team live leaderboard dashboard |
 | **Semantic Search** | AI-powered similarity search across conversations |
 | **SSO / SAML** | Enterprise authentication |

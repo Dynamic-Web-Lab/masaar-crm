@@ -62,7 +62,10 @@ export default function BankIntegrationsPage() {
           <h2 className="text-lg font-semibold text-gray-800">
             {t('تكاملات البنك', 'Bank Integrations')} ({total})
           </h2>
-          <button className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors">
+          <button
+            onClick={() => alert(t('سيتم إضافة هذه الميزة قريباً', 'This feature will be available soon'))}
+            className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
+          >
             + {t('إضافة بنك', 'Add Bank')}
           </button>
         </div>
@@ -107,7 +110,12 @@ export default function BankIntegrationsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">
-                      <button className="text-blue-600 hover:text-blue-800">{t('تعديل', 'Edit')}</button>
+                      <button
+                        onClick={() => alert(t('سيتم إضافة هذه الميزة قريباً', 'This feature will be available soon'))}
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        {t('تعديل', 'Edit')}
+                      </button>
                     </td>
                   </tr>
                 ))}

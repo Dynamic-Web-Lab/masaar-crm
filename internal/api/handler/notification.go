@@ -78,3 +78,21 @@ func (h *NotificationHandler) MarkRead(c *fiber.Ctx) error {
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
+
+// MarkAllRead godoc
+// @Summary      Mark all notifications read
+// @Description  Marks all unread notifications as read for the authenticated user.
+// @Tags         Notifications
+// @Success      204
+// @Security     BearerAuth
+// @Router       /notifications/read-all [patch]
+func (h *NotificationHandler) MarkAllRead(c *fiber.Ctx) error {
+	userID, ok := userIDFromCtx(c)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
+	}
+	if err := h.notifications.MarkAllRead(c.Context(), userID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}

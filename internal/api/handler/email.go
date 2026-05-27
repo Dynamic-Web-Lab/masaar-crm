@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strconv"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/maidulcu/masaar-crm/internal/domain"
@@ -116,7 +118,7 @@ func (h *EmailHandler) GetEmailHistory(c *fiber.Ctx) error {
 		})
 	}
 
-	relatedID, err := c.ParamsInt(relatedIDStr)
+	relatedID, err := strconv.Atoi(relatedIDStr)
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "invalid related_id",

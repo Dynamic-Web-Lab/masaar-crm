@@ -108,6 +108,15 @@ const sections: NavSection[] = [
         ),
       },
       {
+        href: '/lease-templates',
+        label: { en: 'Lease Templates', ar: 'قوالب العقود' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+        ),
+      },
+      {
         href: '/documents',
         label: { en: 'Documents', ar: 'المستندات' },
         icon: (
@@ -117,11 +126,38 @@ const sections: NavSection[] = [
         ),
       },
       {
+        href: '/renewals',
+        label: { en: 'Renewals', ar: 'تجديد العقود' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        ),
+      },
+      {
+        href: '/expenses',
+        label: { en: 'Expenses', ar: 'المصروفات' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+        ),
+      },
+      {
         href: '/payments',
         label: { en: 'Payments', ar: 'المدفوعات' },
         icon: (
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          </svg>
+        ),
+      },
+      {
+        href: '/bank-statements',
+        label: { en: 'Bank Statements', ar: 'كشوفات الحساب' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
           </svg>
         ),
       },
@@ -183,6 +219,15 @@ const sections: NavSection[] = [
         ),
       },
       {
+        href: '/notifications',
+        label: { en: 'Notifications', ar: 'الإشعارات' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+        ),
+      },
+      {
         href: '/settings',
         label: { en: 'Settings', ar: 'الإعدادات' },
         icon: (
@@ -191,6 +236,35 @@ const sections: NavSection[] = [
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         ),
+      },
+      {
+        href: '/settings/company',
+        label: { en: 'Company', ar: 'الشركة' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+        ),
+      },
+      {
+        href: '/settings/api-keys',
+        label: { en: 'API Keys', ar: 'مفاتيح API' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+          </svg>
+        ),
+        adminOnly: true,
+      },
+      {
+        href: '/settings/webhooks',
+        label: { en: 'Webhooks', ar: 'Webhooks' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+        ),
+        adminOnly: true,
       },
     ],
   },
@@ -226,8 +300,8 @@ export function Sidebar() {
               {section.items.filter(item => !item.adminOnly || isAdmin).map((item) => {
                 const active = item.href === '/analytics'
                   ? pathname.startsWith('/analytics')
-                  : item.href === '/settings'
-                    ? pathname === '/settings' || pathname.startsWith('/settings/api')
+                    : item.href === '/settings'
+                      ? pathname === '/settings' || pathname.startsWith('/settings/api') || pathname.startsWith('/settings/company') || pathname.startsWith('/settings/api-keys') || pathname.startsWith('/settings/webhooks')
                     : item.href === '/admin/users'
                       ? pathname.startsWith('/admin')
                       : pathname.startsWith(item.href)

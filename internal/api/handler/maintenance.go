@@ -32,7 +32,7 @@ func NewMaintenanceTaskHandler(maintenanceRepo *repo.MaintenanceTaskRepo) *Maint
 // @Success 200 {object} map[string]interface{}
 // @Router /api/v1/maintenance-tasks [get]
 func (h *MaintenanceTaskHandler) List(c *fiber.Ctx) error {
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID := uuid.Parse(c.Locals("company_id").(string))
 
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	if limit < 1 || limit > 100 {
@@ -97,7 +97,7 @@ func (h *MaintenanceTaskHandler) Get(c *fiber.Ctx) error {
 // @Success 201 {object} map[string]interface{}
 // @Router /api/v1/maintenance-tasks [post]
 func (h *MaintenanceTaskHandler) Create(c *fiber.Ctx) error {
-	companyID := c.Locals("company_id").(uuid.UUID)
+	companyID := uuid.Parse(c.Locals("company_id").(string))
 	userID := c.Locals("user_id").(uuid.UUID)
 
 	var req struct {
@@ -247,7 +247,9 @@ func (h *MaintenanceTaskHandler) Complete(c *fiber.Ctx) error {
 	var req struct {
 		ActualCost *float64 `json:"actual_cost"`
 	}
-	c.BodyParser(&req)
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
 
 	task.Status = domain.MaintenanceCompleted
 	now := time.Now()

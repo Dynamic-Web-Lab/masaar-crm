@@ -54,6 +54,7 @@ type Handlers struct {
 	PublicLead        *handler.PublicLeadHandler
 	WebhookSub        *handler.WebhookSubHandler
 	Billing           *handler.BillingHandler
+	MessageTemplate   *handler.MessageTemplateHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -214,7 +215,10 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	)
 
 	// Outbound Webhooks — admin only
-	v1.Get("/settings/webhooks", h.WebhookSub.List)
+	v1.Get("/settings/webhooks",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.WebhookSub.List,
+	)
 	v1.Post("/settings/webhooks",
 		middleware.RequireRole(domain.RoleAdmin),
 		h.WebhookSub.Create,
@@ -281,6 +285,15 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		h.Lead.Delete,
 	)
 	v1.Get("/leads/:id/communications", h.Lead.GetCommunications)
+	v1.Get("/leads/:id/tags", h.Lead.GetTags)
+	v1.Post("/leads/:id/tags",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Lead.AddTag,
+	)
+	v1.Delete("/leads/:id/tags/:tag",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Lead.RemoveTag,
+	)
 
 	// WhatsApp inbox — all authenticated users read; agents+ can close/send
 	v1.Get("/threads", h.WhatsApp.ListThreads)
@@ -289,6 +302,10 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Post("/threads/:id/close",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.WhatsApp.CloseThread,
+	)
+	v1.Post("/threads/:id/reopen",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.WhatsApp.ReopenThread,
 	)
 
 	// WhatsApp outbound — agents+ send messages
@@ -304,6 +321,10 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.WhatsAppOutbound.GetOutboundMessages,
 	)
+	v1.Post("/threads/:id/send-media",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.WhatsAppOutbound.SendMedia,
+	)
 
 	// AI (manual) — agents and admin only, quota enforced
 	aiQuota := middleware.CheckQuota(billingRepo, rdb, "ai")
@@ -314,6 +335,25 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		aiQuota, aiUserQuota,
 		h.AI.SummarizeThread,
 	)
+	// AI buyer profile extraction
+	v1.Post("/ai/extract-buyer-profile/:thread_id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		aiQuota, aiUserQuota,
+		h.AI.ExtractBuyerProfile,
+	)
+
+	// AI scoring and drafting
+	v1.Post("/ai/score-lead/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		aiQuota, aiUserQuota,
+		h.AI.ScoreLead,
+	)
+	v1.Post("/ai/draft-reply/:thread_id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		aiQuota, aiUserQuota,
+		h.AI.DraftReply,
+	)
+
 	// Non-PII: uses Gemini if configured, falls back to Ollama
 	v1.Post("/ai/describe-listing",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
@@ -347,6 +387,7 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 
 	// AI search
 	prop.Post("/search", h.Property.SearchProperties)
+	prop.Post("/report/pdf", h.Property.GeneratePropertyReport)
 	prop.Post("/projects/search", h.Property.SearchProjects)
 	prop.Post("/ai/describe", h.Property.DescribeProperty)
 
@@ -427,6 +468,7 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 
 	// Notifications — personal; no role restriction beyond auth
 	v1.Get("/notifications", h.Notification.List)
+	v1.Patch("/notifications/read-all", h.Notification.MarkAllRead)
 	v1.Patch("/notifications/:id/read", h.Notification.MarkRead)
 
 	// Deals — viewers: read-only; agents: create+stage; admin: all
@@ -444,6 +486,10 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Patch("/deals/:id/stage",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.Deal.UpdateStage,
+	)
+	v1.Delete("/deals/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Deal.Delete,
 	)
 
 	// Invoices — agents: create+view; admin: send+update status
@@ -522,6 +568,22 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Delete("/lease-templates/:id",
 		middleware.RequireRole(domain.RoleAdmin),
 		h.LeaseTemplate.Delete,
+	)
+
+	// Message Templates — agents+viewers: view; admin: all
+	v1.Get("/message-templates", h.MessageTemplate.List)
+	v1.Get("/message-templates/:id", h.MessageTemplate.Get)
+	v1.Post("/message-templates",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.MessageTemplate.Create,
+	)
+	v1.Patch("/message-templates/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.MessageTemplate.Update,
+	)
+	v1.Delete("/message-templates/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.MessageTemplate.Delete,
 	)
 
 	// Leases — agents: create+view+update; admin: all; viewers: read-only

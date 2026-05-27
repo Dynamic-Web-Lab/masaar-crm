@@ -113,6 +113,7 @@ func newTestLeadHandler(leadRepo LeadRepository, contactRepo ContactRepository, 
 		contactRepo,
 		&stubCommHistRepo{},
 		&stubScoringService{},
+		nil, // tags — nil-safe (tests don't use tags)
 		hub,
 		&stubAuditLog{},
 		nil, // dispatcher — nil-safe in UpdateStage

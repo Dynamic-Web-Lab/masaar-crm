@@ -63,10 +63,15 @@ export interface Lead {
   currency: string
   notes: string
   lead_score?: number
+  score_updated_at?: string
+  assigned_to?: string | null
+  closed_reason?: string
+  last_contacted_at?: string
   tags?: string[]
   created_at: string
   updated_at: string
   contact?: Contact
+  assigned_user?: { id: string; name: string } | null
 }
 
 export type KanbanBoard = Partial<Record<LeadStage, Lead[]>>
@@ -135,6 +140,7 @@ export interface Deal {
   probability: number
   owner_id: string
   created_at: string
+  updated_at: string
 }
 
 export interface VATInvoice {
@@ -145,6 +151,7 @@ export interface VATInvoice {
   vat_rate: number
   vat_amount: number
   total: number
+  qr_payload?: string
   status: InvoiceStatus
   issued_at: string
 }
@@ -326,17 +333,22 @@ export interface Payment {
   amount: number
   currency: string
   due_date: string
+  paid_date: string | null
   payment_method: PaymentMethod
+  payment_reference: string
   status: PaymentStatus
-  received_date: string | null
-  received_amount: number
-  late_fee: number
   bank_transaction_id: string | null
+  reconciled_at: string | null
+  reconciled_by: string | null
   notes: string
+  receipt_url: string
+  late_fee_applied: boolean
+  late_fee_amount: number
   created_at: string
   updated_at: string
   created_by: string | null
   updated_by: string | null
+  lease?: Lease
 }
 
 // ─── Bank Integration ─────────────────────────────────────────────────────────
@@ -430,6 +442,259 @@ export interface PaymentConfirmation {
   created_at: string
   updated_at: string
   deleted_at: string | null
+}
+
+// ─── WhatsApp Outbound ────────────────────────────────────────────────────────
+
+export type OutboundStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed'
+
+export interface WhatsAppOutbound {
+  id: number
+  thread_id: string
+  to_number: string
+  message_body: string
+  media_url: string
+  wa_message_id: string
+  status: OutboundStatus
+  error_message: string
+  scheduled_at: string | null
+  sent_at: string | null
+  created_at: string
+  created_by: string | null
+  metadata: Record<string, unknown> | null
+}
+
+// ─── Lease Renewals ────────────────────────────────────────────────────────────
+
+export type RenewalStatus = 'pending' | 'in_progress' | 'offer_sent' | 'accepted' | 'rejected' | 'expired'
+export type TenantResponse = 'pending' | 'accepted' | 'rejected' | 'counter_offer'
+
+export interface LeaseRenewalWorkflow {
+  id: string
+  company_id: string
+  lease_id: string
+  renewal_date: string
+  renewal_status: RenewalStatus
+  days_before_expiry: number
+  proposed_rent_amount: number | null
+  proposed_terms: Record<string, unknown> | null
+  tenant_response: TenantResponse
+  tenant_counter_offer: number | null
+  counter_offer_date: string | null
+  created_at: string
+  updated_at: string
+  lease?: Lease
+}
+
+export interface RenewalCommunicationTemplate {
+  id: string
+  company_id: string
+  template_name: string
+  email_subject: string
+  email_body: string
+  whatsapp_message: string
+  language: 'ar' | 'en'
+  created_at: string
+}
+
+// ─── Inspections ──────────────────────────────────────────────────────────────
+
+export type InspectionType = 'general' | 'pre_lease' | 'end_lease' | 'damage_assessment' | 'safety'
+export type InspectionStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+export type SeverityLevel = 'green' | 'yellow' | 'red'
+
+export interface ChecklistItem {
+  id: string
+  description: string
+  critical: boolean
+}
+
+export interface ChecklistResult {
+  status: string
+  notes: string
+}
+
+export interface InspectionTemplate {
+  id: string
+  company_id: string
+  template_name: string
+  inspection_type: InspectionType
+  checklist_items: ChecklistItem[]
+  estimated_duration_minutes: number
+  created_at: string
+}
+
+export interface Inspection {
+  id: string
+  company_id: string
+  property_id: string
+  template_id: string | null
+  inspection_type: string
+  scheduled_date: string
+  completed_date: string | null
+  inspector_id: string | null
+  tenant_id: string | null
+  status: InspectionStatus
+  findings: string
+  severity_level: SeverityLevel
+  photos_urls: string[]
+  checklist_results: Record<string, ChecklistResult> | null
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+// ─── Maintenance ──────────────────────────────────────────────────────────────
+
+export type MaintenanceType = 'plumbing' | 'electrical' | 'hvac' | 'flooring' | 'painting' | 'structural' | 'other'
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
+export type MaintenanceStatus = 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+
+export interface MaintenancePhoto {
+  id: string
+  task_id: string
+  photo_url: string
+  uploaded_at: string
+  photo_stage: string
+}
+
+export interface MaintenanceTask {
+  id: string
+  company_id: string
+  property_id: string
+  inspection_id: string | null
+  maintenance_type: MaintenanceType
+  description: string
+  priority: TaskPriority
+  scheduled_date: string | null
+  due_date: string | null
+  completion_date: string | null
+  contractor_name: string
+  contractor_contact: string
+  estimated_cost: number | null
+  actual_cost: number | null
+  status: MaintenanceStatus
+  assigned_to: string | null
+  notes: string
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+// ─── Expenses ─────────────────────────────────────────────────────────────────
+
+export type ExpenseCategoryType = 'property_maintenance' | 'utilities' | 'insurance' | 'cleaning' | 'repairs' | 'staff' | 'other'
+export type ExpensePaymentMethod = 'cash' | 'bank_transfer' | 'credit_card' | 'check' | 'other'
+export type ExpensePaymentStatus = 'pending' | 'paid' | 'refunded'
+export type ExpenseApprovalStatus = 'pending' | 'approved' | 'rejected'
+
+export interface ExpenseCategory {
+  id: string
+  company_id: string
+  category_name: string
+  category_type: ExpenseCategoryType
+  description: string
+  created_at: string
+}
+
+export interface ExpenseApproval {
+  id: string
+  expense_id: string
+  approval_status: ExpenseApprovalStatus
+  approved_by: string | null
+  approval_comments: string
+  approval_date: string | null
+  created_at: string
+}
+
+export interface Expense {
+  id: string
+  company_id: string
+  category_id: string
+  property_id: string | null
+  tenant_id: string | null
+  amount: number
+  currency: string
+  expense_date: string
+  description: string
+  vendor_name: string
+  vendor_contact: string
+  payment_method: ExpensePaymentMethod
+  payment_status: ExpensePaymentStatus
+  receipt_url: string
+  notes: string
+  created_by: string
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+  category?: ExpenseCategory
+}
+
+// ─── Documents ─────────────────────────────────────────────────────────────────
+
+export type DocumentType = 'lease' | 'offer' | 'inspection_report' | 'maintenance_waiver' | 'custom'
+export type SignatureStatus = 'not_required' | 'pending' | 'signed'
+export interface Document {
+  id: string
+  company_id: string
+  document_type: DocumentType
+  original_template_id: string | null
+  related_entity_type: string
+  related_entity_id: string | null
+  document_title: string
+  file_url: string
+  file_size_bytes: number
+  content_hash: string
+  signature_status: SignatureStatus
+  created_by: string
+  created_at: string
+  updated_at: string
+  data_classification: DataClassification
+  retention_until: string | null
+  deleted_at: string | null
+}
+
+export interface DocumentSignature {
+  id: string
+  document_id: string
+  signer_name: string
+  signer_email: string
+  signature_field_name: string
+  signature_status: SignatureStatus
+  signed_at: string | null
+  signature_image_url: string
+  ip_address: string
+  user_agent: string
+  created_at: string
+}
+
+export interface DocumentTemplate {
+  id: string
+  company_id: string
+  template_name: string
+  document_type: DocumentType
+  template_content: string
+  language: string
+  signature_required: boolean
+  signature_fields: string[]
+  created_by: string
+  created_at: string
+}
+
+// ─── Message Templates ─────────────────────────────────────────────────────────
+
+export interface MessageTemplate {
+  id: string
+  company_id: string
+  name: string
+  body: string
+  category: string
+  variables: string[]
+  is_active: boolean
+  created_by?: string
+  updated_by?: string
+  created_at: string
+  updated_at: string
 }
 
 // ─── WebSocket Events ─────────────────────────────────────────────────────────

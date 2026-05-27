@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/maidulcu/masaar-crm/internal/domain"
 	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/maidulcu/masaar-crm/internal/webhook"
 	"github.com/maidulcu/masaar-crm/internal/ws"
 )
 
@@ -48,18 +49,26 @@ type WebhookDispatcher interface {
 	Dispatch(companyID uuid.UUID, event string, data interface{})
 }
 
+// LeadTagRepository defines the interface for lead tag data access.
+type LeadTagRepository interface {
+	GetByLead(ctx context.Context, leadID uuid.UUID) ([]string, error)
+	AddTag(ctx context.Context, leadID uuid.UUID, tag string, category string, autoApplied bool, userID *uuid.UUID) error
+	RemoveTag(ctx context.Context, leadID uuid.UUID, tag string) error
+}
+
 type LeadHandler struct {
 	leads          LeadRepository
 	contacts       ContactRepository
 	commHistRepo   CommunicationHistoryRepository
 	scoringService ScoringService
+	tags           LeadTagRepository
 	hub            *ws.Hub
 	audit          AuditLogRepository
 	dispatcher     WebhookDispatcher
 }
 
-func NewLeadHandler(leads LeadRepository, contacts ContactRepository, commHistRepo CommunicationHistoryRepository, scoringService ScoringService, hub *ws.Hub, audit AuditLogRepository, dispatcher WebhookDispatcher) *LeadHandler {
-	return &LeadHandler{leads: leads, contacts: contacts, commHistRepo: commHistRepo, scoringService: scoringService, hub: hub, audit: audit, dispatcher: dispatcher}
+func NewLeadHandler(leads LeadRepository, contacts ContactRepository, commHistRepo CommunicationHistoryRepository, scoringService ScoringService, tags LeadTagRepository, hub *ws.Hub, audit AuditLogRepository, dispatcher WebhookDispatcher) *LeadHandler {
+	return &LeadHandler{leads: leads, contacts: contacts, commHistRepo: commHistRepo, scoringService: scoringService, tags: tags, hub: hub, audit: audit, dispatcher: dispatcher}
 }
 
 // KanbanBoard godoc
@@ -103,11 +112,22 @@ func (h *LeadHandler) List(c *fiber.Ctx) error {
 			f.AssignedTo = &id
 		}
 	}
+	if s := c.Query("contact_id"); s != "" {
+		if id, err := uuid.Parse(s); err == nil {
+			f.ContactID = &id
+		}
+	}
 	if v, err := strconv.Atoi(c.Query("limit")); err == nil && v > 0 {
 		f.Limit = v
 	}
 	if v, err := strconv.Atoi(c.Query("offset")); err == nil && v >= 0 {
 		f.Offset = v
+	} else if v, err := strconv.Atoi(c.Query("page")); err == nil && v >= 1 {
+		limit := f.Limit
+		if limit == 0 {
+			limit = 50
+		}
+		f.Offset = (v - 1) * limit
 	}
 
 	leads, err := h.leads.List(c.Context(), f)
@@ -298,7 +318,7 @@ func (h *LeadHandler) Assign(c *fiber.Ctx) error {
 	}
 
 	var body struct {
-		UserID *uuid.UUID `json:"user_id"`
+		UserID *uuid.UUID `json:"assigned_to"`
 	}
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
@@ -359,6 +379,9 @@ func (h *LeadHandler) Get(c *fiber.Ctx) error {
 	contact, _ := h.contacts.GetByID(c.Context(), lead.ContactID)
 	lead.Contact = contact
 
+	tags, _ := h.tags.GetByLead(c.Context(), lead.ID)
+	lead.Tags = tags
+
 	return c.JSON(lead)
 }
 
@@ -373,6 +396,86 @@ func (h *LeadHandler) Get(c *fiber.Ctx) error {
 // @Failure      400   {object}  object{error=string}
 // @Security     BearerAuth
 // @Router       /leads/{id}/communications [get]
+// GetTags godoc
+// @Summary      Get lead tags
+// @Description  Returns all tags attached to a lead.
+// @Tags         Leads
+// @Produce      json
+// @Param        id  path  string  true  "Lead UUID"
+// @Success      200  {array}  string
+// @Security     BearerAuth
+// @Router       /leads/{id}/tags [get]
+func (h *LeadHandler) GetTags(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+	tags, err := h.tags.GetByLead(c.Context(), id)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	if tags == nil {
+		tags = []string{}
+	}
+	return c.JSON(tags)
+}
+
+// AddTag godoc
+// @Summary      Add tag to lead
+// @Description  Attaches a tag to a lead. Duplicates are silently ignored.
+// @Tags         Leads
+// @Accept       json
+// @Param        id    path  string  true  "Lead UUID"
+// @Param        body  body  object{tag=string,category=string}  true  "Tag payload"
+// @Success      201
+// @Security     BearerAuth
+// @Router       /leads/{id}/tags [post]
+func (h *LeadHandler) AddTag(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+	var body struct {
+		Tag      string `json:"tag"`
+		Category string `json:"category"`
+	}
+	if err := c.BodyParser(&body); err != nil || body.Tag == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "tag is required"})
+	}
+	if body.Category == "" {
+		body.Category = "manual"
+	}
+	userID := c.Locals("user_id").(uuid.UUID)
+	if err := h.tags.AddTag(c.Context(), id, body.Tag, body.Category, false, &userID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.SendStatus(fiber.StatusCreated)
+}
+
+// RemoveTag godoc
+// @Summary      Remove tag from lead
+// @Description  Detaches a tag from a lead. No error if the tag doesn't exist.
+// @Tags         Leads
+// @Param        id    path  string  true  "Lead UUID"
+// @Param        tag   path  string  true  "Tag value to remove"
+// @Success      204
+// @Security     BearerAuth
+// @Router       /leads/{id}/tags/{tag} [delete]
+func (h *LeadHandler) RemoveTag(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+	tag := c.Params("tag")
+	if tag == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "tag is required"})
+	}
+	if err := h.tags.RemoveTag(c.Context(), id, tag); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 func (h *LeadHandler) GetCommunications(c *fiber.Ctx) error {
 	id, err := uuid.Parse(c.Params("id"))
 	if err != nil {

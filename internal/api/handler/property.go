@@ -2,22 +2,27 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/maidulcu/masaar-crm/internal/bos24"
+	"github.com/maidulcu/masaar-crm/internal/pdf"
+	"github.com/maidulcu/masaar-crm/internal/repo"
 )
 
 const bos24Timeout = 15 * time.Second
 
 type PropertyHandler struct {
-	bos24Client *bos24.Client
+	bos24Client         *bos24.Client
+	companySettingsRepo *repo.CompanySettingsRepo
 }
 
-func NewPropertyHandler(bos24Client *bos24.Client) *PropertyHandler {
+func NewPropertyHandler(bos24Client *bos24.Client, companySettingsRepo *repo.CompanySettingsRepo) *PropertyHandler {
 	return &PropertyHandler{
-		bos24Client: bos24Client,
+		bos24Client:         bos24Client,
+		companySettingsRepo: companySettingsRepo,
 	}
 }
 
@@ -1664,11 +1669,145 @@ func (h *PropertyHandler) GetValuationByID(c *fiber.Ctx) error {
 	return c.JSON(result)
 }
 
+// GeneratePropertyReport godoc
+// @Summary      Generate a branded property market report PDF
+// @Description  Generates a client-facing PDF report with DLD data, yield analysis, and nearby amenities.
+// @Tags         Properties
+// @Accept       json
+// @Produce      application/pdf
+// @Param        body  body  GenerateReportRequest  true  "Report parameters"
+// @Success      200   {file}  binary  "PDF file"
+// @Failure      400   {object}  object{error=string}
+// @Failure      503   {object}  object{error=string}
+// @Security     BearerAuth
+// @Router       /properties/report/pdf [post]
+func (h *PropertyHandler) GeneratePropertyReport(c *fiber.Ctx) error {
+	if h.bos24Client == nil {
+		return h.notEnabled(c)
+	}
+
+	var req GenerateReportRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+	if req.Area == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "area is required"})
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), 30*time.Second)
+	defer cancel()
+
+	// Company branding
+	company, _ := h.companySettingsRepo.Get(ctx)
+	companyName := "Masaar CRM"
+	companyAddress := "Dubai, United Arab Emirates"
+	companyPhone := ""
+	companyEmail := ""
+	if company != nil {
+		companyName = company.Name
+		companyAddress = company.BusinessAddress
+		companyPhone = company.BusinessPhone
+		companyEmail = company.BusinessEmail
+	}
+
+	// Area slug for data lookups
+	areaSlug := req.AreaSlug
+	if areaSlug == "" {
+		areaSlug = req.Area
+	}
+
+	// Fetch area summary
+	areaSummary, _ := h.bos24Client.GetAreaSummary(ctx, areaSlug)
+
+	// Fetch comparable transactions
+	transFilters := map[string]interface{}{}
+	if req.PropertyType != "" {
+		transFilters["property_type"] = req.PropertyType
+	}
+	if req.BudgetMax > 0 {
+		transFilters["max_price"] = req.BudgetMax
+	}
+	if req.BudgetMin > 0 {
+		transFilters["min_price"] = req.BudgetMin
+	}
+	transFilters["limit"] = 10
+	comparables, _ := h.bos24Client.GetTransactions(ctx, transFilters)
+
+	// Fetch yield data if requested
+	var yieldData []map[string]interface{}
+	if req.IncludeYield {
+		yieldFilters := map[string]interface{}{}
+		if req.PropertyType != "" {
+			yieldFilters["property_type"] = req.PropertyType
+		}
+		yieldData, _ = h.bos24Client.GetEjariYield(ctx, yieldFilters)
+	}
+
+	// Fetch POIs if coordinates provided
+	var pois []map[string]interface{}
+	if req.IncludePOIs && req.Lat != 0 && req.Lng != 0 {
+		pois, _ = h.bos24Client.GetPOIs(ctx, req.Lat, req.Lng, 2.0, "", 10)
+	}
+
+	// AI description
+	aiDescription := ""
+	if req.AIDescription != "" {
+		aiDescription = req.AIDescription
+	}
+
+	pdfData := pdf.PropertyReportData{
+		CompanyName:    companyName,
+		CompanyAddress: companyAddress,
+		CompanyPhone:   companyPhone,
+		CompanyEmail:   companyEmail,
+		AgentName:      req.AgentName,
+		ClientName:     req.ClientName,
+		Area:           req.Area,
+		PropertyType:   req.PropertyType,
+		Bedrooms:       req.Bedrooms,
+		BudgetMin:      req.BudgetMin,
+		BudgetMax:      req.BudgetMax,
+		AreaSummary:    areaSummary,
+		Comparables:    comparables,
+		YieldData:      yieldData,
+		POIs:           pois,
+		AIDescription:  aiDescription,
+		GeneratedAt:    time.Now(),
+	}
+
+	pdfBytes, err := pdf.GeneratePropertyReport(pdfData)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to generate PDF"})
+	}
+
+	filename := fmt.Sprintf("property-report-%s.pdf", areaSlug)
+	c.Set("Content-Type", "application/pdf")
+	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	return c.Send(pdfBytes)
+}
+
 // Request/Response types
 
 type SearchPropertiesRequest struct {
 	Query string `json:"query"`
 	Limit int    `json:"limit"`
+}
+
+type GenerateReportRequest struct {
+	ClientName    string  `json:"client_name"`
+	AgentName     string  `json:"agent_name"`
+	Area          string  `json:"area"`
+	AreaSlug      string  `json:"area_slug"`
+	PropertyType  string  `json:"property_type"`
+	Bedrooms      string  `json:"bedrooms"`
+	BudgetMin     float64 `json:"budget_min"`
+	BudgetMax     float64 `json:"budget_max"`
+	IncludeYield  bool    `json:"include_yield"`
+	IncludePOIs   bool    `json:"include_pois"`
+	Lat           float64 `json:"lat"`
+	Lng           float64 `json:"lng"`
+	LeadID        string  `json:"lead_id"`
+	AIDescription string  `json:"ai_description"`
 }
 
 type YieldAnalysisResponse struct {

@@ -160,6 +160,42 @@ Write only the description text, no headers or labels.`, language, area, propert
 	return c.Generate(ctx, prompt)
 }
 
+// ExtractBuyerProfile extracts buyer requirements from a WhatsApp conversation.
+func (c *Client) ExtractBuyerProfile(ctx context.Context, messages []string) (string, error) {
+	if len(messages) == 0 {
+		return "{}", nil
+	}
+
+	conversation := ""
+	for i, m := range messages {
+		conversation += fmt.Sprintf("%d. %s\n", i+1, m)
+	}
+
+	prompt := fmt.Sprintf(`You are a UAE real estate buyer profiling expert.
+
+Analyze this WhatsApp conversation and extract the buyer's property requirements.
+Return JSON ONLY with these fields:
+{
+  "areas": ["Area1", "Area2"],
+  "property_type": "apartment|villa|townhouse|commercial|any",
+  "bedrooms": "1BR|2BR|3BR|studio|any",
+  "budget_min_aed": number or null,
+  "budget_max_aed": number or null,
+  "timeline": "immediate|1-3 months|3-6 months|flexible|unknown",
+  "buyer_type": "investor|end_user|unknown",
+  "transaction_type": "buy|rent|both|unknown",
+  "notes": "Key requirements and preferences",
+  "confidence": "high|medium|low"
+}
+
+Conversation:
+%s
+
+Return only valid JSON, no other text.`, conversation)
+
+	return c.Generate(ctx, prompt)
+}
+
 // SuggestAction recommends the next best action for the agent.
 func (c *Client) SuggestAction(ctx context.Context, message, threadSummary string) (string, error) {
 	prompt := fmt.Sprintf(`You are a UAE real estate sales coach.
