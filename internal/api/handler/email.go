@@ -141,6 +141,29 @@ func (h *EmailHandler) GetEmailHistory(c *fiber.Ctx) error {
 	})
 }
 
+// ListAllEmailHistory returns paginated email history across all entities
+// @Summary      List all email history
+// @Tags         Email
+// @Produce      json
+// @Param        page  query  int  false  "Page (default 1)"
+// @Param        limit query  int  false  "Limit (default 50)"
+// @Success      200  {object}  object{emails=[]domain.EmailHistory,total=int}
+// @Security     BearerAuth
+// @Router       /emails [get]
+func (h *EmailHandler) ListAllEmailHistory(c *fiber.Ctx) error {
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "50"))
+
+	emails, total, err := h.emailRepo.ListAll(c.Context(), page, limit)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	if emails == nil {
+		emails = []domain.EmailHistory{}
+	}
+	return c.JSON(fiber.Map{"emails": emails, "total": total})
+}
+
 // Request types
 type SendEmailRequest struct {
 	FromEmail   string                 `json:"from_email"`

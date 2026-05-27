@@ -148,6 +148,65 @@ func (r *EmailRepository) ListByRelated(ctx context.Context, relatedTo string, r
 	return emails, rows.Err()
 }
 
+func (r *EmailRepository) ListAll(ctx context.Context, page, limit int) ([]domain.EmailHistory, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 50
+	}
+	offset := (page - 1) * limit
+
+	var total int
+	if err := r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM email_history`).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	query := `SELECT id, from_email, to_email, subject, body, html_body, status, error_message,
+	related_to, related_id, sent_at, created_at, created_by, metadata
+	FROM email_history ORDER BY created_at DESC LIMIT $1 OFFSET $2`
+
+	rows, err := r.pool.Query(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var emails []domain.EmailHistory
+	for rows.Next() {
+		var e domain.EmailHistory
+		var metadataJSON []byte
+
+		err := rows.Scan(
+			&e.ID,
+			&e.FromEmail,
+			&e.ToEmail,
+			&e.Subject,
+			&e.Body,
+			&e.HTMLBody,
+			&e.Status,
+			&e.ErrorMsg,
+			&e.RelatedTo,
+			&e.RelatedID,
+			&e.SentAt,
+			&e.CreatedAt,
+			&e.CreatedBy,
+			&metadataJSON,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		if metadataJSON != nil {
+			json.Unmarshal(metadataJSON, &e.Metadata)
+		}
+
+		emails = append(emails, e)
+	}
+
+	return emails, total, rows.Err()
+}
+
 func (r *EmailRepository) ListByStatus(ctx context.Context, status domain.EmailStatus, limit int) ([]domain.EmailHistory, error) {
 	query := `SELECT id, from_email, to_email, subject, body, html_body, status, error_message,
 	related_to, related_id, sent_at, created_at, created_by, metadata

@@ -53,6 +53,8 @@ export default function ContactDetailPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [emailOpen, setEmailOpen] = useState(false)
+  const [scoring, setScoring] = useState(false)
+  const [scoreResult, setScoreResult] = useState<{ score: number; reasoning: string } | null>(null)
 
   const load = async () => {
     if (!id) return; setLoading(true)
@@ -161,9 +163,34 @@ export default function ContactDetailPage() {
           </div>
           <div>
             <p className="text-xs text-surface-400 mb-1">{t('نقاط العميل', 'Lead Score')}</p>
-            <span className={clsx('text-xs font-semibold px-2 py-0.5 rounded-full', contact.lead_score >= 80 ? 'bg-green-100 text-green-700' : contact.lead_score >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-surface-100 text-surface-600')}>
-              {contact.lead_score}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={clsx('text-xs font-semibold px-2 py-0.5 rounded-full', contact.lead_score >= 80 ? 'bg-green-100 text-green-700' : contact.lead_score >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-surface-100 text-surface-600')}>
+                {contact.lead_score}
+              </span>
+              {isAgent && leads.length > 0 && (
+                <button
+                  disabled={scoring}
+                  onClick={async () => {
+                    setScoring(true)
+                    setScoreResult(null)
+                    try {
+                      const res: any = await api.ai.scoreContact(id)
+                      if (res?.score != null) {
+                        setScoreResult({ score: res.score, reasoning: res.reasoning })
+                        setContact(c => c ? { ...c, lead_score: res.score } : c)
+                      }
+                    } catch {} finally { setScoring(false) }
+                  }}
+                  className="text-[11px] px-2 py-0.5 bg-gold-100 text-gold-700 rounded-full font-medium hover:bg-gold-200 disabled:opacity-40 transition-colors"
+                  title={t('تقييم بواسطة AI', 'Score with AI')}
+                >
+                  {scoring ? '...' : '🤖 AI'}
+                </button>
+              )}
+            </div>
+            {scoreResult && (
+              <p className="text-[11px] text-surface-500 mt-1.5 leading-relaxed max-w-xs">{scoreResult.reasoning}</p>
+            )}
           </div>
           <div>
             <p className="text-xs text-surface-400 mb-1">{t('المسؤول', 'Assigned To')}</p>

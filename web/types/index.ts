@@ -697,6 +697,52 @@ export interface MessageTemplate {
   updated_at: string
 }
 
+// ─── Renewal Templates ────────────────────────────────────────────────────────
+
+export interface RenewalTemplate {
+  id: string
+  company_id: string
+  template_name: string
+  email_subject: string
+  email_body: string
+  whatsapp_message: string
+  language: string
+  created_at: string
+}
+
+// ─── Email History ────────────────────────────────────────────────────────────
+
+export type EmailStatus = 'pending' | 'sent' | 'failed' | 'bounced'
+
+export interface EmailHistory {
+  id: number
+  from_email: string
+  to_email: string
+  subject: string
+  body: string
+  html_body: string
+  status: EmailStatus
+  error_message: string
+  related_to: string
+  related_id: number | null
+  sent_at: string | null
+  created_at: string
+  created_by: string | null
+  metadata: Record<string, unknown> | null
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+export interface AuditLog {
+  id: number
+  entity_type: string
+  entity_id: string
+  action: string
+  actor_id: string | null
+  diff: unknown
+  ts: string
+}
+
 // ─── WebSocket Events ─────────────────────────────────────────────────────────
 
 export interface WSEvent {

@@ -197,6 +197,20 @@ func (r *RenewalTemplateRepo) Get(ctx context.Context, id uuid.UUID) (*domain.Re
 	return &t, nil
 }
 
+func (r *RenewalTemplateRepo) Update(ctx context.Context, t *domain.RenewalCommunicationTemplate) error {
+	_, err := r.conn.Exec(ctx, `
+		UPDATE renewal_communication_templates
+		SET template_name=$1, email_subject=$2, email_body=$3, whatsapp_message=$4, language=$5
+		WHERE id=$6
+	`, t.TemplateName, t.EmailSubject, t.EmailBody, t.WhatsAppMsg, t.Language, t.ID)
+	return err
+}
+
+func (r *RenewalTemplateRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	_, err := r.conn.Exec(ctx, `DELETE FROM renewal_communication_templates WHERE id=$1`, id)
+	return err
+}
+
 type RenewalCommunicationLogRepo struct {
 	conn *pgxpool.Pool
 }

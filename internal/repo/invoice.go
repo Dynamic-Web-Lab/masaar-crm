@@ -73,6 +73,45 @@ func (r *InvoiceRepo) ListByDeal(ctx context.Context, dealID uuid.UUID) ([]domai
 	return invoices, nil
 }
 
+func (r *InvoiceRepo) ListAll(ctx context.Context, page, limit int) ([]domain.VATInvoice, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 50
+	}
+	offset := (page - 1) * limit
+
+	var total int
+	if err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM vat_invoices`).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count invoices: %w", err)
+	}
+
+	const q = `
+		SELECT id, deal_id, invoice_no, subtotal, vat_rate, vat_amount, total, qr_payload, status, issued_at
+		FROM vat_invoices ORDER BY issued_at DESC LIMIT $1 OFFSET $2
+	`
+	rows, err := r.db.Query(ctx, q, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list all invoices: %w", err)
+	}
+	defer rows.Close()
+
+	var invoices []domain.VATInvoice
+	for rows.Next() {
+		var inv domain.VATInvoice
+		if err := rows.Scan(
+			&inv.ID, &inv.DealID, &inv.InvoiceNo,
+			&inv.Subtotal, &inv.VATRate, &inv.VATAmount,
+			&inv.Total, &inv.QRPayload, &inv.Status, &inv.IssuedAt,
+		); err != nil {
+			return nil, 0, fmt.Errorf("scan invoice: %w", err)
+		}
+		invoices = append(invoices, inv)
+	}
+	return invoices, total, rows.Err()
+}
+
 func (r *InvoiceRepo) UpdateStatus(ctx context.Context, id uuid.UUID, status domain.InvoiceStatus) error {
 	_, err := r.db.Exec(ctx,
 		`UPDATE vat_invoices SET status=$1 WHERE id=$2`,

@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **Before starting any task, read [`SYSTEM.md`](SYSTEM.md)** — it contains the complete route map, handler/repo inventory, all frontend pages, database schema, AI routing rules, and known bugs. It will prevent the most common mistakes.
+
 ## Project Overview
 
 **Masaar CRM** is an open-source, self-hosted WhatsApp CRM built specifically for UAE businesses. It's a full-stack application combining a Go backend with a Next.js frontend, designed for Arabic-native interfaces and WhatsApp-first sales workflows.
@@ -303,3 +305,23 @@ Error: `{ "error": "message", "status": 400 }`
 9. **WA_BASE_URL default** — Must be `https://graph.facebook.com` (NOT `graph.instagram.com`). The WA_API_VERSION is appended automatically.
 10. **Media URL must be publicly accessible** — Meta Cloud API downloads media from the URL you provide. Localhost/file URLs will fail. Use a CDN or public storage bucket.
 11. **Outbound records are always created** — `whatsapp_outbound` rows are inserted before the API call. If the sender is not configured, the handler returns 503. Check `whatsapp_outbound.status` for delivery feedback.
+12. **`uuid.Parse` returns two values** — `github.com/google/uuid`'s `Parse(s string)` returns `(uuid.UUID, error)`. Always capture both: `id, err := uuid.Parse(...)` or `id, _ := uuid.Parse(...)`. Assigning to a single variable is a compile error. This bug existed in 5 handler files (`document.go`, `expense.go`, `inspection.go`, `lease_renewal.go`, `maintenance.go`) and prevented the backend from compiling entirely — fixed 2026-05-27.
+
+## Development Notes
+
+### Adding a list endpoint (standard pattern)
+Used for `GET /invoices`, `GET /emails`, etc.:
+1. Add `ListAll(ctx, page, limit int) ([]T, int, error)` to the repo
+2. Add handler method with Swagger comment
+3. Register `v1.Get("/resource", h.Handler.List)` before any `v1.Get("/resource/:id", ...)` route in `router.go`
+4. Add `list: (page, limit) => request(...)` to the resource block in `web/lib/api.ts`
+5. Add/check type in `web/types/index.ts`
+
+### Known gap log
+Gaps identified during 2026-05-27 audit — all resolved:
+- **Critical:** `uuid.Parse` compile errors in 5 handler files (document, expense, inspection, lease_renewal, maintenance)
+- **High:** Missing `GET /invoices`, `GET /emails` list endpoints
+- **High:** AI scoring only worked for leads, not contact detail page
+- **Medium:** `RenewalTemplateRepo` had no Update/Delete; `ai.go` missing `"log"` import
+- **Medium:** Message Templates frontend page missing despite backend being complete
+- See `CHANGELOG.md` v0.3.0 for full details.

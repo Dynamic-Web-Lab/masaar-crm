@@ -128,6 +128,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v0.3.0] — 2026-05-27
+
+### Critical Bug Fixes
+
+#### Backend: `uuid.Parse` compile error across 5 handler files
+- **Root cause:** `uuid.Parse(str)` returns `(uuid.UUID, error)` but all 14 call-sites across 5 files captured only one return value, preventing the entire binary from compiling.
+- **Files fixed:** `document.go`, `expense.go`, `inspection.go`, `lease_renewal.go`, `maintenance.go`
+- **Fix:** All occurrences changed to `id, _ := uuid.Parse(...)` or `field, _ = uuid.Parse(...)`.
+- **Impact:** Documents, Expenses, Inspections, Lease Renewals, and Maintenance were completely non-functional.
+- **See:** [Development Notes — uuid.Parse Pattern](#development-notes) in CLAUDE.md
+
+### Added
+
+#### Message Templates Management Page (`/message-templates`)
+- Full CRUD frontend page for WhatsApp message templates (backend was already complete)
+- Table view: Name, Category, Variables, Active status
+- Create/Edit modal with `{{1}}` `{{2}}` variable placeholder syntax, active toggle
+- Click-to-preview panel renders a WhatsApp-style bubble with variables substituted
+- Sidebar: added under Inbox in CRM section
+
+#### Email History Page (`/email-history`)
+- Standalone page listing all sent emails across all entities
+- Status filter chips: All / Sent / Failed / Bounced / Pending
+- Click-to-detail panel: full body, error message if failed, timestamps
+- **New backend:** `EmailRepository.ListAll(ctx, page, limit)` + `GET /api/v1/emails`
+- Sidebar: added in CRM section
+
+#### Invoices List & Detail Pages (`/invoices`, `/invoices/[id]`)
+- List page: summary cards (Subtotal / VAT (5%) / Total), status filter, inline PDF link
+- Detail page: line-item breakdown, status action buttons (Mark Sent / Mark Paid), link to deal
+- **New backend:** `InvoiceRepo.ListAll(ctx, page, limit)` + `GET /api/v1/invoices`
+- Sidebar: added in CRM section
+
+#### AI Lead Scoring on Contact Detail (`/contacts/[id]`)
+- "🤖 AI" button beside the lead score badge; visible to Agent/Admin when contact has leads
+- Calls Ollama LLM, parses `{"score": int, "reasoning": "..."}` response
+- Persists score back to `contacts.lead_score` immediately; updates display live
+- Shows AI reasoning text inline below the badge
+- **New backend:** `ContactRepo.UpdateScore(ctx, id, score)` + `POST /api/v1/ai/score-contact/:id`
+- Note: Pipeline page already had AI scoring — this completes the contact detail page
+
+#### Renewal Templates Management (`/renewal-templates`)
+- Card-grid CRUD page (Admin only) for renewal communication templates
+- Card shows: template name, language badge, email subject preview, WhatsApp message excerpt
+- Create/Edit modal with Email / WhatsApp tab switcher; supports bilingual templates
+- **New backend:** `RenewalTemplateRepo.Update` + `RenewalTemplateRepo.Delete` + `PATCH /renewal-templates/:id` + `DELETE /renewal-templates/:id`
+- Sidebar: added in Properties section (admin only)
+
+### New API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v1/invoices` | List all invoices, paginated |
+| `GET` | `/api/v1/emails` | List all email history, paginated |
+| `POST` | `/api/v1/ai/score-contact/:id` | AI-score a contact via their latest lead; persists score |
+| `PATCH` | `/api/v1/renewal-templates/:id` | Update renewal template |
+| `DELETE` | `/api/v1/renewal-templates/:id` | Delete renewal template |
+
+### New Frontend Routes
+
+| Route | Notes |
+|-------|-------|
+| `/message-templates` | Full CRUD, Agent + Admin |
+| `/email-history` | Read-only log, Agent + Admin |
+| `/invoices` | List with summary cards |
+| `/invoices/[id]` | Detail + status actions + PDF download |
+| `/renewal-templates` | Full CRUD, Admin only |
+
+### Known Gaps Identified (2026-05-27 audit)
+
+All gaps below were found during a systematic audit and either fixed or documented:
+
+| # | Gap | Severity | Resolution |
+|---|-----|----------|------------|
+| 1 | `uuid.Parse` single-value assignment in 5 handler files — backend won't compile | **Critical** | Fixed in this release |
+| 2 | `GET /api/v1/invoices` missing — no standalone invoices list page possible | High | Fixed in this release |
+| 3 | `GET /api/v1/emails` missing — email history page not possible | High | Fixed in this release |
+| 4 | AI scoring only covered leads, not contact detail page | High | Fixed in this release |
+| 5 | `RenewalTemplateRepo` missing `Update` + `Delete` | Medium | Fixed in this release |
+| 6 | Message Templates page entirely missing (backend was done) | Medium | Fixed in this release |
+| 7 | `ai.go` missing `"log"` import | Medium | Fixed in this release |
+
+---
+
 ## [Unreleased]
 
 ### Phase 17: SaaS Multi-Tenant Platform (Coming Soon)

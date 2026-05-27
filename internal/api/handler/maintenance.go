@@ -32,7 +32,7 @@ func NewMaintenanceTaskHandler(maintenanceRepo *repo.MaintenanceTaskRepo) *Maint
 // @Success 200 {object} map[string]interface{}
 // @Router /api/v1/maintenance-tasks [get]
 func (h *MaintenanceTaskHandler) List(c *fiber.Ctx) error {
-	companyID := uuid.Parse(c.Locals("company_id").(string))
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	if limit < 1 || limit > 100 {
@@ -97,7 +97,7 @@ func (h *MaintenanceTaskHandler) Get(c *fiber.Ctx) error {
 // @Success 201 {object} map[string]interface{}
 // @Router /api/v1/maintenance-tasks [post]
 func (h *MaintenanceTaskHandler) Create(c *fiber.Ctx) error {
-	companyID := uuid.Parse(c.Locals("company_id").(string))
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 	userID := c.Locals("user_id").(uuid.UUID)
 
 	var req struct {

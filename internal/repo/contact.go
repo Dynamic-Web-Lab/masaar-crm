@@ -128,6 +128,14 @@ func (r *ContactRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+func (r *ContactRepo) UpdateScore(ctx context.Context, id uuid.UUID, score int) error {
+	_, err := r.db.Exec(ctx,
+		`UPDATE contacts SET lead_score=$1, updated_at=NOW() WHERE id=$2`,
+		score, id,
+	)
+	return err
+}
+
 // Upsert finds or creates a contact by WhatsApp phone number.
 func (r *ContactRepo) Upsert(ctx context.Context, phone, name string) (*domain.Contact, error) {
 	const q = `

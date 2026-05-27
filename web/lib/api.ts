@@ -206,6 +206,8 @@ export const api = {
       request(`/api/v1/ai/extract-buyer-profile/${threadId}`, { method: 'POST' }),
     scoreLead: (id: string) =>
       request(`/api/v1/ai/score-lead/${id}`, { method: 'POST' }),
+    scoreContact: (id: string) =>
+      request(`/api/v1/ai/score-contact/${id}`, { method: 'POST' }),
     draftReply: (threadId: string) =>
       request(`/api/v1/ai/draft-reply/${threadId}`, { method: 'POST' }),
     describeListing: (data: unknown) =>
@@ -239,6 +241,8 @@ export const api = {
   // ─── Invoices ────────────────────────────────────────────────────────────────
 
   invoices: {
+    list: (page = 1, limit = 50) =>
+      request(`/api/v1/invoices?page=${page}&limit=${limit}`),
     create: (data: unknown) =>
       request('/api/v1/invoices', { method: 'POST', body: JSON.stringify(data) }),
     get: (id: string) => request(`/api/v1/invoices/${id}`),
@@ -624,6 +628,8 @@ export const api = {
   // ─── Email ────────────────────────────────────────────────────────────────────
 
   email: {
+    list: (page = 1, limit = 50) =>
+      request(`/api/v1/emails?page=${page}&limit=${limit}`),
     send: (data: unknown) =>
       request('/api/v1/emails/send', { method: 'POST', body: JSON.stringify(data) }),
     history: (relatedTo: string, relatedId: number) =>
@@ -683,6 +689,10 @@ export const api = {
       list: () => request('/api/v1/renewal-templates'),
       create: (data: { template_name: string; email_subject: string; email_body: string; whatsapp_message: string; language: string }) =>
         request('/api/v1/renewal-templates', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: unknown) =>
+        request(`/api/v1/renewal-templates/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        request(`/api/v1/renewal-templates/${id}`, { method: 'DELETE' }),
     },
   },
 
@@ -751,6 +761,27 @@ export const api = {
   },
 
   // ─── Message Templates ───────────────────────────────────────────────────
+
+  // ─── Audit Log ────────────────────────────────────────────────────────────
+  auditLog: {
+    list: (params: {
+      entity_type?: string
+      entity_id?: string
+      actor_id?: string
+      action?: string
+      page?: number
+      limit?: number
+    } = {}) => {
+      const q = new URLSearchParams()
+      if (params.entity_type) q.set('entity_type', params.entity_type)
+      if (params.entity_id) q.set('entity_id', params.entity_id)
+      if (params.actor_id) q.set('actor_id', params.actor_id)
+      if (params.action) q.set('action', params.action)
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/audit-logs?${q}`)
+    },
+  },
 
   messageTemplates: {
     list: (params: { page?: number; limit?: number } = {}) => {

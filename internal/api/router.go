@@ -55,6 +55,7 @@ type Handlers struct {
 	WebhookSub        *handler.WebhookSubHandler
 	Billing           *handler.BillingHandler
 	MessageTemplate   *handler.MessageTemplateHandler
+	AuditLog          *handler.AuditHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -348,6 +349,11 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		aiQuota, aiUserQuota,
 		h.AI.ScoreLead,
 	)
+	v1.Post("/ai/score-contact/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		aiQuota, aiUserQuota,
+		h.AI.ScoreContact,
+	)
 	v1.Post("/ai/draft-reply/:thread_id",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		aiQuota, aiUserQuota,
@@ -493,6 +499,7 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	)
 
 	// Invoices — agents: create+view; admin: send+update status
+	v1.Get("/invoices", h.Invoice.List)
 	v1.Get("/invoices/:id", h.Invoice.Get)
 	v1.Get("/invoices/:id/pdf", h.Invoice.DownloadPDF)
 	v1.Post("/invoices",
@@ -509,6 +516,10 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	)
 
 	// Email — agents and admin only
+	v1.Get("/emails",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Email.ListAllEmailHistory,
+	)
 	v1.Post("/emails/send",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.Email.SendEmail,
@@ -780,6 +791,14 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		middleware.RequireRole(domain.RoleAdmin),
 		h.LeaseRenewal.CreateTemplate,
 	)
+	v1.Patch("/renewal-templates/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.LeaseRenewal.UpdateTemplate,
+	)
+	v1.Delete("/renewal-templates/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.LeaseRenewal.DeleteTemplate,
+	)
 
 	// Document Templates
 	v1.Get("/documents/templates", h.Document.ListTemplates)
@@ -815,6 +834,12 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Delete("/documents/:id",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
 		h.Document.DeleteDocument,
+	)
+
+	// Audit Log — admin only
+	v1.Get("/audit-logs",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.AuditLog.List,
 	)
 
 	// Health — checks DB and Redis connectivity

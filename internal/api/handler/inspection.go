@@ -31,7 +31,7 @@ func NewInspectionHandler(templateRepo *repo.InspectionTemplateRepo, inspectionR
 // @Success 200 {object} map[string]interface{}
 // @Router /api/v1/inspection-templates [get]
 func (h *InspectionHandler) ListTemplates(c *fiber.Ctx) error {
-	companyID := uuid.Parse(c.Locals("company_id").(string))
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 
 	templates, err := h.templateRepo.List(c.Context(), companyID)
 	if err != nil {
@@ -49,7 +49,7 @@ func (h *InspectionHandler) ListTemplates(c *fiber.Ctx) error {
 // @Success 201 {object} map[string]interface{}
 // @Router /api/v1/inspection-templates [post]
 func (h *InspectionHandler) CreateTemplate(c *fiber.Ctx) error {
-	companyID := uuid.Parse(c.Locals("company_id").(string))
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 
 	var req struct {
 		TemplateName             string                 `json:"template_name"`
@@ -86,7 +86,7 @@ func (h *InspectionHandler) CreateTemplate(c *fiber.Ctx) error {
 // @Success 200 {object} map[string]interface{}
 // @Router /api/v1/inspections [get]
 func (h *InspectionHandler) ListInspections(c *fiber.Ctx) error {
-	companyID := uuid.Parse(c.Locals("company_id").(string))
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	if limit < 1 || limit > 100 {
@@ -141,7 +141,7 @@ func (h *InspectionHandler) GetInspection(c *fiber.Ctx) error {
 // @Success 201 {object} map[string]interface{}
 // @Router /api/v1/inspections [post]
 func (h *InspectionHandler) CreateInspection(c *fiber.Ctx) error {
-	companyID := uuid.Parse(c.Locals("company_id").(string))
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 	userID := c.Locals("user_id").(uuid.UUID)
 
 	var req struct {

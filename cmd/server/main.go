@@ -273,6 +273,7 @@ func main() {
 		WebhookSub:          handler.NewWebhookSubHandler(webhookRepo, dispatcher),
 		Billing:             handler.NewBillingHandler(billingRepo, companySettingsRepo, stripeCfg),
 		MessageTemplate:     handler.NewMessageTemplateHandler(messageTemplateRepo),
+		AuditLog:           handler.NewAuditHandler(auditLogRepo),
 	}
 
 	// ── Fiber app ────────────────────────────────────────────────────────────

@@ -36,7 +36,7 @@ func NewLeaseRenewalHandler(renewalRepo *repo.LeaseRenewalRepo, templateRepo *re
 // @Success 200 {object} map[string]interface{}
 // @Router /api/v1/lease-renewals [get]
 func (h *LeaseRenewalHandler) List(c *fiber.Ctx) error {
-	companyID := uuid.Parse(c.Locals("company_id").(string))
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
 	if limit < 1 || limit > 100 {
@@ -102,7 +102,7 @@ func (h *LeaseRenewalHandler) Get(c *fiber.Ctx) error {
 // @Success 201 {object} map[string]interface{}
 // @Router /api/v1/lease-renewals/{lease_id}/initiate [post]
 func (h *LeaseRenewalHandler) Initiate(c *fiber.Ctx) error {
-	companyID := uuid.Parse(c.Locals("company_id").(string))
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 	leaseID, err := uuid.Parse(c.Params("lease_id"))
 	if err != nil {
 		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Invalid lease ID"})
@@ -326,7 +326,7 @@ func (h *LeaseRenewalHandler) CounterOffer(c *fiber.Ctx) error {
 // @Success 200 {object} map[string]interface{}
 // @Router /api/v1/renewal-templates [get]
 func (h *LeaseRenewalHandler) ListTemplates(c *fiber.Ctx) error {
-	companyID := uuid.Parse(c.Locals("company_id").(string))
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 
 	templates, err := h.templateRepo.List(c.Context(), companyID)
 	if err != nil {
@@ -344,7 +344,7 @@ func (h *LeaseRenewalHandler) ListTemplates(c *fiber.Ctx) error {
 // @Success 201 {object} map[string]interface{}
 // @Router /api/v1/renewal-templates [post]
 func (h *LeaseRenewalHandler) CreateTemplate(c *fiber.Ctx) error {
-	companyID := uuid.Parse(c.Locals("company_id").(string))
+	companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 
 	var req struct {
 		TemplateName string `json:"template_name"`
@@ -372,4 +372,74 @@ func (h *LeaseRenewalHandler) CreateTemplate(c *fiber.Ctx) error {
 	}
 
 	return c.Status(http.StatusCreated).JSON(fiber.Map{"data": template})
+}
+
+// @Summary Update renewal template
+// @Tags Lease Renewals
+// @Security Bearer
+// @Accept json
+// @Produce json
+// @Param id path string true "Template UUID"
+// @Success 200 {object} map[string]interface{}
+// @Router /api/v1/renewal-templates/{id} [patch]
+func (h *LeaseRenewalHandler) UpdateTemplate(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Invalid template ID"})
+	}
+
+	tpl, err := h.templateRepo.Get(c.Context(), id)
+	if err != nil {
+		return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "Template not found"})
+	}
+
+	var req struct {
+		TemplateName string `json:"template_name"`
+		EmailSubject string `json:"email_subject"`
+		EmailBody    string `json:"email_body"`
+		WhatsAppMsg  string `json:"whatsapp_message"`
+		Language     string `json:"language"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
+	}
+
+	if req.TemplateName != "" {
+		tpl.TemplateName = req.TemplateName
+	}
+	if req.EmailSubject != "" {
+		tpl.EmailSubject = req.EmailSubject
+	}
+	if req.EmailBody != "" {
+		tpl.EmailBody = req.EmailBody
+	}
+	if req.WhatsAppMsg != "" {
+		tpl.WhatsAppMsg = req.WhatsAppMsg
+	}
+	if req.Language != "" {
+		tpl.Language = domain.Language(req.Language)
+	}
+
+	if err := h.templateRepo.Update(c.Context(), tpl); err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update template"})
+	}
+	return c.JSON(fiber.Map{"data": tpl})
+}
+
+// @Summary Delete renewal template
+// @Tags Lease Renewals
+// @Security Bearer
+// @Produce json
+// @Param id path string true "Template UUID"
+// @Success 204
+// @Router /api/v1/renewal-templates/{id} [delete]
+func (h *LeaseRenewalHandler) DeleteTemplate(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(http.StatusBadRequest).JSON(fiber.Map{"error": "Invalid template ID"})
+	}
+	if err := h.templateRepo.Delete(c.Context(), id); err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete template"})
+	}
+	return c.SendStatus(http.StatusNoContent)
 }

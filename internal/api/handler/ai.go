@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -59,6 +60,51 @@ func (h *AIHandler) ScoreLead(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"result": result})
+}
+
+// POST /api/v1/ai/score-contact/:id
+// Scores a contact using their most recent lead, persists the score, and returns it.
+func (h *AIHandler) ScoreContact(c *fiber.Ctx) error {
+	contactID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+
+	ctx, cancel := context.WithTimeout(c.Context(), ollamaTimeout)
+	defer cancel()
+
+	contact, err := h.contacts.GetByID(ctx, contactID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "contact not found"})
+	}
+
+	leads, err := h.leads.List(ctx, repo.LeadFilter{ContactID: &contactID})
+	if err != nil || len(leads) == 0 {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{"error": "no leads found for this contact"})
+	}
+	lead := leads[0]
+
+	raw, err := h.sensitive.ScoreLead(ctx, contact.FullName, lead.Notes, string(lead.Source))
+	if err != nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "AI service unavailable"})
+	}
+
+	var parsed struct {
+		Score     int    `json:"score"`
+		Reasoning string `json:"reasoning"`
+	}
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil || parsed.Score < 0 || parsed.Score > 100 {
+		return c.JSON(fiber.Map{"result": raw, "score": nil})
+	}
+
+	if err := h.contacts.UpdateScore(ctx, contactID, parsed.Score); err != nil {
+		log.Printf("score-contact: failed to persist score: %v", err)
+	}
+
+	return c.JSON(fiber.Map{
+		"score":     parsed.Score,
+		"reasoning": parsed.Reasoning,
+	})
 }
 
 // POST /api/v1/ai/draft-reply/:thread_id

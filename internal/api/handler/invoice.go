@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -14,6 +15,7 @@ import (
 type InvoiceRepository interface {
 	Create(ctx context.Context, inv *domain.VATInvoice) error
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.VATInvoice, error)
+	ListAll(ctx context.Context, page, limit int) ([]domain.VATInvoice, int, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, status domain.InvoiceStatus) error
 	NextInvoiceNo(ctx context.Context) (string, error)
 }
@@ -40,6 +42,29 @@ func NewInvoiceHandler(invoices InvoiceRepository, deals DealRepository, company
 		deals:    deals,
 		company:  company,
 	}
+}
+
+// List godoc
+// @Summary      List all invoices
+// @Tags         Invoices
+// @Produce      json
+// @Param        page  query  int  false  "Page (default 1)"
+// @Param        limit query  int  false  "Limit (default 50)"
+// @Success      200  {object}  object{data=[]domain.VATInvoice,total=int}
+// @Security     BearerAuth
+// @Router       /invoices [get]
+func (h *InvoiceHandler) List(c *fiber.Ctx) error {
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "50"))
+
+	invoices, total, err := h.invoices.ListAll(c.Context(), page, limit)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	if invoices == nil {
+		invoices = []domain.VATInvoice{}
+	}
+	return c.JSON(fiber.Map{"data": invoices, "total": total})
 }
 
 // Create godoc
