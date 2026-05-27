@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/maidulcu/masaar-crm/internal/domain"
@@ -27,10 +29,10 @@ func NewAzureService(endpoint, key, fromAddress string) *AzureService {
 		decoded = []byte(key)
 	}
 	return &AzureService{
-		endpoint:    endpoint,
+		endpoint:    strings.TrimRight(endpoint, "/"),
 		key:         decoded,
 		fromAddress: fromAddress,
-		client: &http.Client{Timeout: 30 * time.Second},
+		client:      &http.Client{Timeout: 30 * time.Second},
 	}
 }
 
@@ -50,9 +52,9 @@ type azureRecipients struct {
 }
 
 type azureEmailPayload struct {
-	Sender     string             `json:"sender"`
-	Content    azureEmailContent  `json:"content"`
-	Recipients azureRecipients   `json:"recipients"`
+	SenderAddress string            `json:"senderAddress"`
+	Content       azureEmailContent `json:"content"`
+	Recipients    azureRecipients   `json:"recipients"`
 }
 
 func (s *AzureService) IsConfigured() bool {
@@ -65,7 +67,7 @@ func (s *AzureService) Send(email *domain.EmailHistory) error {
 	}
 
 	payload := azureEmailPayload{
-		Sender: s.fromAddress,
+		SenderAddress: s.fromAddress,
 		Content: azureEmailContent{
 			Subject:   email.Subject,
 			PlainText: email.Body,
@@ -73,7 +75,7 @@ func (s *AzureService) Send(email *domain.EmailHistory) error {
 		},
 		Recipients: azureRecipients{
 			To: []azureEmailAddress{{
-				Address:     email.ToEmail,
+				Address: email.ToEmail,
 			}},
 		},
 	}
@@ -83,8 +85,7 @@ func (s *AzureService) Send(email *domain.EmailHistory) error {
 		return fmt.Errorf("azure marshal payload: %w", err)
 	}
 
-	apiPath := "/emails:send?api-version=2024-07-01-preview"
-	reqURL := s.endpoint + apiPath
+	reqURL := s.endpoint + "/emails:send?api-version=2023-03-31"
 	req, err := http.NewRequest("POST", reqURL, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("azure create request: %w", err)
@@ -94,8 +95,10 @@ func (s *AzureService) Send(email *domain.EmailHistory) error {
 	date := time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05 GMT")
 	contentHashB64 := sha256Base64(body)
 	host := req.URL.Host
+	// Use the actual parsed path+query so the signature matches exactly what's sent
+	pathAndQuery := req.URL.RequestURI()
 
-	sig := s.sign("POST", apiPath, date, host, contentHashB64)
+	sig := s.sign("POST", pathAndQuery, date, host, contentHashB64)
 	auth := fmt.Sprintf("HMAC-SHA256 SignedHeaders=x-ms-date;host;x-ms-content-sha256&Signature=%s", sig)
 
 	req.Header.Set("Content-Type", "application/json")
@@ -103,17 +106,21 @@ func (s *AzureService) Send(email *domain.EmailHistory) error {
 	req.Header.Set("x-ms-content-sha256", contentHashB64)
 	req.Header.Set("Authorization", auth)
 
+	log.Printf("[azure-email] sending to=%s subject=%q endpoint=%s", email.ToEmail, email.Subject, s.endpoint)
+
 	resp, err := s.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("azure send request: %w", err)
 	}
 	defer resp.Body.Close()
 
+	respBody, _ := io.ReadAll(resp.Body)
+
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		log.Printf("[azure-email] accepted status=%d", resp.StatusCode)
 		return nil
 	}
 
-	respBody, _ := io.ReadAll(resp.Body)
 	return fmt.Errorf("azure email API error: %s - %s", resp.Status, string(respBody))
 }
 

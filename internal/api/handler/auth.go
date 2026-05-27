@@ -2,16 +2,17 @@ package handler
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
+	"log"
+	"math/big"
+	"strings"
 	"time"
 	"unicode"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"crypto/rand"
-	"math/big"
-	"strings"
 
 	"github.com/maidulcu/masaar-crm/internal/api/middleware"
 	"github.com/maidulcu/masaar-crm/internal/config"
@@ -428,22 +429,26 @@ func (h *AuthHandler) RequestMagicLink(c *fiber.Ctx) error {
 	}
 
 	// Build magic link URL
-	magicURL := fmt.Sprintf("%s/login?token=%s", h.config.MagicLinkBaseURL, token)
+	magicURL := fmt.Sprintf("%s/login/magic-link/verify?token=%s", h.config.MagicLinkBaseURL, token)
 
 	// Send email (don't fail the request if email fails - graceful degradation)
 	if h.email != nil && h.email.IsConfigured() {
-		htmlBody, err := h.email.RenderMagicLinkTemplate(email.MagicLinkData{
+		htmlBody, renderErr := h.email.RenderMagicLinkTemplate(email.MagicLinkData{
 			LoginURL:  magicURL,
 			ExpiryMin: h.config.MagicLinkExpiryMin,
 			Lang:      body.LangPref,
 		})
-		if err == nil {
-			_ = h.email.Send(&domain.EmailHistory{
-				ToEmail:   body.Email,
-				Subject:   "Your Masaar CRM Login Link",
-				HTMLBody:  htmlBody,
-			})
+		if renderErr != nil {
+			log.Printf("[magic-link] template render error: %v", renderErr)
+		} else if sendErr := h.email.Send(&domain.EmailHistory{
+			ToEmail:  body.Email,
+			Subject:  "Your Masaar CRM Login Link",
+			HTMLBody: htmlBody,
+		}); sendErr != nil {
+			log.Printf("[magic-link] email send error: %v", sendErr)
 		}
+	} else {
+		log.Printf("[magic-link] email service not configured, skipping send")
 	}
 
 	// Always return success to prevent email enumeration
