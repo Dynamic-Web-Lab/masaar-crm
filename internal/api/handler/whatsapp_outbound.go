@@ -35,7 +35,7 @@ func NewWhatsAppOutboundHandler(sender *whatsapp.Sender, outboundRepo *repo.What
 // @Router /api/v1/threads/{id}/send-message [post]
 // @Security Bearer
 func (h *WhatsAppOutboundHandler) SendMessage(c *fiber.Ctx) error {
-	if !h.sender.IsConfigured() {
+	if h.sender == nil || !h.sender.IsConfigured() {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 			"error": "WhatsApp integration not configured",
 		})
@@ -111,7 +111,7 @@ func (h *WhatsAppOutboundHandler) SendMessage(c *fiber.Ctx) error {
 // @Router /api/v1/threads/{id}/send-template [post]
 // @Security Bearer
 func (h *WhatsAppOutboundHandler) SendTemplate(c *fiber.Ctx) error {
-	if !h.sender.IsConfigured() {
+	if h.sender == nil || !h.sender.IsConfigured() {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 			"error": "WhatsApp integration not configured",
 		})

@@ -100,7 +100,7 @@ func Load() *Config {
 		WAAPIVersion:         getEnv("WA_API_VERSION", "v19.0"),
 		WAPhoneNumberID:      getEnv("WA_PHONE_NUMBER_ID", ""),
 		WAAccessToken:        getEnv("WA_ACCESS_TOKEN", ""),
-		WABaseURL:            getEnv("WA_BASE_URL", "https://graph.instagram.com"),
+		WABaseURL:            getEnv("WA_BASE_URL", "https://graph.facebook.com/v19.0"),
 		WAAppSecret:          getEnv("WA_APP_SECRET", ""),
 		AIProvider:           getEnv("AI_PROVIDER", "ollama"),
 		OllamaBaseURL:        getEnv("OLLAMA_BASE_URL", "http://localhost:11434"),
