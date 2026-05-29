@@ -29,6 +29,7 @@ export interface Company {
   on_trial: boolean
   trial_ends_at: string | null
   days_remaining: number
+  is_demo: boolean
 }
 
 export interface LoginResponse {

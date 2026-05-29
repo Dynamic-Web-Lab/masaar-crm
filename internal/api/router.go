@@ -95,6 +95,16 @@ var smsOTPLimiter = limiter.New(limiter.Config{
 	},
 })
 
+// registrationLimiter caps new company signups to 3 per minute per IP.
+// Tighter than loginLimiter because registration creates DB rows and sends emails.
+var registrationLimiter = limiter.New(limiter.Config{
+	Max:        3,
+	Expiration: 1 * time.Minute,
+	LimitReached: func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "too many registration attempts, please try again later"})
+	},
+})
+
 // apiLimiter caps general authenticated API usage to 100 requests/min per IP.
 var apiLimiter = limiter.New(limiter.Config{
 	Max:        100,
@@ -112,7 +122,7 @@ func makeAPIKeyLimiter(rdb *redis.Client) fiber.Handler {
 func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config, rdb *redis.Client, pool *pgxpool.Pool, apiKeyRepo *repo.ApiKeyRepo, billingRepo *repo.BillingRepo, companyRepo *repo.CompanyRepo) {
 	// ── Public routes ────────────────────────────────────────────────────────
 	app.Post("/api/v1/auth/login", loginLimiter, h.Auth.Login)
-	app.Post("/api/v1/auth/register", loginLimiter, h.Auth.Register)
+	app.Post("/api/v1/auth/register", registrationLimiter, h.Auth.Register)
 	app.Post("/api/v1/auth/magic-link/request", magicLinkLimiter, h.Auth.RequestMagicLink)
 	app.Post("/api/v1/auth/magic-link/verify", h.Auth.VerifyMagicLink)
 	app.Post("/api/v1/auth/sms/request", smsOTPLimiter, h.Auth.RequestSMSOTP)
@@ -167,6 +177,7 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		middleware.CheckBlacklist(rdb),
 		trialCheck,
 		middleware.ExtractClaims(),
+		middleware.DemoGuard(), // blocks writes on demo accounts; reads is_demo from JWT
 	)
 
 	v1.Delete("/auth/logout", h.Auth.Logout)

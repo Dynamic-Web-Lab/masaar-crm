@@ -30,6 +30,7 @@ func (r *CompanyRepo) Create(ctx context.Context, name, subdomain string, trialD
 		TrialEndsAt:    &trialEnd,
 		OnTrial:        true,
 		IsActive:       true,
+		IsDemo:         false,
 		CreatedAt:      now,
 	}
 
@@ -39,10 +40,10 @@ func (r *CompanyRepo) Create(ctx context.Context, name, subdomain string, trialD
 	}
 	defer tx.Rollback(ctx)
 
-	const q = `INSERT INTO companies (id, name, subdomain, plan, trial_started_at, trial_ends_at, on_trial, is_active, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	const q = `INSERT INTO companies (id, name, subdomain, plan, trial_started_at, trial_ends_at, on_trial, is_active, is_demo, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 	_, err = tx.Exec(ctx, q,
-		c.ID, c.Name, c.Subdomain, c.Plan, c.TrialStartedAt, c.TrialEndsAt, c.OnTrial, c.IsActive, c.CreatedAt)
+		c.ID, c.Name, c.Subdomain, c.Plan, c.TrialStartedAt, c.TrialEndsAt, c.OnTrial, c.IsActive, c.IsDemo, c.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("insert company: %w", err)
 	}
@@ -61,33 +62,39 @@ func (r *CompanyRepo) Create(ctx context.Context, name, subdomain string, trialD
 	return c, nil
 }
 
+// scanCompany reads a full company row including is_demo.
+// Column order: id, name, subdomain, plan, trial_started_at, trial_ends_at,
+//
+//	on_trial, is_active, is_demo, stripe_customer_id, stripe_sub_id, created_at
+func scanCompany(row interface {
+	Scan(dest ...any) error
+}, c *domain.Company) error {
+	return row.Scan(
+		&c.ID, &c.Name, &c.Subdomain, &c.Plan,
+		&c.TrialStartedAt, &c.TrialEndsAt, &c.OnTrial, &c.IsActive, &c.IsDemo,
+		&c.StripeCustomerID, &c.StripeSubID, &c.CreatedAt,
+	)
+}
+
+const selectCompanyCols = `SELECT id, name, COALESCE(subdomain,''), COALESCE(plan,'community'),
+	trial_started_at, trial_ends_at, on_trial, is_active, is_demo,
+	COALESCE(stripe_customer_id,''), COALESCE(stripe_sub_id,''), created_at`
+
 func (r *CompanyRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.Company, error) {
-	const q = `SELECT id, name, COALESCE(subdomain,''), COALESCE(plan,'community'),
-		trial_started_at, trial_ends_at, on_trial, is_active,
-		COALESCE(stripe_customer_id,''), COALESCE(stripe_sub_id,''), created_at
-		FROM companies WHERE id = $1`
+	q := selectCompanyCols + ` FROM companies WHERE id = $1`
 	row := r.db.QueryRow(ctx, q, id)
 	var c domain.Company
-	err := row.Scan(&c.ID, &c.Name, &c.Subdomain, &c.Plan,
-		&c.TrialStartedAt, &c.TrialEndsAt, &c.OnTrial, &c.IsActive,
-		&c.StripeCustomerID, &c.StripeSubID, &c.CreatedAt)
-	if err != nil {
+	if err := scanCompany(row, &c); err != nil {
 		return nil, fmt.Errorf("get company by id: %w", err)
 	}
 	return &c, nil
 }
 
 func (r *CompanyRepo) GetBySubdomain(ctx context.Context, subdomain string) (*domain.Company, error) {
-	const q = `SELECT id, name, COALESCE(subdomain,''), COALESCE(plan,'community'),
-		trial_started_at, trial_ends_at, on_trial, is_active,
-		COALESCE(stripe_customer_id,''), COALESCE(stripe_sub_id,''), created_at
-		FROM companies WHERE subdomain = $1`
+	q := selectCompanyCols + ` FROM companies WHERE subdomain = $1`
 	row := r.db.QueryRow(ctx, q, subdomain)
 	var c domain.Company
-	err := row.Scan(&c.ID, &c.Name, &c.Subdomain, &c.Plan,
-		&c.TrialStartedAt, &c.TrialEndsAt, &c.OnTrial, &c.IsActive,
-		&c.StripeCustomerID, &c.StripeSubID, &c.CreatedAt)
-	if err != nil {
+	if err := scanCompany(row, &c); err != nil {
 		return nil, fmt.Errorf("get company by subdomain: %w", err)
 	}
 	return &c, nil
@@ -123,11 +130,7 @@ func (r *CompanyRepo) Deactivate(ctx context.Context, id uuid.UUID) error {
 }
 
 func (r *CompanyRepo) ListExpiredTrials(ctx context.Context) ([]domain.Company, error) {
-	const q = `SELECT id, name, COALESCE(subdomain,''), COALESCE(plan,'community'),
-		trial_started_at, trial_ends_at, on_trial, is_active,
-		COALESCE(stripe_customer_id,''), COALESCE(stripe_sub_id,''), created_at
-		FROM companies
-		WHERE on_trial = TRUE AND trial_ends_at < NOW()`
+	q := selectCompanyCols + ` FROM companies WHERE on_trial = TRUE AND trial_ends_at < NOW()`
 	rows, err := r.db.Query(ctx, q)
 	if err != nil {
 		return nil, fmt.Errorf("list expired trials: %w", err)
@@ -137,9 +140,7 @@ func (r *CompanyRepo) ListExpiredTrials(ctx context.Context) ([]domain.Company, 
 	var companies []domain.Company
 	for rows.Next() {
 		var c domain.Company
-		if err := rows.Scan(&c.ID, &c.Name, &c.Subdomain, &c.Plan,
-			&c.TrialStartedAt, &c.TrialEndsAt, &c.OnTrial, &c.IsActive,
-			&c.StripeCustomerID, &c.StripeSubID, &c.CreatedAt); err != nil {
+		if err := scanCompany(rows, &c); err != nil {
 			return nil, fmt.Errorf("scan expired trial: %w", err)
 		}
 		companies = append(companies, c)
@@ -148,10 +149,7 @@ func (r *CompanyRepo) ListExpiredTrials(ctx context.Context) ([]domain.Company, 
 }
 
 func (r *CompanyRepo) List(ctx context.Context) ([]domain.Company, error) {
-	const q = `SELECT id, name, COALESCE(subdomain,''), COALESCE(plan,'community'),
-		trial_started_at, trial_ends_at, on_trial, is_active,
-		COALESCE(stripe_customer_id,''), COALESCE(stripe_sub_id,''), created_at
-		FROM companies ORDER BY created_at ASC`
+	q := selectCompanyCols + ` FROM companies ORDER BY created_at ASC`
 	rows, err := r.db.Query(ctx, q)
 	if err != nil {
 		return nil, fmt.Errorf("list companies: %w", err)
@@ -161,9 +159,7 @@ func (r *CompanyRepo) List(ctx context.Context) ([]domain.Company, error) {
 	var companies []domain.Company
 	for rows.Next() {
 		var c domain.Company
-		if err := rows.Scan(&c.ID, &c.Name, &c.Subdomain, &c.Plan,
-			&c.TrialStartedAt, &c.TrialEndsAt, &c.OnTrial, &c.IsActive,
-			&c.StripeCustomerID, &c.StripeSubID, &c.CreatedAt); err != nil {
+		if err := scanCompany(rows, &c); err != nil {
 			return nil, fmt.Errorf("scan company: %w", err)
 		}
 		companies = append(companies, c)

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/maidulcu/masaar-crm/internal/domain"
@@ -103,6 +105,9 @@ func (h *WebhookSubHandler) Create(c *fiber.Ctx) error {
 	}
 	if req.URL == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "url is required"})
+	}
+	if !strings.HasPrefix(req.URL, "https://") {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "webhook url must use https"})
 	}
 
 	secret, err := webhook.GenerateSecret()

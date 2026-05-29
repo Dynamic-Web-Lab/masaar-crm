@@ -70,9 +70,6 @@ type Config struct {
 	AppEnv string
 	AppURL string // base URL for generating links in emails, e.g. https://crm.yourcompany.ae
 
-	// Multi-tenancy — kept for backward compat; company_id now lives in JWT
-	CompanyID string
-
 	// SaaS registration
 	AllowRegistration bool
 	TrialDurationDays int
@@ -136,7 +133,6 @@ func Load() *Config {
 		SMSCountrySenderID:   getEnv("SMSCOUNTRY_SENDER_ID", ""),
 		AppEnv:               getEnv("APP_ENV", "development"),
 		AppURL:               getEnv("APP_URL", "http://localhost:3000"),
-		CompanyID:             getEnv("APP_COMPANY_ID", "00000000-0000-0000-0000-000000000001"),
 		AllowRegistration:    getEnv("ALLOW_REGISTRATION", "true") == "true",
 		TrialDurationDays:    getEnvInt("TRIAL_DURATION_DAYS", 90),
 		TrialPlanID:          getEnv("TRIAL_PLAN_ID", "starter"),

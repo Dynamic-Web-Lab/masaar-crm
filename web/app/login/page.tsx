@@ -80,6 +80,22 @@ export default function LoginPage() {
     }
   }
 
+  const handleDemoLogin = async () => {
+    setError('')
+    setLoading(true)
+    setMode('password')
+    try {
+      const res = await api.auth.login('ahmed@masaar.local', 'Demo@1234') as LoginResponse
+      setSession(res.access_token, res.refresh_token, res.user, res.company)
+      if (res.user.lang_pref) setLang(res.user.lang_pref)
+      router.push('/pipeline')
+    } catch (err: any) {
+      setError(err.message || t('حدث خطأ', 'Something went wrong'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleMagicLinkRequest = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -149,6 +165,33 @@ export default function LoginPage() {
       </div>
 
       <div className="w-full max-w-sm animate-slide-up">
+
+        {/* Demo account shortcut — always visible, bypasses Turnstile intentionally
+            (credentials are public; login endpoint has its own rate limiting) */}
+        <button
+          type="button"
+          onClick={handleDemoLogin}
+          disabled={loading}
+          className="w-full mb-4 flex items-center gap-3 bg-amber-50 border border-amber-200 hover:bg-amber-100 active:scale-[0.98] transition-all duration-200 rounded-2xl px-4 py-3 text-start disabled:opacity-60 disabled:cursor-not-allowed group"
+        >
+          <span className="shrink-0 w-9 h-9 rounded-xl bg-amber-400 flex items-center justify-center text-amber-950 shadow-sm">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-semibold text-amber-900">
+              {t('تجربة الحساب التجريبي', 'Try the demo')}
+            </span>
+            <span className="block text-xs text-amber-700 truncate">
+              ahmed@masaar.local · {t('بيانات قراءة فقط', 'read-only data')}
+            </span>
+          </span>
+          <svg className="w-4 h-4 text-amber-500 group-hover:translate-x-0.5 transition-transform rtl:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2.5 mb-3">

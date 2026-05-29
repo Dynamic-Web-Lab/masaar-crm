@@ -1,8 +1,36 @@
-import { getToken, clearSession } from './auth'
+import { getToken, getRefreshToken, saveSession, getUser, clearSession } from './auth'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+/** Tracks an in-flight refresh so concurrent requests don't each kick one off. */
+let refreshPromise: Promise<string | null> | null = null
+
+async function silentRefresh(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise
+  refreshPromise = (async () => {
+    try {
+      const rt = getRefreshToken()
+      if (!rt) return null
+      const res = await fetch(`${BASE}/api/v1/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: rt }),
+      })
+      if (!res.ok) return null
+      const data = await res.json()
+      const user = getUser()
+      if (user) saveSession(data.access_token, data.refresh_token ?? rt, user)
+      return data.access_token as string
+    } catch {
+      return null
+    } finally {
+      refreshPromise = null
+    }
+  })()
+  return refreshPromise
+}
+
+async function request<T>(path: string, init: RequestInit = {}, _retry = true): Promise<T> {
   const token = getToken()
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -12,10 +40,32 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   const res = await fetch(`${BASE}${path}`, { ...init, headers })
 
+  if (res.status === 401 && _retry) {
+    // Try a silent token refresh before giving up
+    const newToken = await silentRefresh()
+    if (newToken) {
+      return request<T>(path, init, false)
+    }
+    clearSession()
+    window.location.href = '/login'
+    throw new Error('Unauthorized')
+  }
+
   if (res.status === 401) {
     clearSession()
     window.location.href = '/login'
     throw new Error('Unauthorized')
+  }
+
+  if (res.status === 403) {
+    const err = await res.json().catch(() => ({ error: 'forbidden' }))
+    if (err.error === 'demo_account_read_only') {
+      // Fire a custom event so the layout can show a nice upgrade modal
+      // instead of an error toast.
+      window.dispatchEvent(new CustomEvent('demo:blocked'))
+      throw new Error('demo_account_read_only')
+    }
+    throw new Error(err.error || 'Forbidden')
   }
 
   if (!res.ok) {
@@ -36,6 +86,8 @@ async function requestBlob(path: string, init: RequestInit = {}): Promise<Blob> 
   }
   const res = await fetch(`${BASE}${path}`, { ...init, headers })
   if (res.status === 401) {
+    const newToken = await silentRefresh()
+    if (newToken) return requestBlob(path, init)
     clearSession()
     window.location.href = '/login'
     throw new Error('Unauthorized')

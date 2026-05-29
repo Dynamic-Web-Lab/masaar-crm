@@ -182,6 +182,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 			"on_trial":       company.OnTrial,
 			"trial_ends_at":  company.TrialEndsAt,
 			"days_remaining": daysRemaining,
+			"is_demo":        company.IsDemo,
 		}
 	}
 	return c.JSON(resp)
@@ -506,6 +507,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 			"on_trial":       company.OnTrial,
 			"trial_ends_at":  company.TrialEndsAt,
 			"days_remaining": daysRemaining,
+			"is_demo":        company.IsDemo,
 		},
 	})
 }
@@ -516,11 +518,13 @@ func (h *AuthHandler) generateTokenPair(user *domain.User) (access, refresh stri
 	// Load company details for JWT claims
 	plan := "community"
 	onTrial := false
+	isDemo := false
 	if h.companyRepo != nil {
 		company, cerr := h.companyRepo.GetByID(context.Background(), user.CompanyID)
 		if cerr == nil {
 			plan = company.Plan
 			onTrial = company.OnTrial
+			isDemo = company.IsDemo
 		}
 	}
 
@@ -531,6 +535,7 @@ func (h *AuthHandler) generateTokenPair(user *domain.User) (access, refresh stri
 		"company_id": user.CompanyID.String(),
 		"plan":       plan,
 		"on_trial":   onTrial,
+		"is_demo":    isDemo,
 		"exp":        now.Add(time.Duration(h.config.JWTAccessExpiryMin) * time.Minute).Unix(),
 		"iat":        now.Unix(),
 	}
@@ -644,7 +649,7 @@ func (h *AuthHandler) RequestMagicLink(c *fiber.Ctx) error {
 
 // VerifyMagicLink godoc
 // @Summary      Verify Magic Link
-// @Description  Validate magic link token and issue JWT tokens. Auto-creates account if user doesn't exist.
+// @Description  Validate magic link token and issue JWT tokens. Requires an existing account — new users must register first.
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
@@ -683,16 +688,16 @@ func (h *AuthHandler) VerifyMagicLink(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid token data"})
 	}
 	email := parts[0]
-	langPref := parts[1]
+	// lang_pref is stored in token but not needed here — user record already has it.
+	_ = parts[1]
 
-	// Find or create user
+	// Find user — magic link does NOT auto-create accounts in multi-tenant mode.
+	// New users must register via POST /auth/register to create a company workspace first.
 	user, err := h.users.FindByEmail(ctx, email)
 	if err != nil {
-		// Auto-create account on first login
-		user, err = h.users.CreateWithDefaults(ctx, email, langPref)
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create account"})
-		}
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "no account found for this email — please register at /signup first",
+		})
 	}
 
 	if !user.IsActive {
@@ -712,7 +717,7 @@ func (h *AuthHandler) VerifyMagicLink(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "session error"})
 	}
 
-	return c.JSON(fiber.Map{
+	resp := fiber.Map{
 		"access_token":  access,
 		"refresh_token": refresh,
 		"expires_in":    h.config.JWTAccessExpiryMin * 60,
@@ -723,7 +728,21 @@ func (h *AuthHandler) VerifyMagicLink(c *fiber.Ctx) error {
 			"role":      user.Role,
 			"lang_pref": user.LangPref,
 		},
-	})
+	}
+	if h.companyRepo != nil {
+		if company, cerr := h.companyRepo.GetByID(ctx, user.CompanyID); cerr == nil {
+			resp["company"] = fiber.Map{
+				"id":             company.ID,
+				"name":           company.Name,
+				"plan":           company.Plan,
+				"on_trial":       company.OnTrial,
+				"trial_ends_at":  company.TrialEndsAt,
+				"days_remaining": 0,
+				"is_demo":        company.IsDemo,
+			}
+		}
+	}
+	return c.JSON(resp)
 }
 
 // verifyTurnstile validates a Cloudflare Turnstile token.
@@ -848,7 +867,7 @@ func (h *AuthHandler) RequestSMSOTP(c *fiber.Ctx) error {
 
 // VerifySMSOTP godoc
 // @Summary      Verify SMS OTP
-// @Description  Validate OTP and issue JWT tokens. Finds existing user by phone or creates a new account.
+// @Description  Validate OTP and issue JWT tokens. Requires an existing account — new users must register first.
 // @Tags         Auth
 // @Accept       json
 // @Produce      json
@@ -882,10 +901,7 @@ func (h *AuthHandler) VerifySMSOTP(c *fiber.Ctx) error {
 
 	parts := split(stored, "|")
 	storedOTP := parts[0]
-	langPref := "en"
-	if len(parts) == 2 {
-		langPref = parts[1]
-	}
+	// lang_pref is stored in OTP payload but not needed here — user record already has it.
 
 	if otp != storedOTP {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid OTP"})
@@ -895,13 +911,13 @@ func (h *AuthHandler) VerifySMSOTP(c *fiber.Ctx) error {
 	h.redis.Del(ctx, otpKey)
 	h.redis.Del(ctx, fmt.Sprintf("sms_rate:%s", phone))
 
-	// Find or create user by phone
+	// Find user by phone — SMS OTP does NOT auto-create accounts in multi-tenant mode.
+	// New users must register via POST /auth/register to create a company workspace first.
 	user, err := h.users.FindByPhone(ctx, phone)
 	if err != nil {
-		user, err = h.users.CreateWithPhone(ctx, phone, langPref)
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create account"})
-		}
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "no account found for this phone number — please register at /signup first",
+		})
 	}
 
 	if !user.IsActive {
@@ -919,7 +935,7 @@ func (h *AuthHandler) VerifySMSOTP(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "session error"})
 	}
 
-	return c.JSON(fiber.Map{
+	resp := fiber.Map{
 		"access_token":  access,
 		"refresh_token": refresh,
 		"expires_in":    h.config.JWTAccessExpiryMin * 60,
@@ -931,5 +947,19 @@ func (h *AuthHandler) VerifySMSOTP(c *fiber.Ctx) error {
 			"lang_pref": user.LangPref,
 			"phone":     user.Phone,
 		},
-	})
+	}
+	if h.companyRepo != nil {
+		if company, cerr := h.companyRepo.GetByID(ctx, user.CompanyID); cerr == nil {
+			resp["company"] = fiber.Map{
+				"id":             company.ID,
+				"name":           company.Name,
+				"plan":           company.Plan,
+				"on_trial":       company.OnTrial,
+				"trial_ends_at":  company.TrialEndsAt,
+				"days_remaining": 0,
+				"is_demo":        company.IsDemo,
+			}
+		}
+	}
+	return c.JSON(resp)
 }

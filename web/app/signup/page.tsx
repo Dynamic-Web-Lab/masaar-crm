@@ -1,21 +1,37 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Turnstile } from '@marsidev/react-turnstile'
+import type { TurnstileInstance } from '@marsidev/react-turnstile'
 import { useAuthStore } from '@/store/auth'
 import api from '@/lib/api'
 import type { LoginResponse } from '@/types'
 
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ''
+
+async function verifyTurnstile(token: string): Promise<boolean> {
+  const res = await fetch('/api/verify-turnstile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  })
+  const data = await res.json()
+  return data.success === true
+}
+
 export default function SignupPage() {
   const { setSession } = useAuthStore()
   const router = useRouter()
+  const turnstileRef = useRef<TurnstileInstance>(null)
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [subdomain, setSubdomain] = useState('')
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -28,15 +44,37 @@ export default function SignupPage() {
       return
     }
 
+    // Verify Turnstile before hitting the backend (only when configured)
+    if (TURNSTILE_SITE_KEY) {
+      if (!turnstileToken) {
+        setError('Please complete the security check')
+        return
+      }
+      const ok = await verifyTurnstile(turnstileToken)
+      if (!ok) {
+        setError('Security check failed — please try again')
+        turnstileRef.current?.reset()
+        setTurnstileToken(null)
+        return
+      }
+    }
+
     setLoading(true)
     try {
       const res = await api.auth.register({
-        name, email, password, company_name: companyName, subdomain,
+        name,
+        email,
+        password,
+        company_name: companyName,
+        subdomain,
+        turnstile_token: turnstileToken ?? '',
       }) as LoginResponse
       setSession(res.access_token, res.refresh_token, res.user, res.company)
       router.push('/onboarding')
     } catch (err: any) {
       setError(err.message || 'Registration failed')
+      turnstileRef.current?.reset()
+      setTurnstileToken(null)
     } finally {
       setLoading(false)
     }
@@ -126,9 +164,21 @@ export default function SignupPage() {
             )}
           </div>
 
+          {TURNSTILE_SITE_KEY && (
+            <div className="flex justify-center">
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={TURNSTILE_SITE_KEY}
+                onSuccess={setTurnstileToken}
+                onExpire={() => setTurnstileToken(null)}
+                onError={() => setTurnstileToken(null)}
+              />
+            </div>
+          )}
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (!!TURNSTILE_SITE_KEY && !turnstileToken)}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-medium rounded-lg py-2.5 text-sm transition"
           >
             {loading ? 'Creating account…' : 'Create account'}

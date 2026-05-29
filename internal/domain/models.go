@@ -26,6 +26,7 @@ type Company struct {
 	TrialEndsAt      *time.Time `json:"trial_ends_at,omitempty"`
 	OnTrial          bool       `json:"on_trial"`
 	IsActive         bool       `json:"is_active"`
+	IsDemo           bool       `json:"is_demo"`
 	StripeCustomerID string     `json:"stripe_customer_id,omitempty"`
 	StripeSubID      string     `json:"stripe_sub_id,omitempty"`
 	CreatedAt        time.Time  `json:"created_at"`

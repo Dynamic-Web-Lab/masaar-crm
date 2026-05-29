@@ -103,6 +103,7 @@ docker run -d \
   --restart unless-stopped \
   --network $NETWORK \
   -e NEXT_PUBLIC_API_URL="$NEXT_PUBLIC_API_URL" \
+  -e TURNSTILE_SECRET_KEY="$TURNSTILE_SECRET_KEY" \
   $IMAGE:latest
 
 echo "   Waiting for container to respond (up to 60s)..."
