@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -19,6 +20,7 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/api"
 	"github.com/maidulcu/masaar-crm/internal/api/handler"
 	"github.com/maidulcu/masaar-crm/internal/billing"
+	"github.com/maidulcu/masaar-crm/internal/domain"
 	"github.com/maidulcu/masaar-crm/internal/bos24"
 	"github.com/maidulcu/masaar-crm/internal/config"
 	"github.com/maidulcu/masaar-crm/internal/email"
@@ -103,6 +105,7 @@ func main() {
 	leadTagRepo := repo.NewLeadTagRepo(pool)
 	commHistRepo := repo.NewCommunicationHistoryRepo(pool)
 	rentalPropertyRepo := repo.NewRentalPropertyRepo(pool)
+	listingRepo := repo.NewListingRepo(pool)
 	tenantRepo := repo.NewTenantRepo(pool)
 	leaseTemplateRepo := repo.NewLeaseTemplateRepo(pool)
 	leaseRepo := repo.NewLeaseRepo(pool)
@@ -121,6 +124,7 @@ func main() {
 	companyRepo := repo.NewCompanyRepo(pool)
 	documentRepo := repo.NewDocumentRepo(pool)
 	messageTemplateRepo := repo.NewMessageTemplateRepo(pool)
+	pipelineStageRepo := repo.NewPipelineStageRepo(pool)
 
 	// ── Email service (SMTP or Azure Communication Services) ─────────────────
 	emailService := email.NewService(&email.Config{
@@ -206,6 +210,10 @@ func main() {
 		log.Println("BuyOrSell24 integration enabled")
 	}
 
+	// ── BOS24 Integration (per-company marketplace sync) ─────────────────────
+	bos24IntegrationRepo := repo.NewBOS24IntegrationRepo(pool)
+	bos24SyncService := bos24.NewSyncService(bos24IntegrationRepo, contactRepo, hub)
+
 	auditLogRepo := repo.NewAuditLogRepo(pool)
 	apiKeyRepo := repo.NewApiKeyRepo(pool)
 	billingRepo := repo.NewBillingRepo(pool)
@@ -244,7 +252,7 @@ func main() {
 		User:                handler.NewUserHandler(userRepo, auditLogRepo, emailService, cfg),
 		Stats:               handler.NewStatsHandler(statsRepo),
 		Contact:             handler.NewContactHandler(contactRepo, auditLogRepo),
-		Lead:                handler.NewLeadHandler(leadRepo, contactRepo, commHistRepo, scoringService, leadTagRepo, hub, auditLogRepo, dispatcher),
+		Lead:                handler.NewLeadHandler(leadRepo, contactRepo, commHistRepo, scoringService, leadTagRepo, hub, auditLogRepo, dispatcher, pipelineStageRepo),
 		WhatsApp:            handler.NewWhatsAppHandler(waRepo, contactRepo, taggingService, hub, cfg),
 		WhatsAppOutbound:    handler.NewWhatsAppOutboundHandler(whatsappSender, outboundRepo, waRepo),
 		AI:                  handler.NewAIHandler(sensitiveAI, cloudOrLocal(), contactRepo, leadRepo, waRepo),
@@ -256,6 +264,7 @@ func main() {
 		Settings:            handler.NewSettingsHandler(settingsRepo, companySettingsRepo),
 		Email:               handler.NewEmailHandler(emailService, emailRepo),
 		RentalProperty:      handler.NewRentalPropertyHandler(rentalPropertyRepo),
+		Listing:             handler.NewListingHandler(listingRepo),
 		Tenant:              handler.NewTenantHandler(tenantRepo),
 		LeaseTemplate:       handler.NewLeaseTemplateHandler(leaseTemplateRepo),
 		Lease:               handler.NewLeaseHandler(leaseRepo),
@@ -275,7 +284,18 @@ func main() {
 		Billing:             handler.NewBillingHandler(billingRepo, companySettingsRepo, stripeCfg),
 		MessageTemplate:     handler.NewMessageTemplateHandler(messageTemplateRepo),
 		AuditLog:           handler.NewAuditHandler(auditLogRepo),
+		BOS24Integration:   handler.NewBOS24IntegrationHandler(bos24IntegrationRepo, bos24SyncService, cfg),
+		Offer:              handler.NewOfferHandler(repo.NewOfferRepo(pool), contactRepo, leadRepo, dealRepo, hub),
+		LeadRotation:       handler.NewLeadRotationHandler(repo.NewLeadRotationRepo(pool), leadRepo, userRepo, hub),
+		Commission:         handler.NewCommissionHandler(repo.NewCommissionRepo(pool)),
+		Performance:        handler.NewPerformanceHandler(repo.NewPerformanceRepo(pool)),
+		Viewing:            handler.NewViewingHandler(repo.NewViewingRepo(pool), notificationRepo, hub),
+		Marketing:          handler.NewMarketingHandler(listingRepo, contactRepo, companySettingsRepo, userRepo, emailService),
+		ImportExport:       handler.NewImportExportHandler(contactRepo, leadRepo, listingRepo),
+		PipelineStage:      handler.NewPipelineStageHandler(pipelineStageRepo),
 	}
+
+	offerRepo := repo.NewOfferRepo(pool) // shared instance for background job
 
 	// ── Fiber app ────────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
@@ -374,6 +394,88 @@ func main() {
 				} else {
 					log.Printf("Trial ended for company %s (%s)", company.ID, company.Name)
 				}
+			}
+			cancel()
+		}
+	}()
+
+	// Offer expiry — mark submitted/under_review offers past valid_until as expired
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			n, err := offerRepo.ExpireOlderThan(ctx, time.Now())
+			if err != nil {
+				log.Printf("offer expiry job: %v", err)
+			} else if n > 0 {
+				log.Printf("offer expiry job: expired %d offer(s)", n)
+			}
+			cancel()
+		}
+	}()
+
+	// Viewing reminders — notify agents 60 minutes before scheduled viewings
+	viewingRepo := repo.NewViewingRepo(pool)
+	go func() {
+		ticker := time.NewTicker(15 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			due, err := viewingRepo.DueForReminder(ctx, 60)
+			if err != nil {
+				log.Printf("viewing reminder job: %v", err)
+				cancel()
+				continue
+			}
+			for _, v := range due {
+				if v.AgentID != nil {
+					_ = notificationRepo.Create(ctx, &domain.Notification{
+						UserID: *v.AgentID,
+						Type:   "viewing_reminder",
+						Title:  "Viewing in 1 hour",
+						Body:   fmt.Sprintf("Viewing at %s — %s", v.ScheduledAt.Format("15:04"), v.Address),
+					})
+					hub.SendToUser(v.AgentID.String(), ws.Event{
+						Type: "viewing.reminder",
+						Payload: map[string]interface{}{
+							"viewing_id":   v.ID,
+							"scheduled_at": v.ScheduledAt,
+							"address":      v.Address,
+						},
+					})
+				}
+				_ = viewingRepo.MarkReminderSent(ctx, v.ID)
+			}
+			if len(due) > 0 {
+				log.Printf("viewing reminders: sent %d", len(due))
+			}
+			cancel()
+		}
+	}()
+
+	// BOS24 nightly delta sync — runs every 24 hours per active integration
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+			log.Println("Running BOS24 nightly sync...")
+			integrations, err := bos24IntegrationRepo.ListCompaniesWithBOS24(ctx)
+			if err != nil {
+				log.Printf("BOS24 sync: error fetching integrations: %v", err)
+				cancel()
+				continue
+			}
+			for _, s := range integrations {
+				result, err := bos24SyncService.SyncAll(ctx, s.CompanyID, s.APIKey, s.LastSyncAt)
+				if err != nil {
+					log.Printf("BOS24 sync: company %s: %v", s.CompanyID, err)
+					continue
+				}
+				log.Printf("BOS24 sync: company %s — %d listings, %d inquiries",
+					s.CompanyID, result.ListingsImported, result.InquiriesCreated)
+				_ = bos24IntegrationRepo.UpdateLastSyncAt(ctx, s.CompanyID, time.Now())
 			}
 			cancel()
 		}

@@ -108,6 +108,24 @@ const sections: NavSection[] = [
         ),
       },
       {
+        href: '/listings',
+        label: { en: 'Listings', ar: 'القوائم' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+        ),
+      },
+      {
+        href: '/marketing',
+        label: { en: 'Marketing', ar: 'التسويق' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+          </svg>
+        ),
+      },
+      {
         href: '/rentals',
         label: { en: 'Rentals', ar: 'الإيجارات' },
         icon: (
@@ -223,11 +241,38 @@ const sections: NavSection[] = [
     title: { en: 'Insights', ar: 'التقارير' },
     items: [
       {
+        href: '/calendar',
+        label: { en: 'Calendar', ar: 'التقويم' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        ),
+      },
+      {
+        href: '/performance',
+        label: { en: 'Performance', ar: 'الأداء' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        ),
+      },
+      {
         href: '/analytics',
         label: { en: 'Analytics', ar: 'التحليلات' },
         icon: (
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        ),
+      },
+      {
+        href: '/map',
+        label: { en: 'Property Map', ar: 'خريطة العقارات' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
           </svg>
         ),
       },
@@ -313,6 +358,64 @@ const sections: NavSection[] = [
         ),
         adminOnly: true,
       },
+      {
+        href: '/import-export',
+        label: { en: 'Import / Export', ar: 'استيراد/تصدير' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l-3-3m3 3l3-3" />
+          </svg>
+        ),
+        adminOnly: true,
+      },
+      {
+        href: '/commissions',
+        label: { en: 'Commissions', ar: 'العمولات' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ),
+      },
+      {
+        href: '/offers',
+        label: { en: 'Offers', ar: 'العروض' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        ),
+      },
+      {
+        href: '/settings/pipeline',
+        label: { en: 'Pipeline Stages', ar: 'مراحل البيع' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+          </svg>
+        ),
+        adminOnly: true,
+      },
+      {
+        href: '/settings/lead-rotation',
+        label: { en: 'Lead Rotation', ar: 'توزيع العملاء' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+          </svg>
+        ),
+        adminOnly: true,
+      },
+      {
+        href: '/settings/bos24',
+        label: { en: 'BOS24 Sync', ar: 'مزامنة BOS24' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        ),
+        adminOnly: true,
+      },
     ],
   },
 ]
@@ -345,13 +448,13 @@ export function Sidebar() {
             </p>
             <div className="space-y-0.5">
               {section.items.filter(item => !item.adminOnly || isAdmin).map((item) => {
-                const active = item.href === '/analytics'
-                  ? pathname.startsWith('/analytics')
-                    : item.href === '/settings'
-                      ? pathname === '/settings' || pathname.startsWith('/settings/api') || pathname.startsWith('/settings/company') || pathname.startsWith('/settings/api-keys') || pathname.startsWith('/settings/webhooks')
-                    : item.href === '/admin/users'
-                      ? pathname.startsWith('/admin')
-                      : pathname.startsWith(item.href)
+const active = item.href === '/analytics'
+  ? pathname.startsWith('/analytics')
+    : item.href === '/settings'
+      ? pathname === '/settings' || pathname.startsWith('/settings/api') || pathname.startsWith('/settings/company') || pathname.startsWith('/settings/api-keys') || pathname.startsWith('/settings/webhooks') || pathname.startsWith('/settings/bos24') || pathname.startsWith('/settings/lead-rotation') || pathname.startsWith('/settings/pipeline')
+    : item.href === '/admin/users'
+      ? pathname.startsWith('/admin')
+      : pathname.startsWith(item.href)
                 return (
                   <Link
                     key={item.href}

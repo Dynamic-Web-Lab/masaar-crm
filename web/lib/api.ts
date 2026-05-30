@@ -378,6 +378,26 @@ export const api = {
       request(`/api/v1/rental-properties/${id}`, { method: 'DELETE' }),
   },
 
+  // ─── Listings ─────────────────────────────────────────────────────────────────
+
+  listings: {
+    list: (params: { page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/listings?${q}`)
+    },
+    get: (id: string) => request(`/api/v1/listings/${id}`),
+    create: (data: unknown) =>
+      request('/api/v1/listings', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) =>
+      request(`/api/v1/listings/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    updateStatus: (id: string, status: string) =>
+      request(`/api/v1/listings/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+    delete: (id: string) =>
+      request(`/api/v1/listings/${id}`, { method: 'DELETE' }),
+  },
+
   // ─── Tenants ──────────────────────────────────────────────────────────────────
 
   tenants: {
@@ -658,6 +678,20 @@ export const api = {
       test: (id: string) =>
         request(`/api/v1/settings/webhooks/${id}/test`, { method: 'POST' }),
     },
+    leadRotation: {
+      get: () => request('/api/v1/settings/lead-rotation'),
+      update: (data: { mode?: string; enabled: boolean; max_per_agent?: number }) =>
+        request('/api/v1/settings/lead-rotation', { method: 'PATCH', body: JSON.stringify(data) }),
+    },
+    bos24Integration: {
+      get: () => request('/api/v1/settings/bos24-integration'),
+      update: (data: { api_key: string }) =>
+        request('/api/v1/settings/bos24-integration', { method: 'PATCH', body: JSON.stringify(data) }),
+      registerWebhook: () =>
+        request('/api/v1/settings/bos24-integration/register', { method: 'POST' }),
+      syncNow: () =>
+        request('/api/v1/settings/bos24-integration/sync', { method: 'POST' }),
+    },
   },
 
   // ─── WhatsApp Outbound ─────────────────────────────────────────────────────────
@@ -815,6 +849,26 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(payload),
       }),
+
+    // ── Map data endpoints ─────────────────────────────────────────────────
+    map: {
+      areas: () => request('/api/v1/properties/map/areas'),
+      bounds: () => request('/api/v1/properties/map/bounds'),
+      heatmap: () => request('/api/v1/properties/map/heatmap'),
+      areaLocation: (name: string) => request(`/api/v1/properties/map/area/${encodeURIComponent(name)}`),
+      poiCategories: () => request('/api/v1/properties/map/poi-categories'),
+      pois: (lat: number, lng: number, radiusKm: number, category?: string) => {
+        const q = new URLSearchParams({ lat: String(lat), lng: String(lng), radius_km: String(radiusKm), limit: '50' })
+        if (category) q.set('category', category)
+        return request(`/api/v1/properties/pois?${q}`)
+      },
+      transactionAreas: (propertyType?: string, transType?: string) => {
+        const q = new URLSearchParams({ limit: '50' })
+        if (propertyType) q.set('property_type', propertyType)
+        if (transType) q.set('trans_type', transType)
+        return request(`/api/v1/properties/transactions/areas?${q}`)
+      },
+    },
   },
 
   // ─── Message Templates ───────────────────────────────────────────────────
@@ -840,6 +894,146 @@ export const api = {
     },
   },
 
+  importExport: {
+    template: (entity: 'contacts' | 'leads' | 'listings') =>
+      `${BASE}/api/v1/import/template/${entity}`,
+    importContacts: async (file: File) => {
+      const fd = new FormData(); fd.append('file', file)
+      const token = (await import('./auth')).getToken()
+      const res = await fetch(`${BASE}/api/v1/import/contacts`, {
+        method: 'POST', body: fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Import failed') }
+      return res.json()
+    },
+    importLeads: async (file: File) => {
+      const fd = new FormData(); fd.append('file', file)
+      const token = (await import('./auth')).getToken()
+      const res = await fetch(`${BASE}/api/v1/import/leads`, {
+        method: 'POST', body: fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Import failed') }
+      return res.json()
+    },
+    exportContacts: (search?: string) => {
+      const q = search ? `?search=${encodeURIComponent(search)}` : ''
+      return `${BASE}/api/v1/export/contacts${q}`
+    },
+    exportLeads: (stage?: string) => {
+      const q = stage ? `?stage=${stage}` : ''
+      return `${BASE}/api/v1/export/leads${q}`
+    },
+    exportListings: () => `${BASE}/api/v1/export/listings`,
+  },
+
+  marketing: {
+    publicListing: (id: string) => fetch(`${BASE}/api/public/listings/${id}`).then(r => r.json()),
+    brochureUrl: (id: string) => `${BASE}/api/v1/listings/${id}/brochure`,
+    qrUrl: (id: string) => `${BASE}/api/v1/listings/${id}/qr`,
+    emailCampaign: (id: string, data: { contact_ids: string[]; subject?: string; message?: string }) =>
+      request(`/api/v1/listings/${id}/email-campaign`, { method: 'POST', body: JSON.stringify(data) }),
+  },
+
+  viewings: {
+    list: (params: {
+      agent_id?: string; contact_id?: string; listing_id?: string
+      status?: string; from?: string; to?: string; page?: number; limit?: number
+    } = {}) => {
+      const q = new URLSearchParams()
+      Object.entries(params).forEach(([k, v]) => { if (v !== undefined) q.set(k, String(v)) })
+      return request(`/api/v1/viewings?${q}`)
+    },
+    get: (id: string) => request(`/api/v1/viewings/${id}`),
+    create: (data: {
+      contact_id: string; scheduled_at: string; duration_min?: number
+      listing_id?: string; agent_id?: string; lead_id?: string
+      address?: string; notes?: string
+    }) => request('/api/v1/viewings', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) =>
+      request(`/api/v1/viewings/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    updateStatus: (id: string, status: string) =>
+      request(`/api/v1/viewings/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+    delete: (id: string) =>
+      request(`/api/v1/viewings/${id}`, { method: 'DELETE' }),
+  },
+
+  performance: {
+    leaderboard: (period?: string, metric?: string) => {
+      const q = new URLSearchParams()
+      if (period) q.set('period', period)
+      if (metric) q.set('metric', metric)
+      return request(`/api/v1/performance/leaderboard?${q}`)
+    },
+    agentKPIs: (agentId: string, period?: string) => {
+      const q = new URLSearchParams()
+      if (period) q.set('period', period)
+      return request(`/api/v1/performance/agent/${agentId}?${q}`)
+    },
+    agentTrends: (agentId: string) =>
+      request(`/api/v1/performance/agent/${agentId}/trends`),
+    agentTargets: (agentId: string, period?: string) => {
+      const q = new URLSearchParams()
+      if (period) q.set('period', period)
+      return request(`/api/v1/performance/agent/${agentId}/targets?${q}`)
+    },
+    upsertTarget: (data: { agent_id: string; metric: string; target_value: number; period?: string }) =>
+      request('/api/v1/performance/targets', { method: 'POST', body: JSON.stringify(data) }),
+    deleteTarget: (id: string) =>
+      request(`/api/v1/performance/targets/${id}`, { method: 'DELETE' }),
+  },
+
+  commissions: {
+    list: (params: { agent_id?: string; status?: string; page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.agent_id) q.set('agent_id', params.agent_id)
+      if (params.status) q.set('status', params.status)
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/commissions?${q}`)
+    },
+    create: (data: unknown) =>
+      request('/api/v1/commissions', { method: 'POST', body: JSON.stringify(data) }),
+    updateStatus: (id: string, status: string, paymentReference?: string) =>
+      request(`/api/v1/commissions/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, payment_reference: paymentReference }) }),
+    updateAmount: (id: string, total: number, notes?: string) =>
+      request(`/api/v1/commissions/${id}/amount`, { method: 'PATCH', body: JSON.stringify({ total_commission: total, notes }) }),
+    calculate: (agentId: string, periodFrom: string, periodTo: string) =>
+      request('/api/v1/commissions/calculate', { method: 'POST', body: JSON.stringify({ agent_id: agentId, period_from: periodFrom, period_to: periodTo }) }),
+    structures: {
+      list: () => request('/api/v1/commissions/structures'),
+      create: (data: unknown) => request('/api/v1/commissions/structures', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: unknown) => request(`/api/v1/commissions/structures/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+      delete: (id: string) => request(`/api/v1/commissions/structures/${id}`, { method: 'DELETE' }),
+    },
+  },
+
+  offers: {
+    list: (params: { listing_id?: string; contact_id?: string; status?: string; page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.listing_id) q.set('listing_id', params.listing_id)
+      if (params.contact_id) q.set('contact_id', params.contact_id)
+      if (params.status) q.set('status', params.status)
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/offers?${q}`)
+    },
+    get: (id: string) => request(`/api/v1/offers/${id}`),
+    create: (data: {
+      listing_id: string; contact_id: string; offer_amount: number;
+      currency?: string; terms?: string; notes?: string; valid_until?: string
+    }) => request('/api/v1/offers', { method: 'POST', body: JSON.stringify(data) }),
+    updateStatus: (id: string, status: string) =>
+      request(`/api/v1/offers/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+    counter: (id: string, data: { offer_amount: number; terms?: string; notes?: string; valid_until?: string }) =>
+      request(`/api/v1/offers/${id}/counter`, { method: 'POST', body: JSON.stringify(data) }),
+    accept: (id: string) =>
+      request(`/api/v1/offers/${id}/accept`, { method: 'POST' }),
+    delete: (id: string) =>
+      request(`/api/v1/offers/${id}`, { method: 'DELETE' }),
+  },
+
   messageTemplates: {
     list: (params: { page?: number; limit?: number } = {}) => {
       const q = new URLSearchParams()
@@ -854,6 +1048,21 @@ export const api = {
       request(`/api/v1/message-templates/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     delete: (id: string) =>
       request(`/api/v1/message-templates/${id}`, { method: 'DELETE' }),
+  },
+
+  pipelineStages: {
+    list: (entityType = 'lead') =>
+      request(`/api/v1/pipeline-stages?entity_type=${entityType}`),
+    create: (data: unknown) =>
+      request('/api/v1/pipeline-stages', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) =>
+      request(`/api/v1/pipeline-stages/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request(`/api/v1/pipeline-stages/${id}`, { method: 'DELETE' }),
+    reorder: (ids: string[]) =>
+      request('/api/v1/pipeline-stages/reorder', { method: 'POST', body: JSON.stringify({ ids }) }),
+    resetDefault: (entityType = 'lead') =>
+      request(`/api/v1/pipeline-stages/reset-default?entity_type=${entityType}`, { method: 'POST' }),
   },
 }
 

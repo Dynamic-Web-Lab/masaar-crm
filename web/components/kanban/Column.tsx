@@ -16,15 +16,17 @@ const stageConfig: Record<LeadStage, { label: { en: string; ar: string }; color:
 }
 
 interface Props {
-  stage: LeadStage
+  stage: string
   leads: Lead[]
   onOpenLead?: (lead: Lead) => void
+  stageName?: string
+  stageColor?: string
 }
 
-export function KanbanColumn({ stage, leads, onOpenLead }: Props) {
+export function KanbanColumn({ stage, leads, onOpenLead, stageName, stageColor }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: stage })
   const { lang, t } = useLang()
-  const config = stageConfig[stage]
+  const config = stageConfig[stage as LeadStage]
 
   const totalValue = leads.reduce((sum, l) => sum + l.deal_value, 0)
   const currency = leads[0]?.currency ?? 'AED'
@@ -34,10 +36,20 @@ export function KanbanColumn({ stage, leads, onOpenLead }: Props) {
       {/* Column header */}
       <div className="flex items-center justify-between mb-3 px-1.5">
         <div className="flex items-center gap-2">
-          <span className={clsx('inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-full', config.color)}>
-            <span className={clsx('w-1.5 h-1.5 rounded-full', config.dot)} aria-hidden="true" />
-            {lang === 'ar' ? config.label.ar : config.label.en}
-          </span>
+          {config ? (
+            <span className={clsx('inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-full', config.color)}>
+              <span className={clsx('w-1.5 h-1.5 rounded-full', config.dot)} aria-hidden="true" />
+              {lang === 'ar' ? config.label.ar : config.label.en}
+            </span>
+          ) : (
+            <span
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-full"
+              style={{ backgroundColor: stageColor ? `${stageColor}20` : '#f1f5f9', color: stageColor || '#64748b' }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: stageColor || '#94a3b8' }} aria-hidden="true" />
+              {stageName || stage}
+            </span>
+          )}
           <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-md text-[11px] text-surface-500 font-medium bg-surface-100">
             {leads.length}
           </span>

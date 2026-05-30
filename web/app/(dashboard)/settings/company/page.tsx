@@ -18,17 +18,21 @@ interface CompanyData {
   iban: string
   invoice_footer: string
   logo_url: string
+  disclaimer: string
+  primary_color: string
 }
 
 export default function CompanySettingsPage() {
-  const { user } = useAuthStore()
+  const { user, company } = useAuthStore()
   const { t } = useLang()
   const router = useRouter()
+  const isDemo = !!company?.is_demo
 
   const [form, setForm] = useState<CompanyData>({
     company_name: '', address: '', phone: '', email: '',
     vat_number: '', trn: '', bank_name: '', bank_account: '',
     iban: '', invoice_footer: '', logo_url: '',
+    disclaimer: '', primary_color: '#1a3a5c',
   })
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -67,6 +71,17 @@ export default function CompanySettingsPage() {
       <Header title={t('إعدادات الشركة', 'Company Settings')} />
       <main className="flex-1 overflow-y-auto p-6 bg-gray-50">
         <div className="max-w-2xl space-y-6">
+          {isDemo && (
+            <div className="flex items-center gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+              <svg className="w-4 h-4 shrink-0 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              <span>
+                <strong>Demo account</strong> — company settings are read-only.{' '}
+                <a href="/signup" className="underline font-semibold">Start a free trial</a> to configure your workspace.
+              </span>
+            </div>
+          )}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <h2 className="text-sm font-semibold text-gray-700 mb-4">
               {t('معلومات الشركة', 'Company Information')}
@@ -127,12 +142,39 @@ export default function CompanySettingsPage() {
                 <textarea className={inputCls + ' resize-none'} rows={2} value={form.invoice_footer} onChange={update('invoice_footer')} />
               </div>
 
+              <hr className="border-gray-100" />
+              <h3 className="text-sm font-semibold text-gray-700">{t('العلامة التجارية', 'Branding')}</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>{t('رابط الشعار', 'Logo URL')}</label>
+                  <input className={inputCls} value={form.logo_url} onChange={update('logo_url')} placeholder="https://..." />
+                  {form.logo_url && <img src={form.logo_url} alt="logo preview" className="mt-2 h-10 object-contain rounded border border-gray-100" />}
+                </div>
+                <div>
+                  <label className={labelCls}>{t('اللون الأساسي', 'Primary Color')}</label>
+                  <div className="flex gap-2 items-center">
+                    <input type="color" value={form.primary_color} onChange={update('primary_color')}
+                      className="w-10 h-10 rounded border border-gray-200 cursor-pointer p-0.5" />
+                    <input className={inputCls} value={form.primary_color} onChange={update('primary_color')} placeholder="#1a3a5c" />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>{t('إخلاء المسؤولية', 'Disclaimer (on brochures)')}</label>
+                <textarea className={inputCls + ' resize-none'} rows={2} value={form.disclaimer} onChange={update('disclaimer')}
+                  placeholder="All information subject to change. Contact agent for verification." />
+              </div>
+
               {error && <p className="text-xs text-red-500 bg-red-50 p-2 rounded">{error}</p>}
               {success && <p className="text-xs text-green-600 bg-green-50 p-2 rounded">{t('تم الحفظ', 'Saved successfully')}</p>}
 
-              <button type="submit" disabled={submitting || loading}
+              <button type="submit" disabled={submitting || loading || isDemo}
                 className="w-full py-2.5 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors">
-                {submitting ? t('جارٍ الحفظ...', 'Saving...') : t('حفظ الإعدادات', 'Save Settings')}
+                {submitting
+                  ? t('جارٍ الحفظ...', 'Saving...')
+                  : isDemo
+                  ? t('غير متاح في الحساب التجريبي', 'Not available in demo')
+                  : t('حفظ الإعدادات', 'Save Settings')}
               </button>
             </form>
           </div>

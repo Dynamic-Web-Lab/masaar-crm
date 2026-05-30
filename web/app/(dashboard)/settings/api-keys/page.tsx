@@ -17,9 +17,10 @@ interface ApiKey {
 }
 
 export default function ApiKeysPage() {
-  const { user } = useAuthStore()
+  const { user, company } = useAuthStore()
   const { t } = useLang()
   const router = useRouter()
+  const isDemo = !!company?.is_demo
 
   const [keys, setKeys] = useState<ApiKey[]>([])
   const [loading, setLoading] = useState(true)
@@ -75,12 +76,25 @@ export default function ApiKeysPage() {
       <Header title={t('مفاتيح API', 'API Keys')} />
       <main className="flex-1 overflow-y-auto p-6 bg-gray-50">
         <div className="max-w-2xl space-y-6">
+          {isDemo && (
+            <div className="flex items-center gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+              <svg className="w-4 h-4 shrink-0 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              <span>
+                <strong>Demo account</strong> — API key management is read-only.{' '}
+                <a href="/signup" className="underline font-semibold">Start a free trial</a> to create and manage API keys.
+              </span>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <p className="text-xs text-gray-500">{t('مفاتيح API للتكامل الخارجي', 'API keys for external integrations')}</p>
-            <button onClick={() => setShowNewKey(true)}
-              className="px-4 py-2 bg-brand-600 text-white text-xs font-semibold rounded-lg hover:bg-brand-700 transition-colors">
-              {t('مفتاح جديد', '+ New Key')}
-            </button>
+            {!isDemo && (
+              <button onClick={() => setShowNewKey(true)}
+                className="px-4 py-2 bg-brand-600 text-white text-xs font-semibold rounded-lg hover:bg-brand-700 transition-colors">
+                {t('مفتاح جديد', '+ New Key')}
+              </button>
+            )}
           </div>
 
           {showNewKey && (
@@ -149,7 +163,7 @@ export default function ApiKeysPage() {
                         {key.last_used_at ? ` · ${t('آخر استخدام:', 'Last used:')} ${new Date(key.last_used_at).toLocaleDateString()}` : ''}
                       </p>
                     </div>
-                    {key.is_active && (
+                    {key.is_active && !isDemo && (
                       <button onClick={() => handleRevoke(key.id)}
                         className="text-xs text-red-500 hover:text-red-700 font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors shrink-0">
                         {t('إلغاء', 'Revoke')}

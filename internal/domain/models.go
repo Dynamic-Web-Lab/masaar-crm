@@ -70,6 +70,21 @@ type Contact struct {
 	UpdatedAt  time.Time  `json:"updated_at"`
 }
 
+// ─── Pipeline Stage ─────────────────────────────────────────────────────────────
+
+type PipelineStage struct {
+	ID         uuid.UUID `json:"id"`
+	CompanyID  uuid.UUID `json:"company_id"`
+	EntityType string    `json:"entity_type"`
+	Name       string    `json:"name"`
+	SortOrder  int       `json:"sort_order"`
+	Color      string    `json:"color"`
+	IsWon      bool      `json:"is_won"`
+	IsLost     bool      `json:"is_lost"`
+	IsDefault  bool      `json:"is_default"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
 // ─── Lead ─────────────────────────────────────────────────────────────────────
 
 type LeadStage string
@@ -288,6 +303,155 @@ type APISetting struct {
 	UpdatedBy    *uuid.UUID `json:"updated_by"`
 }
 
+// ─── Offers ──────────────────────────────────────────────────────────────────
+
+type OfferStatus string
+
+const (
+	OfferSubmitted   OfferStatus = "submitted"
+	OfferUnderReview OfferStatus = "under_review"
+	OfferCountered   OfferStatus = "countered"
+	OfferAccepted    OfferStatus = "accepted"
+	OfferRejected    OfferStatus = "rejected"
+	OfferExpired     OfferStatus = "expired"
+)
+
+type Offer struct {
+	ID            uuid.UUID   `json:"id"`
+	ListingID     uuid.UUID   `json:"listing_id"`
+	ContactID     uuid.UUID   `json:"contact_id"`
+	AgentID       *uuid.UUID  `json:"agent_id"`
+	ParentOfferID *uuid.UUID  `json:"parent_offer_id"`
+	OfferAmount   float64     `json:"offer_amount"`
+	Currency      string      `json:"currency"`
+	Status        OfferStatus `json:"status"`
+	Terms         string      `json:"terms"`
+	Notes         string      `json:"notes"`
+	ValidUntil    *time.Time  `json:"valid_until"`
+	DealID        *uuid.UUID  `json:"deal_id"`
+	CreatedAt     time.Time   `json:"created_at"`
+	UpdatedAt     time.Time   `json:"updated_at"`
+
+	// Joined fields
+	Contact        *Contact  `json:"contact,omitempty"`
+	ListingTitle   string    `json:"listing_title,omitempty"`
+	CounterOffers  []Offer   `json:"counter_offers,omitempty"`
+}
+
+// ─── Approval Workflows ───────────────────────────────────────────────────────
+
+type ApprovalStatus string
+const (
+	ApprovalPending  ApprovalStatus = "pending"
+	ApprovalApproved ApprovalStatus = "approved"
+	ApprovalRejected ApprovalStatus = "rejected"
+)
+
+type ApprovalEntity string
+const (
+	ApprovalListing ApprovalEntity = "listing"
+	ApprovalDeal    ApprovalEntity = "deal"
+	ApprovalOffer   ApprovalEntity = "offer"
+)
+
+type ApprovalConfig struct {
+	ID                 uuid.UUID `json:"id"`
+	CompanyID          uuid.UUID `json:"company_id"`
+	ListingApproval    bool      `json:"listing_approval"`
+	DealApprovalAbove  float64   `json:"deal_approval_above"`
+	OfferApprovalAbove float64   `json:"offer_approval_above"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+type ApprovalRequest struct {
+	ID           uuid.UUID      `json:"id"`
+	CompanyID    uuid.UUID      `json:"company_id"`
+	EntityType   ApprovalEntity `json:"entity_type"`
+	EntityID     uuid.UUID      `json:"entity_id"`
+	RequestedBy  uuid.UUID      `json:"requested_by"`
+	ReviewedBy   *uuid.UUID     `json:"reviewed_by"`
+	Status       ApprovalStatus `json:"status"`
+	Notes        string         `json:"notes"`
+	ReviewerNote string         `json:"reviewer_note"`
+	CreatedAt    time.Time      `json:"created_at"`
+	ReviewedAt   *time.Time     `json:"reviewed_at"`
+	// Joined
+	RequesterName string `json:"requester_name,omitempty"`
+	ReviewerName  string `json:"reviewer_name,omitempty"`
+}
+
+// ─── Viewings / Calendar ─────────────────────────────────────────────────────
+
+type ViewingStatus string
+
+const (
+	ViewingScheduled  ViewingStatus = "scheduled"
+	ViewingConfirmed  ViewingStatus = "confirmed"
+	ViewingCheckedIn  ViewingStatus = "checked_in"
+	ViewingCompleted  ViewingStatus = "completed"
+	ViewingCancelled  ViewingStatus = "cancelled"
+	ViewingNoShow     ViewingStatus = "no_show"
+)
+
+type Viewing struct {
+	ID            uuid.UUID     `json:"id"`
+	ListingID     *uuid.UUID    `json:"listing_id"`
+	ContactID     uuid.UUID     `json:"contact_id"`
+	AgentID       *uuid.UUID    `json:"agent_id"`
+	LeadID        *uuid.UUID    `json:"lead_id"`
+	ScheduledAt   time.Time     `json:"scheduled_at"`
+	DurationMin   int           `json:"duration_min"`
+	Status        ViewingStatus `json:"status"`
+	Address       string        `json:"address"`
+	Notes         string        `json:"notes"`
+	CheckedInAt   *time.Time    `json:"checked_in_at"`
+	CheckedOutAt  *time.Time    `json:"checked_out_at"`
+	ReminderSent  bool          `json:"reminder_sent"`
+	CreatedAt     time.Time     `json:"created_at"`
+	UpdatedAt     time.Time     `json:"updated_at"`
+
+	// Joined
+	Contact      *Contact  `json:"contact,omitempty"`
+	ListingTitle string    `json:"listing_title,omitempty"`
+	AgentName    string    `json:"agent_name,omitempty"`
+}
+
+// ─── Lead Rotation ───────────────────────────────────────────────────────────
+
+// LeadRotationSettings controls how new leads are distributed across agents.
+type LeadRotationSettings struct {
+	ID            uuid.UUID `json:"id"`
+	CompanyID     uuid.UUID `json:"company_id"`
+	Mode          string    `json:"mode"`           // manual | round_robin | capacity
+	Enabled       bool      `json:"enabled"`
+	RotationIndex int       `json:"rotation_index"` // internal counter
+	MaxPerAgent   int       `json:"max_per_agent"`  // 0 = unlimited
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+// ─── BOS24 Integration ───────────────────────────────────────────────────────
+
+// BOS24Settings holds per-company BOS24 integration configuration.
+type BOS24Settings struct {
+	ID            uuid.UUID  `json:"id"`
+	CompanyID     uuid.UUID  `json:"company_id"`
+	APIKey        string     `json:"api_key"`         // bos24_live_xxx — integration API key
+	WebhookSecret string     `json:"webhook_secret"`  // HMAC secret + URL token
+	WebhookID     string     `json:"webhook_id"`      // ID returned by BOS24 on registration
+	LastSyncAt    *time.Time `json:"last_sync_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+}
+
+// IsConfigured returns true when an API key has been set.
+func (s *BOS24Settings) IsConfigured() bool {
+	return s != nil && s.APIKey != ""
+}
+
+// IsWebhookRegistered returns true when BOS24 has acknowledged our webhook.
+func (s *BOS24Settings) IsWebhookRegistered() bool {
+	return s != nil && s.WebhookID != ""
+}
+
 // ─── Email ────────────────────────────────────────────────────────────────────
 
 type EmailStatus string
@@ -368,6 +532,9 @@ type CompanySettings struct {
 	BankName        string     `json:"bank_name"`
 	BankAccount     string     `json:"bank_account"`
 	BankIBAN        string     `json:"bank_iban"`
+	LogoURL         string     `json:"logo_url"`
+	Disclaimer      string     `json:"disclaimer"`
+	PrimaryColor    string     `json:"primary_color"`
 	UpdatedAt       time.Time  `json:"updated_at"`
 	UpdatedBy       *uuid.UUID `json:"updated_by"`
 }
@@ -433,6 +600,81 @@ type RentalProperty struct {
 	UpdatedAt           time.Time       `json:"updated_at"`
 	CreatedBy           *uuid.UUID      `json:"created_by"`
 	UpdatedBy           *uuid.UUID      `json:"updated_by"`
+}
+
+// ─── Listings ───────────────────────────────────────────────────────────────────
+
+type ListingType string
+
+const (
+	ListingTypeSale ListingType = "sale"
+	ListingTypeRent ListingType = "rent"
+)
+
+type ListingStatus string
+
+const (
+	ListingStatusDraft     ListingStatus = "draft"
+	ListingStatusPublished ListingStatus = "published"
+	ListingStatusSold      ListingStatus = "sold"
+	ListingStatusRented    ListingStatus = "rented"
+	ListingStatusExpired   ListingStatus = "expired"
+	ListingStatusWithdrawn ListingStatus = "withdrawn"
+)
+
+type Listing struct {
+	ID        uuid.UUID `json:"id"`
+	CompanyID uuid.UUID `json:"company_id"`
+
+	Title           string       `json:"title"`
+	Description     string       `json:"description"`
+	PropertyType    PropertyType `json:"property_type"`
+	ListingType     ListingType  `json:"listing_type"`
+
+	Price       float64 `json:"price"`
+	Currency    string  `json:"currency"`
+	RentPeriod  *string `json:"rent_period"`
+
+	Area         string  `json:"area"`
+	Community    string  `json:"community"`
+	Subcommunity string  `json:"subcommunity"`
+	City         string  `json:"city"`
+	Emirate      string  `json:"emirate"`
+	Latitude     *float64 `json:"latitude"`
+	Longitude    *float64 `json:"longitude"`
+
+	Bedrooms      int      `json:"bedrooms"`
+	Bathrooms     int      `json:"bathrooms"`
+	TotalSqft     float64  `json:"total_sqft"`
+	PlotSqft      float64  `json:"plot_sqft"`
+	ParkingSpaces int      `json:"parking_spaces"`
+	Furnishing    *string  `json:"furnishing"`
+	Amenities     []string `json:"amenities"`
+	YearBuilt     *int     `json:"year_built"`
+
+	CoverImageURL  string   `json:"cover_image_url"`
+	ImageURLs      []string `json:"image_urls"`
+	VirtualTourURL string   `json:"virtual_tour_url"`
+	VideoURL       string   `json:"video_url"`
+
+	Status          ListingStatus `json:"status"`
+	Featured        bool          `json:"featured"`
+	ReferenceNumber string        `json:"reference_number"`
+	AvailableFrom   *time.Time    `json:"available_from"`
+
+	AssignedTo *uuid.UUID `json:"assigned_to"`
+
+	OwnerName  string `json:"owner_name"`
+	OwnerPhone string `json:"owner_phone"`
+	OwnerEmail string `json:"owner_email"`
+
+	PortalSyncStatus map[string]interface{} `json:"portal_sync_status"`
+
+	PublishedAt *time.Time `json:"published_at"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	CreatedBy   *uuid.UUID `json:"created_by"`
+	UpdatedBy   *uuid.UUID `json:"updated_by"`
 }
 
 // ─── Tenants ──────────────────────────────────────────────────────────────────

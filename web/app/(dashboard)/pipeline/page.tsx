@@ -14,15 +14,14 @@ import { AgentAssist } from '@/components/agent/AgentAssist'
 import { api } from '@/lib/api'
 import { useLang } from '@/context/LangContext'
 import { useAuthStore } from '@/store/auth'
-import type { KanbanBoard, Lead, LeadStage, Contact, PaginatedResult, CommunicationHistory, User } from '@/types'
-
-const STAGES: LeadStage[] = ['new', 'contacted', 'qualified', 'proposal', 'won', 'lost']
+import type { KanbanBoard, Lead, LeadStage, Contact, PaginatedResult, CommunicationHistory, User, PipelineStage } from '@/types'
 
 export default function PipelinePage() {
   const { user } = useAuthStore()
   const isAdmin = user?.role === 'admin'
   const isAgent = user?.role === 'agent' || isAdmin
 
+  const [stages, setStages] = useState<PipelineStage[]>([])
   const [board, setBoard] = useState<KanbanBoard>({})
   const [activeCard, setActiveCard] = useState<Lead | null>(null)
   const [loading, setLoading] = useState(true)
@@ -124,7 +123,7 @@ export default function PipelinePage() {
       await api.leads.updateNotes(selectedLead.id, notes)
       setBoard((prev) => {
         const next = { ...prev }
-        for (const stage of Object.keys(next) as LeadStage[]) {
+        for (const stage of Object.keys(next)) {
           next[stage] = (next[stage] ?? []).map((l) =>
             l.id === selectedLead.id ? { ...l, notes } : l
           )
@@ -146,8 +145,12 @@ export default function PipelinePage() {
 
   const load = useCallback(async () => {
     try {
-      const data = await api.leads.kanban() as KanbanBoard
-      setBoard(data ?? {})
+      const [boardData, stageData] = await Promise.all([
+        api.leads.kanban() as Promise<KanbanBoard>,
+        api.pipelineStages.list('lead') as Promise<PipelineStage[]>,
+      ])
+      setBoard(boardData ?? {})
+      setStages(stageData ?? [])
     } catch {
       // handle error silently
     } finally {
@@ -212,9 +215,9 @@ export default function PipelinePage() {
     return null
   }
 
-  const findStage = (id: string): LeadStage | null => {
+  const findStage = (id: string): string | null => {
     for (const [stage, leads] of Object.entries(board)) {
-      if (leads?.some((l) => l.id === id)) return stage as LeadStage
+      if (leads?.some((l) => l.id === id)) return stage
     }
     return null
   }
@@ -229,26 +232,29 @@ export default function PipelinePage() {
     if (!over) return
 
     const leadId = String(active.id)
-    const targetStage = (STAGES.includes(over.id as LeadStage)
-      ? over.id
-      : findStage(String(over.id))) as LeadStage | null
+    const overStage = stages.find(s => s.id === over.id)
+    const targetStage = overStage
+      ? overStage.name
+      : (stages.find(s => s.name === over.id)?.name || findStage(String(over.id)))
 
     const currentStage = findStage(leadId)
     if (!targetStage || targetStage === currentStage) return
 
     const card = findCard(leadId)
+    const wonStage = stages.find(s => s.is_won)?.name
+    const lostStage = stages.find(s => s.is_lost)?.name
     let closedReason = ''
-    if ((targetStage === 'won' || targetStage === 'lost') && card) {
+    if ((targetStage === wonStage || targetStage === lostStage) && card) {
       closedReason = prompt(t('سبب الإغلاق (اختياري):', 'Closing reason (optional):')) || ''
     }
 
     // Optimistic update
     setBoard((prev) => {
-      const next = { ...prev }
+      const next: Record<string, Lead[]> = { ...prev }
       const existingCard = (next[currentStage!] ?? []).find((l) => l.id === leadId)
       if (!existingCard) return prev
       next[currentStage!] = (next[currentStage!] ?? []).filter((l) => l.id !== leadId)
-      next[targetStage] = [{ ...existingCard, stage: targetStage, closed_reason: closedReason }, ...(next[targetStage] ?? [])]
+      next[targetStage] = [{ ...existingCard, stage: targetStage as LeadStage, closed_reason: closedReason }, ...(next[targetStage!] ?? [])]
       return next
     })
 
@@ -287,11 +293,13 @@ export default function PipelinePage() {
           onDragEnd={handleDragEnd}
         >
           <div className="flex gap-4 min-w-max pb-4">
-            {STAGES.map((stage) => (
+            {stages.map((s) => (
               <KanbanColumn
-                key={stage}
-                stage={stage}
-                leads={board[stage] ?? []}
+                key={s.id}
+                stage={s.name}
+                stageName={s.name}
+                stageColor={s.color}
+                leads={board[s.name] ?? []}
                 onOpenLead={handleOpenLead}
               />
             ))}

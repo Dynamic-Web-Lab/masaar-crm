@@ -7,9 +7,10 @@ import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 
 export default function APISettingsPage() {
-  const { user } = useAuthStore()
+  const { user, company } = useAuthStore()
   const { t } = useLang()
   const router = useRouter()
+  const isDemo = !!company?.is_demo
 
   const [bos24Token, setBos24Token] = useState('')
   const [bos24TokenDisplay, setBos24TokenDisplay] = useState('')
@@ -90,6 +91,18 @@ export default function APISettingsPage() {
       <main className="flex-1 overflow-y-auto p-6 bg-gray-50">
         <div className="max-w-lg space-y-6">
 
+          {isDemo && (
+            <div className="flex items-center gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+              <svg className="w-4 h-4 shrink-0 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              <span>
+                <strong>Demo account</strong> — API settings are read-only.{' '}
+                <a href="/signup" className="underline font-semibold">Start a free trial</a> to configure integrations.
+              </span>
+            </div>
+          )}
+
           {/* BuyOrSell24 API Settings */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <div className="mb-6">
@@ -148,11 +161,13 @@ export default function APISettingsPage() {
 
               <button
                 type="submit"
-                disabled={submitting || loading}
+                disabled={submitting || loading || isDemo}
                 className="w-full py-2.5 bg-brand-600 text-white text-sm font-medium rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors"
               >
                 {submitting
                   ? t('جارٍ الحفظ...', 'Saving...')
+                  : isDemo
+                  ? t('غير متاح في الحساب التجريبي', 'Not available in demo')
                   : t('حفظ الإعدادات', 'Save Settings')}
               </button>
             </form>

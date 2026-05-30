@@ -61,6 +61,21 @@ export interface PaginatedResult<T> {
   limit: number
 }
 
+// ─── Pipeline Stage ─────────────────────────────────────────────────────────────
+
+export interface PipelineStage {
+  id: string
+  company_id: string
+  entity_type: string
+  name: string
+  sort_order: number
+  color: string
+  is_won: boolean
+  is_lost: boolean
+  is_default: boolean
+  created_at: string
+}
+
 // ─── Lead ─────────────────────────────────────────────────────────────────────
 
 export type LeadStage = 'new' | 'contacted' | 'qualified' | 'proposal' | 'won' | 'lost'
@@ -86,7 +101,7 @@ export interface Lead {
   assigned_user?: { id: string; name: string } | null
 }
 
-export type KanbanBoard = Partial<Record<LeadStage, Lead[]>>
+export type KanbanBoard = Record<string, Lead[]>
 
 // ─── Communication History ────────────────────────────────────────────────────
 
@@ -753,6 +768,56 @@ export interface AuditLog {
   actor_id: string | null
   diff: unknown
   ts: string
+}
+
+// ─── Listing ───────────────────────────────────────────────────────────────────
+
+export type ListingType = 'sale' | 'rent'
+export type ListingStatus = 'draft' | 'published' | 'sold' | 'rented' | 'expired' | 'withdrawn'
+
+export interface Listing {
+  id: string
+  company_id: string
+  title: string
+  description: string
+  property_type: string
+  listing_type: ListingType
+  price: number
+  currency: string
+  rent_period: string | null
+  area: string
+  community: string
+  subcommunity: string
+  city: string
+  emirate: string
+  latitude: number | null
+  longitude: number | null
+  bedrooms: number
+  bathrooms: number
+  total_sqft: number
+  plot_sqft: number
+  parking_spaces: number
+  furnishing: string | null
+  amenities: string[]
+  year_built: number | null
+  cover_image_url: string
+  image_urls: string[]
+  virtual_tour_url: string
+  video_url: string
+  status: ListingStatus
+  featured: boolean
+  reference_number: string
+  available_from: string | null
+  assigned_to: string | null
+  owner_name: string
+  owner_phone: string
+  owner_email: string
+  portal_sync_status: Record<string, unknown>
+  published_at: string | null
+  created_at: string
+  updated_at: string
+  created_by: string | null
+  updated_by: string | null
 }
 
 // ─── WebSocket Events ─────────────────────────────────────────────────────────

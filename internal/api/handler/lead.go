@@ -65,10 +65,11 @@ type LeadHandler struct {
 	hub            *ws.Hub
 	audit          AuditLogRepository
 	dispatcher     WebhookDispatcher
+	pipelineStages *repo.PipelineStageRepo
 }
 
-func NewLeadHandler(leads LeadRepository, contacts ContactRepository, commHistRepo CommunicationHistoryRepository, scoringService ScoringService, tags LeadTagRepository, hub *ws.Hub, audit AuditLogRepository, dispatcher WebhookDispatcher) *LeadHandler {
-	return &LeadHandler{leads: leads, contacts: contacts, commHistRepo: commHistRepo, scoringService: scoringService, tags: tags, hub: hub, audit: audit, dispatcher: dispatcher}
+func NewLeadHandler(leads LeadRepository, contacts ContactRepository, commHistRepo CommunicationHistoryRepository, scoringService ScoringService, tags LeadTagRepository, hub *ws.Hub, audit AuditLogRepository, dispatcher WebhookDispatcher, pipelineStages *repo.PipelineStageRepo) *LeadHandler {
+	return &LeadHandler{leads: leads, contacts: contacts, commHistRepo: commHistRepo, scoringService: scoringService, tags: tags, hub: hub, audit: audit, dispatcher: dispatcher, pipelineStages: pipelineStages}
 }
 
 // KanbanBoard godoc
@@ -209,6 +210,11 @@ func (h *LeadHandler) UpdateStage(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
 
+	companyID, err := uuid.Parse(c.Locals("company_id").(string))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid company_id"})
+	}
+
 	var body struct {
 		Stage        domain.LeadStage `json:"stage"`
 		ClosedReason string           `json:"closed_reason"`
@@ -217,15 +223,18 @@ func (h *LeadHandler) UpdateStage(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "stage is required"})
 	}
 
-	validStages := map[domain.LeadStage]bool{
-		domain.StageNew:       true,
-		domain.StageContacted: true,
-		domain.StageQualified: true,
-		domain.StageProposal:  true,
-		domain.StageWon:       true,
-		domain.StageLost:      true,
+	stages, err := h.pipelineStages.ListByCompany(c.Context(), companyID, "lead")
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to validate stage"})
 	}
-	if !validStages[body.Stage] {
+	valid := false
+	for _, s := range stages {
+		if s.Name == string(body.Stage) {
+			valid = true
+			break
+		}
+	}
+	if !valid {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid stage"})
 	}
 
@@ -246,7 +255,6 @@ func (h *LeadHandler) UpdateStage(c *fiber.Ctx) error {
 	})
 
 	if h.dispatcher != nil {
-		companyID, _ := uuid.Parse(c.Locals("company_id").(string))
 		h.dispatcher.Dispatch(companyID, webhook.EventLeadStageChanged, fiber.Map{
 			"lead_id": id,
 			"stage":   body.Stage,

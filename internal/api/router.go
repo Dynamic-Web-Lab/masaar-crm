@@ -56,6 +56,16 @@ type Handlers struct {
 	Billing           *handler.BillingHandler
 	MessageTemplate   *handler.MessageTemplateHandler
 	AuditLog          *handler.AuditHandler
+	Listing           *handler.ListingHandler
+	BOS24Integration  *handler.BOS24IntegrationHandler
+	Offer             *handler.OfferHandler
+	LeadRotation      *handler.LeadRotationHandler
+	Commission        *handler.CommissionHandler
+	Performance       *handler.PerformanceHandler
+	Viewing           *handler.ViewingHandler
+	Marketing         *handler.MarketingHandler
+	ImportExport      *handler.ImportExportHandler
+	PipelineStage     *handler.PipelineStageHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -138,6 +148,12 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	// Stripe webhook — must be public (raw body, no JWT)
 	app.Post("/webhooks/stripe", h.Billing.StripeWebhook)
 
+	// BOS24 inbound webhook — company identified by ?token=<secret>, HMAC-verified
+	app.Post("/webhooks/bos24", webhookLimiter, h.BOS24Integration.ReceiveWebhook)
+
+	// Public listing page — no auth required (for shareable links)
+	app.Get("/api/public/listings/:id", h.Marketing.PublicListing)
+
 	// Public document signing — signature UUID is the access token
 	app.Get("/api/public/sign/:id", h.Document.PublicGetSignature)
 	app.Post("/api/public/sign/:id", h.Document.PublicSign)
@@ -206,6 +222,126 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		h.Settings.UpdateBOS24Settings,
 	)
 
+	// Viewings / Calendar
+	v1.Get("/viewings", h.Viewing.List)
+	v1.Get("/viewings/:id", h.Viewing.Get)
+	v1.Post("/viewings",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Viewing.Create,
+	)
+	v1.Patch("/viewings/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Viewing.Update,
+	)
+	v1.Patch("/viewings/:id/status",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Viewing.UpdateStatus,
+	)
+	v1.Delete("/viewings/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Viewing.Delete,
+	)
+
+	// Import / Export
+	v1.Get("/import/template/:entity", h.ImportExport.Template)
+	v1.Post("/import/contacts",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.ImportExport.ImportContacts,
+	)
+	v1.Post("/import/leads",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.ImportExport.ImportLeads,
+	)
+	v1.Get("/export/contacts", h.ImportExport.ExportContacts)
+	v1.Get("/export/leads", h.ImportExport.ExportLeads)
+	v1.Get("/export/listings",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.ImportExport.ExportListings,
+	)
+
+	// Agent Performance & Gamification
+	v1.Get("/performance/leaderboard", h.Performance.Leaderboard)
+	v1.Get("/performance/agent/:id", h.Performance.AgentKPIs)
+	v1.Get("/performance/agent/:id/trends", h.Performance.AgentTrends)
+	v1.Get("/performance/agent/:id/targets", h.Performance.AgentTargets)
+	v1.Post("/performance/targets",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Performance.UpsertTarget,
+	)
+	v1.Delete("/performance/targets/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Performance.DeleteTarget,
+	)
+
+	// Commission Structures
+	v1.Get("/commissions/structures",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Commission.ListStructures,
+	)
+	v1.Post("/commissions/structures",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Commission.CreateStructure,
+	)
+	v1.Patch("/commissions/structures/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Commission.UpdateStructure,
+	)
+	v1.Delete("/commissions/structures/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Commission.DeleteStructure,
+	)
+
+	// Agent Commissions
+	v1.Get("/commissions", h.Commission.List)
+	v1.Post("/commissions",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Commission.Create,
+	)
+	v1.Post("/commissions/calculate",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Commission.Calculate,
+	)
+	v1.Patch("/commissions/:id/status",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Commission.UpdateStatus,
+	)
+	v1.Patch("/commissions/:id/amount",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Commission.UpdateAmount,
+	)
+
+	// Lead Rotation — admin: configure; agents: trigger auto-assign
+	v1.Get("/settings/lead-rotation",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.LeadRotation.GetSettings,
+	)
+	v1.Patch("/settings/lead-rotation",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.LeadRotation.UpdateSettings,
+	)
+	v1.Post("/leads/:id/auto-assign",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.LeadRotation.AutoAssign,
+	)
+
+	// BOS24 Integration — admin only (marketplace listing + inquiry sync)
+	v1.Get("/settings/bos24-integration",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.BOS24Integration.GetSettings,
+	)
+	v1.Patch("/settings/bos24-integration",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.BOS24Integration.UpdateSettings,
+	)
+	v1.Post("/settings/bos24-integration/register",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.BOS24Integration.RegisterWebhook,
+	)
+	v1.Post("/settings/bos24-integration/sync",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.BOS24Integration.SyncNow,
+	)
+
 	// Company Settings — admin only (invoice details, VAT number, bank info)
 	v1.Get("/settings/company",
 		middleware.RequireRole(domain.RoleAdmin),
@@ -214,6 +350,32 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Patch("/settings/company",
 		middleware.RequireRole(domain.RoleAdmin),
 		h.Settings.UpdateCompanySettings,
+	)
+
+	// Pipeline Stages — admin only; define custom sales pipeline stages
+	v1.Get("/pipeline-stages",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.PipelineStage.List,
+	)
+	v1.Post("/pipeline-stages",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.PipelineStage.Create,
+	)
+	v1.Patch("/pipeline-stages/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.PipelineStage.Update,
+	)
+	v1.Delete("/pipeline-stages/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.PipelineStage.Delete,
+	)
+	v1.Post("/pipeline-stages/reorder",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.PipelineStage.Reorder,
+	)
+	v1.Post("/pipeline-stages/reset-default",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.PipelineStage.ResetDefault,
 	)
 
 	// API Keys — admin only (for external integrations)
@@ -558,6 +720,58 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Delete("/rental-properties/:id",
 		middleware.RequireRole(domain.RoleAdmin),
 		h.RentalProperty.Delete,
+	)
+
+	// Listings — agents: create+view+update; admin: all; viewers: read-only
+	v1.Get("/listings", h.Listing.List)
+	v1.Get("/listings/:id", h.Listing.Get)
+	v1.Post("/listings",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Listing.Create,
+	)
+	v1.Patch("/listings/:id",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Listing.Update,
+	)
+	v1.Patch("/listings/:id/status",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Listing.UpdateStatus,
+	)
+	v1.Delete("/listings/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Listing.Delete,
+	)
+
+	// Listing marketing tools
+	v1.Get("/listings/:id/brochure", h.Marketing.DownloadBrochure)
+	v1.Get("/listings/:id/qr", h.Marketing.GenerateQR)
+	v1.Post("/listings/:id/email-campaign",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Marketing.EmailCampaign,
+	)
+
+	// Offers — buyer offers on listings, negotiation, auto-deal on accept
+	v1.Get("/offers", h.Offer.List)
+	v1.Get("/offers/:id", h.Offer.Get)
+	v1.Post("/offers",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Offer.Create,
+	)
+	v1.Patch("/offers/:id/status",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Offer.UpdateStatus,
+	)
+	v1.Post("/offers/:id/counter",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Offer.Counter,
+	)
+	v1.Post("/offers/:id/accept",
+		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
+		h.Offer.Accept,
+	)
+	v1.Delete("/offers/:id",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Offer.Delete,
 	)
 
 	// Tenants — agents: create+view+update; admin: all; viewers: read-only
