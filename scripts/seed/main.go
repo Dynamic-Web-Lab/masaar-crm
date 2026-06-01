@@ -1127,6 +1127,165 @@ func main() {
 	logged("AuditLogs", fmt.Sprintf("%d entries", len(auditLogs)))
 
 	// ══════════════════════════════════════════════════════════════════════════
+	//  34. LISTINGS  (migration 0048)
+	// ══════════════════════════════════════════════════════════════════════════
+	listings := []struct {
+		ID       uuid.UUID
+		Title    string
+		PropType string
+		LType    string
+		Price    float64
+		Area     string
+		Community string
+		City     string
+		Emirate  string
+		Bed      int
+		Bath     int
+		Sqft     float64
+		Furn     string
+		Status   string
+		AgentIdx int
+	}{
+		{id("lst", "1"), "Stunning 2BR with Marina View", "apartment", "rent", 120000, "Dubai Marina", "Dubai Marina", "Dubai", "Dubai", 2, 2, 1250, "furnished", "published", 1},
+		{id("lst", "2"), "Premium 3BR Downtown Penthouse", "apartment", "rent", 300000, "Downtown Dubai", "Downtown Dubai", "Dubai", "Dubai", 3, 3, 1800, "furnished", "published", 0},
+		{id("lst", "3"), "Cozy 1BR in JLT Cluster Y", "apartment", "rent", 78000, "JLT", "JLT", "Dubai", "Dubai", 1, 1, 750, "semi-furnished", "published", 1},
+		{id("lst", "4"), "5BR Beachfront Villa — Palm", "villa", "rent", 950000, "Palm Jumeirah", "Palm Jumeirah", "Dubai", "Dubai", 5, 6, 5200, "unfurnished", "published", 2},
+		{id("lst", "5"), "DIFC Grade A Office 2200sqft", "commercial", "rent", 540000, "DIFC", "DIFC", "Dubai", "Dubai", 0, 2, 2200, "furnished", "published", 2},
+		{id("lst", "6"), "3BR Townhouse in Arabian Ranches", "townhouse", "rent", 180000, "Arabian Ranches", "Arabian Ranches", "Dubai", "Dubai", 3, 3, 2100, "unfurnished", "draft", 1},
+		{id("lst", "7"), "2BR on Al Reem Island", "apartment", "rent", 132000, "Al Reem Island", "Al Reem Island", "Abu Dhabi", "Abu Dhabi", 2, 2, 1150, "furnished", "published", 0},
+		{id("lst", "8"), "One Bedroom in Business Bay", "apartment", "rent", 84000, "Business Bay", "Business Bay", "Dubai", "Dubai", 1, 1, 680, "furnished", "published", 1},
+	}
+	for _, l := range listings {
+		exec(ctx, pool, `
+			INSERT INTO listings (id,company_id,title,property_type,listing_type,price,area,community,city,emirate,bedrooms,bathrooms,total_sqft,furnishing,status,assigned_to,created_by)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+			ON CONFLICT (id) DO NOTHING
+		`, l.ID, companyID, l.Title, l.PropType, l.LType, l.Price, l.Area, l.Community, l.City, l.Emirate,
+			l.Bed, l.Bath, l.Sqft, l.Furn, l.Status, users[l.AgentIdx].ID, users[0].ID)
+		logged("Listing", l.Title)
+	}
+
+	// ══════════════════════════════════════════════════════════════════════════
+	//  35. PIPELINE STAGES  (migration 0057 — seed defaults if not present)
+	// ══════════════════════════════════════════════════════════════════════════
+	defaultStages := []struct {
+		name      string
+		order     int
+		color     string
+		isWon     bool
+		isLost    bool
+		isDefault bool
+	}{
+		{"new", 1, "#6366f1", false, false, true},
+		{"contacted", 2, "#f59e0b", false, false, false},
+		{"qualified", 3, "#10b981", false, false, false},
+		{"proposal", 4, "#3b82f6", false, false, false},
+		{"won", 5, "#059669", true, false, false},
+		{"lost", 6, "#ef4444", false, true, false},
+	}
+	for _, s := range defaultStages {
+		exec(ctx, pool, `
+			INSERT INTO pipeline_stages (id,company_id,entity_type,name,sort_order,color,is_won,is_lost,is_default)
+			VALUES ($1,$2,'lead',$3,$4,$5,$6,$7,$8) ON CONFLICT (company_id,entity_type,name) DO NOTHING
+		`, id("pstage", s.name), companyID, s.name, s.order, s.color, s.isWon, s.isLost, s.isDefault)
+	}
+	logged("PipelineStages", "6 default stages seeded")
+
+	// ══════════════════════════════════════════════════════════════════════════
+	//  36. OFFERS  (migration 0051)
+	// ══════════════════════════════════════════════════════════════════════════
+	offers := []struct {
+		id          uuid.UUID
+		listingIdx  int
+		contactIdx  int
+		agentIdx    int
+		amount      float64
+		status      string
+	}{
+		{id("offer", "1"), 0, 0, 1, 115000, "countered"},
+		{id("offer", "2"), 1, 1, 2, 290000, "submitted"},
+		{id("offer", "3"), 4, 3, 2, 520000, "accepted"},
+	}
+	for _, o := range offers {
+		exec(ctx, pool, `
+			INSERT INTO offers (id,listing_id,contact_id,agent_id,offer_amount,currency,status,created_by)
+			VALUES ($1,$2,$3,$4,$5,'AED',$6,$7) ON CONFLICT (id) DO NOTHING
+		`, o.id, listings[o.listingIdx].ID, contacts[o.contactIdx].ID, users[o.agentIdx].ID,
+			o.amount, o.status, users[0].ID)
+		logged("Offer", fmt.Sprintf("AED %.0f — %s", o.amount, o.status))
+	}
+
+	// ══════════════════════════════════════════════════════════════════════════
+	//  37. VIEWINGS  (migration 0054)
+	// ══════════════════════════════════════════════════════════════════════════
+	viewings := []struct {
+		id         uuid.UUID
+		listingIdx int
+		contactIdx int
+		agentIdx   int
+		status     string
+		offsetDays int
+	}{
+		{id("view", "1"), 0, 0, 1, "completed", -5},
+		{id("view", "2"), 1, 1, 2, "scheduled", 3},
+		{id("view", "3"), 3, 3, 2, "confirmed", 1},
+		{id("view", "4"), 7, 5, 1, "completed", -10},
+	}
+	for _, v := range viewings {
+		scheduled := now.AddDate(0, 0, v.offsetDays)
+		var checkedIn *time.Time
+		if v.status == "completed" {
+			checkedIn = timePtr(scheduled.Add(time.Hour))
+		}
+		exec(ctx, pool, `
+			INSERT INTO viewings (id,listing_id,contact_id,agent_id,scheduled_at,status,checked_in_at,created_by)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (id) DO NOTHING
+		`, v.id, listings[v.listingIdx].ID, contacts[v.contactIdx].ID, users[v.agentIdx].ID,
+			scheduled, v.status, checkedIn, users[0].ID)
+		logged("Viewing", fmt.Sprintf("%s — %s", listings[v.listingIdx].Title[:30], v.status))
+	}
+
+	// ══════════════════════════════════════════════════════════════════════════
+	//  38. LEAD ROTATION SETTINGS  (migration 0052)
+	// ══════════════════════════════════════════════════════════════════════════
+	exec(ctx, pool, `
+		INSERT INTO lead_rotation_settings (id,company_id,mode,enabled,rotation_index)
+		VALUES ($1,$2,'round_robin',true,0) ON CONFLICT (company_id) DO NOTHING
+	`, id("rotation-settings"), companyID)
+	logged("LeadRotationSettings", "round_robin enabled")
+
+	// ══════════════════════════════════════════════════════════════════════════
+	//  39. AGENT TARGETS  (migration 0053)
+	// ══════════════════════════════════════════════════════════════════════════
+	agentTargets := []struct {
+		agentIdx int
+		metric   string
+		value    float64
+	}{
+		{1, "deals_won", 8},
+		{1, "revenue", 5000000},
+		{2, "deals_won", 5},
+		{2, "revenue", 3000000},
+	}
+	period := now.Format("2006-01")
+	for _, t := range agentTargets {
+		exec(ctx, pool, `
+			INSERT INTO agent_targets (id,agent_id,company_id,metric,target_value,period)
+			VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (agent_id,metric,period) DO NOTHING
+		`, id("target", fmt.Sprintf("%d-%s", t.agentIdx, t.metric)), users[t.agentIdx].ID, companyID, t.metric, t.value, period)
+		logged("AgentTarget", fmt.Sprintf("%s → %.0f (agent %d)", t.metric, t.value, t.agentIdx))
+	}
+
+	// ══════════════════════════════════════════════════════════════════════════
+	//  40. APPROVAL CONFIGS  (migration 0056)
+	// ══════════════════════════════════════════════════════════════════════════
+	exec(ctx, pool, `
+		INSERT INTO approval_configs (id,company_id,listing_approval,deal_approval_above,offer_approval_above)
+		VALUES ($1,$2,true,500000,300000) ON CONFLICT (company_id) DO NOTHING
+	`, id("approval-config"), companyID)
+	logged("ApprovalConfig", "listing=true, deal>500K, offer>300K")
+
+	// ══════════════════════════════════════════════════════════════════════════
 	fmt.Println("\n✅ Demo data seeded successfully!")
 	fmt.Println("   Demo login: ahmed@masaar.local / Demo@1234  (admin)")
 	fmt.Println("   Supporting agent accounts exist as data references only (no public password).")

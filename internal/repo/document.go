@@ -177,19 +177,19 @@ func (r *DocumentRepo) UpdateSignatureStatus(ctx context.Context, id uuid.UUID, 
 
 func (r *DocumentRepo) CreateSignature(ctx context.Context, s *domain.DocumentSignature) error {
 	const q = `
-		INSERT INTO document_signatures (id, document_id, signer_name, signer_email, signature_field_name, signature_status, signed_at, signature_image_url, ip_address, user_agent)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+		INSERT INTO document_signatures (id, document_id, signer_name, signer_email, signature_field_name, signature_status, signed_at, signature_image_url, ip_address, user_agent, envelope_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
 		RETURNING created_at
 	`
 	s.ID = uuid.New()
 	return r.db.QueryRow(ctx, q,
-		s.ID, s.DocumentID, s.SignerName, s.SignerEmail, s.SignatureFieldName, s.SignatureStatus, s.SignedAt, s.SignatureImageURL, s.IPAddress, s.UserAgent,
+		s.ID, s.DocumentID, s.SignerName, s.SignerEmail, s.SignatureFieldName, s.SignatureStatus, s.SignedAt, s.SignatureImageURL, s.IPAddress, s.UserAgent, nullIfEmpty(s.EnvelopeID),
 	).Scan(&s.CreatedAt)
 }
 
 func (r *DocumentRepo) GetSignatures(ctx context.Context, documentID uuid.UUID) ([]domain.DocumentSignature, error) {
 	const q = `
-		SELECT id, document_id, signer_name, signer_email, signature_field_name, signature_status, signed_at, signature_image_url, ip_address, user_agent, created_at
+		SELECT id, document_id, signer_name, signer_email, signature_field_name, signature_status, signed_at, signature_image_url, ip_address, user_agent, envelope_id, created_at
 		FROM document_signatures WHERE document_id = $1
 		ORDER BY created_at ASC
 	`
@@ -203,7 +203,7 @@ func (r *DocumentRepo) GetSignatures(ctx context.Context, documentID uuid.UUID) 
 	for rows.Next() {
 		var s domain.DocumentSignature
 		if err := rows.Scan(
-			&s.ID, &s.DocumentID, &s.SignerName, &s.SignerEmail, &s.SignatureFieldName, &s.SignatureStatus, &s.SignedAt, &s.SignatureImageURL, &s.IPAddress, &s.UserAgent, &s.CreatedAt,
+			&s.ID, &s.DocumentID, &s.SignerName, &s.SignerEmail, &s.SignatureFieldName, &s.SignatureStatus, &s.SignedAt, &s.SignatureImageURL, &s.IPAddress, &s.UserAgent, &s.EnvelopeID, &s.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan signature: %w", err)
 		}
@@ -214,13 +214,13 @@ func (r *DocumentRepo) GetSignatures(ctx context.Context, documentID uuid.UUID) 
 
 func (r *DocumentRepo) GetSignatureByID(ctx context.Context, sigID uuid.UUID) (*domain.DocumentSignature, error) {
 	const q = `
-		SELECT id, document_id, signer_name, signer_email, signature_field_name, signature_status, signed_at, signature_image_url, ip_address, user_agent, created_at
+		SELECT id, document_id, signer_name, signer_email, signature_field_name, signature_status, signed_at, signature_image_url, ip_address, user_agent, envelope_id, created_at
 		FROM document_signatures WHERE id = $1
 	`
 	s := &domain.DocumentSignature{}
 	err := r.db.QueryRow(ctx, q, sigID).Scan(
 		&s.ID, &s.DocumentID, &s.SignerName, &s.SignerEmail, &s.SignatureFieldName, &s.SignatureStatus,
-		&s.SignedAt, &s.SignatureImageURL, &s.IPAddress, &s.UserAgent, &s.CreatedAt,
+		&s.SignedAt, &s.SignatureImageURL, &s.IPAddress, &s.UserAgent, &s.EnvelopeID, &s.CreatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get signature: %w", err)
@@ -234,6 +234,28 @@ func (r *DocumentRepo) MarkSigned(ctx context.Context, sigID uuid.UUID, signedAt
 		domain.SignatureSigned, signedAt, sigID,
 	)
 	return err
+}
+
+func (r *DocumentRepo) MarkSignedByEnvelope(ctx context.Context, envelopeID string) error {
+	_, err := r.db.Exec(ctx,
+		`UPDATE document_signatures SET signature_status=$1, signed_at=NOW() WHERE envelope_id=$2`,
+		domain.SignatureSigned, envelopeID,
+	)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.Exec(ctx, `
+		UPDATE documents SET signature_status=$1, updated_at=NOW()
+		WHERE id = (SELECT document_id FROM document_signatures WHERE envelope_id=$2 LIMIT 1)
+	`, domain.SignatureSigned, envelopeID)
+	return err
+}
+
+func nullIfEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 func (r *DocumentRepo) SoftDeleteDocument(ctx context.Context, id uuid.UUID) error {

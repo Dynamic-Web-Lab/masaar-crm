@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
 import { useLang } from '@/context/LangContext'
-import api from '@/lib/api'
+import { api } from '@/lib/api'
 import type { Company } from '@/types'
 
 interface Quota {

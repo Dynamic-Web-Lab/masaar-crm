@@ -156,6 +156,31 @@ func (r *ApprovalRepo) List(ctx context.Context, companyID uuid.UUID, status, en
 	return list, total, nil
 }
 
+// GetByID returns a single approval request by its ID.
+func (r *ApprovalRepo) GetByID(ctx context.Context, id uuid.UUID) (*domain.ApprovalRequest, error) {
+	const q = `
+		SELECT ar.id, ar.company_id, ar.entity_type, ar.entity_id,
+		       ar.requested_by, ar.reviewed_by, ar.status,
+		       ar.notes, ar.reviewer_note, ar.created_at, ar.reviewed_at,
+		       COALESCE(u1.name,''), COALESCE(u2.name,'')
+		FROM approval_requests ar
+		LEFT JOIN users u1 ON u1.id = ar.requested_by
+		LEFT JOIN users u2 ON u2.id = ar.reviewed_by
+		WHERE ar.id = $1
+	`
+	a := &domain.ApprovalRequest{}
+	err := r.db.QueryRow(ctx, q, id).Scan(
+		&a.ID, &a.CompanyID, &a.EntityType, &a.EntityID,
+		&a.RequestedBy, &a.ReviewedBy, &a.Status,
+		&a.Notes, &a.ReviewerNote, &a.CreatedAt, &a.ReviewedAt,
+		&a.RequesterName, &a.ReviewerName,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
 // Review approves or rejects a request, sets reviewer + timestamp.
 func (r *ApprovalRepo) Review(ctx context.Context, id uuid.UUID, reviewerID uuid.UUID, status domain.ApprovalStatus, note string) error {
 	now := time.Now()

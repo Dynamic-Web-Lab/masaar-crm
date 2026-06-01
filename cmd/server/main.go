@@ -21,6 +21,7 @@ import (
 	"github.com/maidulcu/masaar-crm/internal/api/handler"
 	"github.com/maidulcu/masaar-crm/internal/billing"
 	"github.com/maidulcu/masaar-crm/internal/domain"
+	"github.com/maidulcu/masaar-crm/internal/docusign"
 	"github.com/maidulcu/masaar-crm/internal/bos24"
 	"github.com/maidulcu/masaar-crm/internal/config"
 	"github.com/maidulcu/masaar-crm/internal/email"
@@ -125,6 +126,7 @@ func main() {
 	documentRepo := repo.NewDocumentRepo(pool)
 	messageTemplateRepo := repo.NewMessageTemplateRepo(pool)
 	pipelineStageRepo := repo.NewPipelineStageRepo(pool)
+	approvalRepo := repo.NewApprovalRepo(pool)
 
 	// ── Email service (SMTP or Azure Communication Services) ─────────────────
 	emailService := email.NewService(&email.Config{
@@ -210,6 +212,24 @@ func main() {
 		log.Println("BuyOrSell24 integration enabled")
 	}
 
+	// DocuSign client (optional)
+	var dsClient *docusign.Client
+	if cfg.DocusignIntegrationKey != "" {
+		dsClient = docusign.NewClient(docusign.Config{
+			IntegrationKey: cfg.DocusignIntegrationKey,
+			PrivateKeyPEM:  cfg.DocusignPrivateKey,
+			UserID:         cfg.DocusignUserID,
+			AccountID:      cfg.DocusignAccountID,
+			BaseURL:        cfg.DocusignBaseURL,
+			WebhookSecret:  cfg.DocusignWebhookSecret,
+		})
+		if dsClient.Enabled() {
+			log.Println("DocuSign e-signature integration enabled")
+		} else {
+			log.Println("DocuSign config incomplete — falling back to internal signatures")
+		}
+	}
+
 	// ── BOS24 Integration (per-company marketplace sync) ─────────────────────
 	bos24IntegrationRepo := repo.NewBOS24IntegrationRepo(pool)
 	bos24SyncService := bos24.NewSyncService(bos24IntegrationRepo, contactRepo, hub)
@@ -264,7 +284,7 @@ func main() {
 		Settings:            handler.NewSettingsHandler(settingsRepo, companySettingsRepo),
 		Email:               handler.NewEmailHandler(emailService, emailRepo),
 		RentalProperty:      handler.NewRentalPropertyHandler(rentalPropertyRepo),
-		Listing:             handler.NewListingHandler(listingRepo),
+		Listing:             handler.NewListingHandler(listingRepo, approvalRepo),
 		Tenant:              handler.NewTenantHandler(tenantRepo),
 		LeaseTemplate:       handler.NewLeaseTemplateHandler(leaseTemplateRepo),
 		Lease:               handler.NewLeaseHandler(leaseRepo),
@@ -272,12 +292,12 @@ func main() {
 		BankIntegration:     handler.NewBankIntegrationHandler(bankIntegrationRepo),
 		BankStatement:       handler.NewBankStatementHandler(bankStatementRepo),
 		PaymentConfirmation: handler.NewPaymentConfirmationHandler(paymentConfirmationRepo, paymentConfirmationService),
-		Analytics:           handler.NewAnalyticsHandler(repo.NewAnalyticsRepository(pool)),
+		Analytics:           handler.NewAnalyticsHandler(repo.NewAnalyticsRepository(pool, rdb)),
 		Expense:             handler.NewExpenseHandler(expenseRepo),
 		Inspection:          handler.NewInspectionHandler(inspectionTemplateRepo, inspectionRepo),
 		Maintenance:         handler.NewMaintenanceTaskHandler(maintenanceRepo),
 		LeaseRenewal:        handler.NewLeaseRenewalHandler(leaseRenewalRepo, renewalTemplateRepo, renewalCommLogRepo),
-		Document:           handler.NewDocumentHandler(documentRepo, auditLogRepo),
+		Document:           handler.NewDocumentHandler(documentRepo, auditLogRepo, dsClient),
 		ApiKey:              handler.NewApiKeyHandler(apiKeyRepo),
 		PublicLead:          handler.NewPublicLeadHandler(contactRepo, leadRepo, dispatcher),
 		WebhookSub:          handler.NewWebhookSubHandler(webhookRepo, dispatcher),
@@ -293,6 +313,8 @@ func main() {
 		Marketing:          handler.NewMarketingHandler(listingRepo, contactRepo, companySettingsRepo, userRepo, emailService),
 		ImportExport:       handler.NewImportExportHandler(contactRepo, leadRepo, listingRepo),
 		PipelineStage:      handler.NewPipelineStageHandler(pipelineStageRepo),
+		Approval:           handler.NewApprovalHandler(approvalRepo),
+		DocusignWebhook:    handler.NewDocusignWebhookHandler(documentRepo, cfg.DocusignWebhookSecret),
 	}
 
 	offerRepo := repo.NewOfferRepo(pool) // shared instance for background job

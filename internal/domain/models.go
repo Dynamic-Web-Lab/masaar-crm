@@ -1576,6 +1576,7 @@ type DocumentSignature struct {
 	SignatureImageURL   string          `json:"signature_image_url"`
 	IPAddress           string          `json:"ip_address"`
 	UserAgent           string          `json:"user_agent"`
+	EnvelopeID          string          `json:"envelope_id,omitempty"`
 	CreatedAt           time.Time       `json:"created_at"`
 }
 

@@ -35,7 +35,7 @@ ON CONFLICT (company_id, entity_type, name) DO NOTHING;
 
 -- Mark won/lost stages
 UPDATE pipeline_stages SET is_won = TRUE WHERE name = 'won';
-UPDATE pipeline_stages SET is_lost = TRUE WHERE name IN ('won', 'lost');
+UPDATE pipeline_stages SET is_lost = TRUE WHERE name = 'lost';
 
 -- +goose Down
 DROP TABLE pipeline_stages;

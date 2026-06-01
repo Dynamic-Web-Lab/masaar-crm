@@ -2,7 +2,6 @@ package repo
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -391,10 +390,4 @@ func SortLeaderboardByMetric(board []AgentKPIs, metric string) {
 			}
 		}
 	}
-	fmt.Sprintf("") // suppress unused import warning — removed below
-}
-
-func init() {
-	// Ensure fmt is used
-	_ = fmt.Sprintf
 }

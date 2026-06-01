@@ -1,22 +1,26 @@
 package handler
 
 import (
+	"io"
+	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/maidulcu/masaar-crm/internal/domain"
+	"github.com/maidulcu/masaar-crm/internal/docusign"
 	"github.com/maidulcu/masaar-crm/internal/repo"
 )
 
 type DocumentHandler struct {
-	docs  *repo.DocumentRepo
-	audit *repo.AuditLogRepo
+	docs    *repo.DocumentRepo
+	audit   *repo.AuditLogRepo
+	dsClient *docusign.Client
 }
 
-func NewDocumentHandler(docs *repo.DocumentRepo, audit *repo.AuditLogRepo) *DocumentHandler {
-	return &DocumentHandler{docs: docs, audit: audit}
+func NewDocumentHandler(docs *repo.DocumentRepo, audit *repo.AuditLogRepo, dsClient *docusign.Client) *DocumentHandler {
+	return &DocumentHandler{docs: docs, audit: audit, dsClient: dsClient}
 }
 
 // ListTemplates godoc
@@ -242,12 +246,12 @@ func (h *DocumentHandler) ListDocuments(c *fiber.Ctx) error {
 
 // SendForSignature godoc
 // @Summary      Send document for signature
-// @Description  Creates a signature request for a signer.
+// @Description  Creates a signature request for a signer. Set use_docusign=true to send via DocuSign API.
 // @Tags         Documents
 // @Accept       json
 // @Produce      json
-// @Param        id    path      string                                        true  "Document UUID"
-// @Param        body  body      object{signer_name=string,signer_email=string}  true  "Signer info"
+// @Param        id    path      string                                                              true  "Document UUID"
+// @Param        body  body      object{signer_name=string,signer_email=string,use_docusign=bool}  true  "Signer info"
 // @Success      201   {object}  domain.DocumentSignature
 // @Failure      404   {object}  object{error=string}
 // @Security     BearerAuth
@@ -266,6 +270,7 @@ func (h *DocumentHandler) SendForSignature(c *fiber.Ctx) error {
 	var body struct {
 		SignerName  string `json:"signer_name"`
 		SignerEmail string `json:"signer_email"`
+		UseDocusign bool   `json:"use_docusign"`
 	}
 	if err := c.BodyParser(&body); err != nil || body.SignerName == "" || body.SignerEmail == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "signer_name and signer_email required"})
@@ -281,6 +286,20 @@ func (h *DocumentHandler) SendForSignature(c *fiber.Ctx) error {
 		UserAgent:          c.Get("User-Agent"),
 	}
 
+	// DocuSign flow
+	if body.UseDocusign && h.dsClient != nil && h.dsClient.Enabled() {
+		if d.FileURL != "" {
+			docContent, fetchErr := fetchDocumentContent(d.FileURL)
+			if fetchErr == nil {
+				envResult, dsErr := h.dsClient.SendEnvelope(c.Context(), docContent, d.DocumentTitle,
+					docusign.Signer{Name: body.SignerName, Email: body.SignerEmail})
+				if dsErr == nil {
+					sig.EnvelopeID = envResult.EnvelopeID
+				}
+			}
+		}
+	}
+
 	if err := h.docs.CreateSignature(c.Context(), sig); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -292,6 +311,19 @@ func (h *DocumentHandler) SendForSignature(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(sig)
+}
+
+// fetchDocumentContent retrieves document bytes from a URL or file path.
+func fetchDocumentContent(url string) ([]byte, error) {
+	if url == "" {
+		return nil, fiber.ErrBadRequest
+	}
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return io.ReadAll(resp.Body)
 }
 
 // MarkSigned godoc

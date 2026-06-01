@@ -10,11 +10,12 @@ import (
 )
 
 type ListingHandler struct {
-	repo *repo.ListingRepo
+	repo         *repo.ListingRepo
+	approvalRepo *repo.ApprovalRepo
 }
 
-func NewListingHandler(repo *repo.ListingRepo) *ListingHandler {
-	return &ListingHandler{repo: repo}
+func NewListingHandler(repo *repo.ListingRepo, approvalRepo *repo.ApprovalRepo) *ListingHandler {
+	return &ListingHandler{repo: repo, approvalRepo: approvalRepo}
 }
 
 // List godoc
@@ -170,11 +171,39 @@ func (h *ListingHandler) UpdateStatus(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
 
+	userID, err := uuid.Parse(c.Locals("user_id").(string))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user_id"})
+	}
+
+	companyID, err := uuid.Parse(c.Locals("company_id").(string))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid company_id"})
+	}
+
 	var body struct {
 		Status string `json:"status"`
 	}
 	if err := c.BodyParser(&body); err != nil || body.Status == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "status is required"})
+	}
+
+	// If trying to publish, check if approval is required
+	if body.Status == string(domain.ListingStatusPublished) {
+		cfg, _ := h.approvalRepo.GetConfig(c.Context(), companyID)
+		if cfg != nil && cfg.ListingApproval {
+			req := &domain.ApprovalRequest{
+				CompanyID:   companyID,
+				EntityType:  domain.ApprovalListing,
+				EntityID:    id,
+				RequestedBy: userID,
+				Notes:       "Request to publish listing",
+			}
+			if err := h.approvalRepo.Create(c.Context(), req); err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create approval request"})
+			}
+			return c.JSON(fiber.Map{"status": "pending_approval", "approval_id": req.ID})
+		}
 	}
 
 	if err := h.repo.UpdateStatus(c.Context(), id, domain.ListingStatus(body.Status)); err != nil {

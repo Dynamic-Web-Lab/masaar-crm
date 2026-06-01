@@ -103,6 +103,36 @@ export interface Lead {
 
 export type KanbanBoard = Record<string, Lead[]>
 
+// ─── Approval Workflow ────────────────────────────────────────────────────────
+
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
+export type ApprovalEntity = 'listing' | 'deal' | 'offer'
+
+export interface ApprovalConfig {
+  id: string
+  company_id: string
+  listing_approval: boolean
+  deal_approval_above: number
+  offer_approval_above: number
+  updated_at: string
+}
+
+export interface ApprovalRequest {
+  id: string
+  company_id: string
+  entity_type: ApprovalEntity
+  entity_id: string
+  requested_by: string
+  reviewed_by: string | null
+  status: ApprovalStatus
+  notes: string
+  reviewer_note: string
+  created_at: string
+  reviewed_at: string | null
+  requester_name: string
+  reviewer_name: string
+}
+
 // ─── Communication History ────────────────────────────────────────────────────
 
 export type CommunicationType = 'whatsapp_inbound' | 'whatsapp_outbound' | 'email_sent' | 'email_received' | 'call'
@@ -569,6 +599,31 @@ export interface Inspection {
   created_by: string
   created_at: string
   updated_at: string
+}
+
+// ─── Viewings ─────────────────────────────────────────────────────────────────
+
+export type ViewingStatus = 'scheduled' | 'confirmed' | 'checked_in' | 'completed' | 'cancelled' | 'no_show'
+
+export interface Viewing {
+  id: string
+  listing_id?: string
+  contact_id: string
+  agent_id?: string
+  lead_id?: string
+  scheduled_at: string
+  duration_min: number
+  status: ViewingStatus
+  address: string
+  notes: string
+  checked_in_at?: string
+  checked_out_at?: string
+  reminder_sent: boolean
+  created_at: string
+  updated_at: string
+  contact?: { id: string; full_name: string; phone_wa: string; email?: string }
+  listing_title?: string
+  agent_name?: string
 }
 
 // ─── Maintenance ──────────────────────────────────────────────────────────────

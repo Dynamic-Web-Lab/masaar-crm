@@ -2,186 +2,191 @@ package repo
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/maidulcu/masaar-crm/internal/domain"
 )
 
 type AnalyticsRepository struct {
 	conn *pgxpool.Pool
+	rdb  *redis.Client
 }
 
-func NewAnalyticsRepository(conn *pgxpool.Pool) *AnalyticsRepository {
-	return &AnalyticsRepository{conn: conn}
+func NewAnalyticsRepository(conn *pgxpool.Pool, rdb *redis.Client) *AnalyticsRepository {
+	return &AnalyticsRepository{conn: conn, rdb: rdb}
+}
+
+const analyticsCacheTTL = 30 * time.Minute
+
+func (r *AnalyticsRepository) cached(ctx context.Context, key string, dest interface{}, compute func() error) error {
+	if r.rdb == nil {
+		return compute()
+	}
+	cached, err := r.rdb.Get(ctx, key).Result()
+	if err == nil {
+		return json.Unmarshal([]byte(cached), dest)
+	}
+	if err := compute(); err != nil {
+		return err
+	}
+	data, marshalErr := json.Marshal(dest)
+	if marshalErr == nil {
+		r.rdb.Set(ctx, key, string(data), analyticsCacheTTL)
+	}
+	return nil
 }
 
 func (r *AnalyticsRepository) GetTenantAnalytics(ctx context.Context, companyID uuid.UUID) (*domain.TenantAnalytics, error) {
+	key := fmt.Sprintf("analytics:tenant:%s", companyID)
+	result := &domain.TenantAnalytics{}
+	if err := r.cached(ctx, key, result, func() error {
+		return r.computeTenantAnalytics(ctx, companyID, result)
+	}); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (r *AnalyticsRepository) computeTenantAnalytics(ctx context.Context, companyID uuid.UUID, out *domain.TenantAnalytics) error {
 	query := `
 		SELECT
-			(SELECT COUNT(*) FROM tenants WHERE company_id = $1 AND status = 'active') as active_tenants,
-			(SELECT COUNT(*) FROM tenants WHERE company_id = $1 AND status != 'active') as inactive_tenants,
-			(SELECT COUNT(*) FROM tenants WHERE company_id = $1) as total_tenants,
-			(SELECT COUNT(*) FROM rental_properties rp WHERE rp.company_id = $1 AND rp.occupancy_status = 'vacant') as vacant_units,
-			(SELECT COUNT(*) FROM rental_properties rp WHERE rp.company_id = $1 AND rp.occupancy_status = 'occupied') as occupied_units,
-			(SELECT COUNT(*) FROM leases l WHERE l.company_id = $1 AND l.status = 'active') as active_leases,
-			(SELECT COUNT(*) FROM payments WHERE company_id = $1 AND status = 'overdue') as overdue_payments,
-			COALESCE((SELECT SUM(amount) FROM payments WHERE company_id = $1 AND status = 'overdue'), 0) as overdue_amount,
-			COALESCE((SELECT AVG(monthly_rent) FROM leases WHERE company_id = $1 AND status = 'active'), 0) as avg_rent,
-			COALESCE((SELECT SUM(monthly_rent) FROM leases WHERE company_id = $1 AND status = 'active'), 0) as total_monthly_revenue,
-			(SELECT COUNT(*) FROM leases WHERE company_id = $1 AND end_date BETWEEN NOW() AND NOW() + INTERVAL '60 days' AND status = 'active') as upcoming_renewals
+			(SELECT COUNT(*) FROM tenants WHERE company_id = $1 AND status = 'active'),
+			(SELECT COUNT(*) FROM tenants WHERE company_id = $1 AND status != 'active'),
+			(SELECT COUNT(*) FROM tenants WHERE company_id = $1),
+			(SELECT COUNT(*) FROM rental_properties rp WHERE rp.company_id = $1 AND rp.occupancy_status = 'vacant'),
+			(SELECT COUNT(*) FROM rental_properties rp WHERE rp.company_id = $1 AND rp.occupancy_status = 'occupied'),
+			(SELECT COUNT(*) FROM leases l WHERE l.company_id = $1 AND l.status = 'active'),
+			(SELECT COUNT(*) FROM payments WHERE company_id = $1 AND status = 'overdue'),
+			COALESCE((SELECT SUM(amount) FROM payments WHERE company_id = $1 AND status = 'overdue'), 0),
+			COALESCE((SELECT AVG(monthly_rent) FROM leases WHERE company_id = $1 AND status = 'active'), 0),
+			COALESCE((SELECT SUM(monthly_rent) FROM leases WHERE company_id = $1 AND status = 'active'), 0),
+			(SELECT COUNT(*) FROM leases WHERE company_id = $1 AND end_date BETWEEN NOW() AND NOW() + INTERVAL '60 days' AND status = 'active')
 	`
-
-	var activeTenants, inactiveTenants, totalTenants, vacantUnits, occupiedUnits, activeLeases, overduePayments, upcomingRenewals int
-	var overdueAmount, avgRent, totalRevenue float64
-
+	var activeLeases int
 	err := r.conn.QueryRow(ctx, query, companyID).Scan(
-		&activeTenants,
-		&inactiveTenants,
-		&totalTenants,
-		&vacantUnits,
-		&occupiedUnits,
-		&activeLeases,
-		&overduePayments,
-		&overdueAmount,
-		&avgRent,
-		&totalRevenue,
-		&upcomingRenewals,
+		&out.ActiveTenants, &out.InactiveTenants, &out.TotalTenants,
+		&out.VacantUnits, &out.OccupiedUnits, &activeLeases,
+		&out.OverduePayments, &out.OverdueDuesAmount, &out.AverageRentPerUnit,
+		&out.TotalMonthlyRevenue, &out.UpcomingRenewals,
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	totalUnits := vacantUnits + occupiedUnits
-	occupancyRate := 0.0
+	totalUnits := out.VacantUnits + out.OccupiedUnits
 	if totalUnits > 0 {
-		occupancyRate = float64(occupiedUnits) / float64(totalUnits) * 100
+		out.OccupancyRate = float64(out.OccupiedUnits) / float64(totalUnits) * 100
 	}
-
-	// Calculate collection rate: received payments / total due payments
-	collectionRateQuery := `
-		SELECT
-			COALESCE(SUM(CASE WHEN status = 'received' THEN amount ELSE 0 END), 0) as collected,
-			COALESCE(SUM(amount), 0) as total_due
-		FROM payments
-		WHERE company_id = $1 AND due_date <= NOW()
-	`
 
 	var collected, totalDue float64
-	err = r.conn.QueryRow(ctx, collectionRateQuery, companyID).Scan(&collected, &totalDue)
-	if err != nil {
-		return nil, err
-	}
-
-	collectionRate := 0.0
+	r.conn.QueryRow(ctx, `
+		SELECT COALESCE(SUM(CASE WHEN status = 'received' THEN amount ELSE 0 END), 0),
+		       COALESCE(SUM(amount), 0)
+		FROM payments WHERE company_id = $1 AND due_date <= NOW()
+	`, companyID).Scan(&collected, &totalDue)
 	if totalDue > 0 {
-		collectionRate = (collected / totalDue) * 100
+		out.CollectionRate = (collected / totalDue) * 100
 	}
 
-	// Calculate tenant churn: moved out last 12 months / average active tenants
-	churnQuery := `
-		SELECT COUNT(*) FROM leases
-		WHERE company_id = $1
-		AND status = 'terminated'
-		AND termination_date >= NOW() - INTERVAL '12 months'
-	`
 	var churned int
-	err = r.conn.QueryRow(ctx, churnQuery, companyID).Scan(&churned)
-	if err != nil {
-		return nil, err
+	r.conn.QueryRow(ctx, `
+		SELECT COUNT(*) FROM leases
+		WHERE company_id = $1 AND status = 'terminated' AND termination_date >= NOW() - INTERVAL '12 months'
+	`, companyID).Scan(&churned)
+	if out.ActiveTenants > 0 {
+		out.TenantChurnRate = (float64(churned) / float64(out.ActiveTenants)) * 100
 	}
 
-	churnRate := 0.0
-	if activeTenants > 0 {
-		churnRate = (float64(churned) / float64(activeTenants)) * 100
-	}
-
-	return &domain.TenantAnalytics{
-		TotalTenants:        totalTenants,
-		ActiveTenants:       activeTenants,
-		InactiveTenants:     inactiveTenants,
-		VacantUnits:         vacantUnits,
-		OccupiedUnits:       occupiedUnits,
-		OccupancyRate:       occupancyRate,
-		AverageRentPerUnit:  avgRent,
-		TotalMonthlyRevenue: totalRevenue,
-		CollectionRate:      collectionRate,
-		OverduePayments:     overduePayments,
-		OverdueDuesAmount:   overdueAmount,
-		UpcomingRenewals:    upcomingRenewals,
-		TenantChurnRate:     churnRate,
-	}, nil
+	return nil
 }
 
 func (r *AnalyticsRepository) GetPropertyAnalytics(ctx context.Context, companyID uuid.UUID, propertyID uuid.UUID) (*domain.PropertyAnalytics, error) {
+	key := fmt.Sprintf("analytics:property:%s:%s", companyID, propertyID)
+	result := &domain.PropertyAnalytics{}
+	if err := r.cached(ctx, key, result, func() error {
+		return r.computePropertyAnalytics(ctx, companyID, propertyID, result)
+	}); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (r *AnalyticsRepository) computePropertyAnalytics(ctx context.Context, companyID uuid.UUID, propertyID uuid.UUID, out *domain.PropertyAnalytics) error {
 	query := `
 		SELECT
-			rp.id,
-			rp.name,
-			rp.property_type,
-			rp.area,
-			rp.units_count,
-			COALESCE((SELECT COUNT(*) FROM leases WHERE property_id = rp.id AND status = 'active'), 0) as occupied,
-			(rp.units_count - COALESCE((SELECT COUNT(*) FROM leases WHERE property_id = rp.id AND status = 'active'), 0)) as vacant,
-			COALESCE((SELECT SUM(l.monthly_rent) FROM leases l WHERE l.property_id = rp.id AND l.status = 'active'), 0) as monthly_revenue,
-			(SELECT COUNT(*) FROM maintenance_tasks WHERE property_id = rp.id AND status IN ('pending', 'scheduled')) as pending_maintenance,
-			(SELECT COUNT(*) FROM leases WHERE property_id = rp.id AND status = 'active') as active_leases,
-			(SELECT COUNT(*) FROM leases WHERE property_id = rp.id AND end_date BETWEEN NOW() AND NOW() + INTERVAL '60 days' AND status = 'active') as expiring_leases
+			rp.id, rp.name, rp.property_type, rp.area, rp.units_count,
+			COALESCE((SELECT COUNT(*) FROM leases WHERE property_id = rp.id AND status = 'active'), 0),
+			(rp.units_count - COALESCE((SELECT COUNT(*) FROM leases WHERE property_id = rp.id AND status = 'active'), 0)),
+			COALESCE((SELECT SUM(l.monthly_rent) FROM leases l WHERE l.property_id = rp.id AND l.status = 'active'), 0),
+			(SELECT COUNT(*) FROM maintenance_tasks WHERE property_id = rp.id AND status IN ('pending', 'scheduled')),
+			(SELECT COUNT(*) FROM leases WHERE property_id = rp.id AND status = 'active'),
+			(SELECT COUNT(*) FROM leases WHERE property_id = rp.id AND end_date BETWEEN NOW() AND NOW() + INTERVAL '60 days' AND status = 'active')
 		FROM rental_properties rp
 		WHERE rp.company_id = $1 AND rp.id = $2
 	`
-
-	var propertyAnalytics domain.PropertyAnalytics
 	var occupied, vacant, activeLs, expiringLs, pendingMaint int
 	var monthlyRev float64
 
 	err := r.conn.QueryRow(ctx, query, companyID, propertyID).Scan(
-		&propertyAnalytics.PropertyID,
-		&propertyAnalytics.PropertyName,
-		&propertyAnalytics.PropertyType,
-		&propertyAnalytics.Area,
-		&propertyAnalytics.TotalUnits,
-		&occupied,
-		&vacant,
-		&monthlyRev,
-		&pendingMaint,
-		&activeLs,
-		&expiringLs,
+		&out.PropertyID, &out.PropertyName, &out.PropertyType, &out.Area, &out.TotalUnits,
+		&occupied, &vacant, &monthlyRev, &pendingMaint, &activeLs, &expiringLs,
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	propertyAnalytics.OccupiedUnits = occupied
-	propertyAnalytics.VacantUnits = vacant
-	propertyAnalytics.MonthlyRevenue = monthlyRev
-	propertyAnalytics.MaintenanceNeeded = pendingMaint
-	propertyAnalytics.ActiveLeases = activeLs
-	propertyAnalytics.ExpiringLeases = expiringLs
-
-	if propertyAnalytics.TotalUnits > 0 {
-		propertyAnalytics.OccupancyRate = float64(occupied) / float64(propertyAnalytics.TotalUnits) * 100
+	out.OccupiedUnits = occupied
+	out.VacantUnits = vacant
+	out.MonthlyRevenue = monthlyRev
+	out.MaintenanceNeeded = pendingMaint
+	out.ActiveLeases = activeLs
+	out.ExpiringLeases = expiringLs
+	if out.TotalUnits > 0 {
+		out.OccupancyRate = float64(occupied) / float64(out.TotalUnits) * 100
 	}
 
-	// Get operating expenses for this property (last 30 days)
-	expenseQuery := `
-		SELECT COALESCE(SUM(amount), 0)
-		FROM expenses
+	r.conn.QueryRow(ctx, `
+		SELECT COALESCE(SUM(amount), 0) FROM expenses
 		WHERE company_id = $1 AND property_id = $2 AND expense_date >= NOW() - INTERVAL '30 days'
-	`
-	var expenses float64
-	err = r.conn.QueryRow(ctx, expenseQuery, companyID, propertyID).Scan(&expenses)
-	if err == nil {
-		propertyAnalytics.OperatingExpenses = expenses
-		propertyAnalytics.NetOperatingIncome = monthlyRev - expenses
-	}
+	`, companyID, propertyID).Scan(&out.OperatingExpenses)
+	out.NetOperatingIncome = monthlyRev - out.OperatingExpenses
 
-	return &propertyAnalytics, nil
+	return nil
 }
 
 func (r *AnalyticsRepository) ListPropertiesAnalytics(ctx context.Context, companyID uuid.UUID, limit, offset int) ([]domain.PropertyAnalytics, int, error) {
+	key := fmt.Sprintf("analytics:properties:%s:%d:%d", companyID, limit, offset)
+	type listResult struct {
+		Items []domain.PropertyAnalytics `json:"items"`
+		Total int                        `json:"total"`
+	}
+	var cached listResult
+	if r.rdb != nil {
+		if data, err := r.rdb.Get(ctx, key).Result(); err == nil {
+			if err := json.Unmarshal([]byte(data), &cached); err == nil {
+				return cached.Items, cached.Total, nil
+			}
+		}
+	}
+	items, total, err := r.computeListPropertiesAnalytics(ctx, companyID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	if r.rdb != nil {
+		if data, marshalErr := json.Marshal(listResult{Items: items, Total: total}); marshalErr == nil {
+			r.rdb.Set(ctx, key, string(data), analyticsCacheTTL)
+		}
+	}
+	return items, total, nil
+}
+
+func (r *AnalyticsRepository) computeListPropertiesAnalytics(ctx context.Context, companyID uuid.UUID, limit, offset int) ([]domain.PropertyAnalytics, int, error) {
 	countQuery := `SELECT COUNT(*) FROM rental_properties WHERE company_id = $1`
 	var total int
 	err := r.conn.QueryRow(ctx, countQuery, companyID).Scan(&total)

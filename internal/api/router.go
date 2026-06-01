@@ -66,6 +66,8 @@ type Handlers struct {
 	Marketing         *handler.MarketingHandler
 	ImportExport      *handler.ImportExportHandler
 	PipelineStage     *handler.PipelineStageHandler
+	Approval          *handler.ApprovalHandler
+	DocusignWebhook   *handler.DocusignWebhookHandler
 }
 
 // webhookLimiter allows Meta's burst delivery (300 req/min per IP) while
@@ -147,6 +149,11 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 
 	// Stripe webhook — must be public (raw body, no JWT)
 	app.Post("/webhooks/stripe", h.Billing.StripeWebhook)
+
+	// DocuSign Connect webhook — receives signature completion events
+	if h.DocusignWebhook != nil {
+		app.Post("/webhooks/docusign", h.DocusignWebhook.Handle)
+	}
 
 	// BOS24 inbound webhook — company identified by ?token=<secret>, HMAC-verified
 	app.Post("/webhooks/bos24", webhookLimiter, h.BOS24Integration.ReceiveWebhook)
@@ -340,6 +347,24 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Post("/settings/bos24-integration/sync",
 		middleware.RequireRole(domain.RoleAdmin),
 		h.BOS24Integration.SyncNow,
+	)
+
+	// Approval Workflows — admin only (config + review)
+	v1.Get("/approval-config",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Approval.GetConfig,
+	)
+	v1.Patch("/approval-config",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Approval.SaveConfig,
+	)
+	v1.Get("/approval-requests",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Approval.ListRequests,
+	)
+	v1.Post("/approval-requests/:id/review",
+		middleware.RequireRole(domain.RoleAdmin),
+		h.Approval.ReviewRequest,
 	)
 
 	// Company Settings — admin only (invoice details, VAT number, bank info)

@@ -208,6 +208,24 @@ const sections: NavSection[] = [
         ),
       },
       {
+        href: '/viewings',
+        label: { en: 'Viewings', ar: 'الزيارات' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+        ),
+      },
+      {
+        href: '/bank-integrations',
+        label: { en: 'Bank Integrations', ar: 'ربط الحسابات البنكية' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          </svg>
+        ),
+      },
+      {
         href: '/bank-statements',
         label: { en: 'Bank Statements', ar: 'كشوفات الحساب' },
         icon: (
@@ -288,6 +306,16 @@ const sections: NavSection[] = [
         icon: (
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        ),
+      },
+      {
+        href: '/approvals',
+        label: { en: 'Approvals', ar: 'الموافقات' },
+        adminOnly: true,
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         ),
       },
@@ -387,6 +415,16 @@ const sections: NavSection[] = [
         ),
       },
       {
+        href: '/settings/approvals',
+        label: { en: 'Approvals', ar: 'الموافقات' },
+        icon: (
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ),
+        adminOnly: true,
+      },
+      {
         href: '/settings/pipeline',
         label: { en: 'Pipeline Stages', ar: 'مراحل البيع' },
         icon: (
@@ -451,7 +489,7 @@ export function Sidebar() {
 const active = item.href === '/analytics'
   ? pathname.startsWith('/analytics')
     : item.href === '/settings'
-      ? pathname === '/settings' || pathname.startsWith('/settings/api') || pathname.startsWith('/settings/company') || pathname.startsWith('/settings/api-keys') || pathname.startsWith('/settings/webhooks') || pathname.startsWith('/settings/bos24') || pathname.startsWith('/settings/lead-rotation') || pathname.startsWith('/settings/pipeline')
+      ? pathname === '/settings' || pathname.startsWith('/settings/api') || pathname.startsWith('/settings/company') || pathname.startsWith('/settings/api-keys') || pathname.startsWith('/settings/webhooks') || pathname.startsWith('/settings/bos24') || pathname.startsWith('/settings/lead-rotation') || pathname.startsWith('/settings/pipeline') || pathname.startsWith('/settings/approvals')
     : item.href === '/admin/users'
       ? pathname.startsWith('/admin')
       : pathname.startsWith(item.href)

@@ -1064,6 +1064,22 @@ export const api = {
     resetDefault: (entityType = 'lead') =>
       request(`/api/v1/pipeline-stages/reset-default?entity_type=${entityType}`, { method: 'POST' }),
   },
+
+  approvals: {
+    getConfig: () => request('/api/v1/approval-config'),
+    saveConfig: (data: { listing_approval?: boolean; deal_approval_above?: number; offer_approval_above?: number }) =>
+      request('/api/v1/approval-config', { method: 'PATCH', body: JSON.stringify(data) }),
+    listRequests: (params: { status?: string; entity_type?: string; page?: number; limit?: number } = {}) => {
+      const q = new URLSearchParams()
+      if (params.status) q.set('status', params.status)
+      if (params.entity_type) q.set('entity_type', params.entity_type)
+      if (params.page) q.set('page', String(params.page))
+      if (params.limit) q.set('limit', String(params.limit))
+      return request(`/api/v1/approval-requests?${q}`)
+    },
+    review: (id: string, status: string, note?: string) =>
+      request(`/api/v1/approval-requests/${id}/review`, { method: 'POST', body: JSON.stringify({ status, note: note || '' }) }),
+  },
 }
 
 export default api

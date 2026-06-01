@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useLang } from '@/context/LangContext'
-import api from '@/lib/api'
+import { api } from '@/lib/api'
 
 interface PropertyDetail {
   property_id: string

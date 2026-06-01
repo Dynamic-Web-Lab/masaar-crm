@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useLang } from '@/context/LangContext'
-import api from '@/lib/api'
+import { api } from '@/lib/api'
 import Link from 'next/link'
 
 interface TenantPerformance {

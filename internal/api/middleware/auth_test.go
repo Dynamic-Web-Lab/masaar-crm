@@ -148,9 +148,6 @@ func TestBearerToken_ValidFormat(t *testing.T) {
 	resp, _ := app.Test(req)
 	defer resp.Body.Close()
 
-	var result string
-	httptest.NewResponse(resp).Body.Read([]byte(result))
-
 	// BearerToken should extract the token correctly
 	// (We're just checking it doesn't panic)
 	if resp.StatusCode != http.StatusOK {

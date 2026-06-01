@@ -81,6 +81,14 @@ type Config struct {
 	// CORS — comma-separated allowed origins; defaults to * in development only
 	AllowedOrigins string
 
+	// DocuSign e-signature (optional — used for automated signature requests)
+	DocusignIntegrationKey string
+	DocusignPrivateKey     string // base64-encoded RSA private key
+	DocusignUserID         string
+	DocusignAccountID      string
+	DocusignBaseURL        string
+	DocusignWebhookSecret  string
+
 	// Stripe billing (optional — leave empty for self-hosted/community)
 	StripeSecretKey       string
 	StripeWebhookSecret   string
@@ -136,9 +144,15 @@ func Load() *Config {
 		AllowRegistration:    getEnv("ALLOW_REGISTRATION", "true") == "true",
 		TrialDurationDays:    getEnvInt("TRIAL_DURATION_DAYS", 90),
 		TrialPlanID:          getEnv("TRIAL_PLAN_ID", "starter"),
-		TurnstileSecretKey:   getEnv("TURNSTILE_SECRET_KEY", ""),
-		AllowedOrigins:        getEnv("ALLOWED_ORIGINS", "*"),
-		StripeSecretKey:       getEnv("STRIPE_SECRET_KEY", ""),
+		TurnstileSecretKey:    getEnv("TURNSTILE_SECRET_KEY", ""),
+		AllowedOrigins:         getEnv("ALLOWED_ORIGINS", "*"),
+		DocusignIntegrationKey: getEnv("DOCUSIGN_INTEGRATION_KEY", ""),
+		DocusignPrivateKey:     getEnv("DOCUSIGN_PRIVATE_KEY", ""),
+		DocusignUserID:         getEnv("DOCUSIGN_USER_ID", ""),
+		DocusignAccountID:      getEnv("DOCUSIGN_ACCOUNT_ID", ""),
+		DocusignBaseURL:        getEnv("DOCUSIGN_BASE_URL", "https://demo.docusign.net/restapi"),
+		DocusignWebhookSecret:  getEnv("DOCUSIGN_WEBHOOK_SECRET", ""),
+		StripeSecretKey:        getEnv("STRIPE_SECRET_KEY", ""),
 		StripeWebhookSecret:   getEnv("STRIPE_WEBHOOK_SECRET", ""),
 		StripePriceIDStarter:  getEnv("STRIPE_PRICE_STARTER", ""),
 		StripePriceIDPro:      getEnv("STRIPE_PRICE_PRO", ""),

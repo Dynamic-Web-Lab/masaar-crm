@@ -296,7 +296,7 @@ func formatNum(n float64) string {
 		return fmt.Sprintf("%.2fM", n/1_000_000)
 	}
 	if n >= 1_000 {
-		return fmt.Sprintf("%,.0f", n)
+		return fmt.Sprintf("%.0f", n)
 	}
 	return fmt.Sprintf("%.0f", n)
 }
