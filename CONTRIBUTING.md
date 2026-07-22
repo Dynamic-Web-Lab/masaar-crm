@@ -10,7 +10,7 @@ Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing. We ex
 
 ### Reporting Bugs
 
-1. Check [existing issues](https://github.com/dynamicweblab/masaar-crm/issues) to avoid duplicates.
+1. Check [existing issues](https://github.com/Dynamic-Web-Lab/masaar-crm/issues) to avoid duplicates.
 2. Open a new issue with a clear title and description.
 3. Include steps to reproduce, expected behavior, and actual behavior.
 4. Mention your OS, browser, and deployment method (Docker, manual, etc.).
@@ -35,6 +35,51 @@ Please read our [Code of Conduct](CODE_OF_CONDUCT.md) before contributing. We ex
    git commit -m "feat: add new feature description"
    ```
 6. Push to your fork and open a Pull Request.
+
+## High-Value Contribution Areas
+
+We especially welcome contributions that address UAE-specific needs:
+
+### Payment Gateway Integrations
+
+| Gateway | Status | Priority |
+|---------|--------|----------|
+| PayBy | Planned | High |
+| Network International | Planned | High |
+| Stripe UAE | Planned | Medium |
+| Tabby (Buy Now Pay Later) | Planned | Medium |
+| Tamara (Buy Now Pay Later) | Planned | Medium |
+
+### Government Integrations
+
+| Integration | Status | Priority |
+|-------------|--------|----------|
+| Ejari (Dubai Land Department) | Planned | High |
+| DEWA (Dubai Electricity & Water) | Planned | Medium |
+| ADDC (Abu Dhabi Distribution Company) | Planned | Medium |
+| DED (Department of Economic Development) | Planned | Low |
+| Federal Tax Authority (FTA) | Planned | High |
+
+### AI & Language
+
+- Arabic language model fine-tuning
+- Local LLM performance optimization
+- Arabic NLP for lead scoring
+- Bilingual template generation
+
+### WhatsApp Enhancements
+
+- Template management and analytics
+- Bulk messaging with rate limiting
+- Chatbot workflows
+- Multi-agent routing
+
+### Reporting & Analytics
+
+- RERA-compliant property reports
+- FTA VAT export formats
+- Custom analytics dashboards
+- Real-time KPI widgets
 
 ## Development Setup
 
@@ -119,6 +164,20 @@ masaar-crm/
 ├── web/                 # Next.js frontend
 └── docker/              # Docker configuration
 ```
+
+## Testing
+
+### Manual Testing
+
+1. Start the application with `docker compose up`
+2. Login with default credentials
+3. Test CRUD operations for each module
+4. Verify WhatsApp webhook integration
+5. Test AI features with Ollama
+
+### API Testing
+
+Use the Swagger UI at `/docs` to test API endpoints interactively.
 
 ## License
 

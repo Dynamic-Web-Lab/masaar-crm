@@ -7,13 +7,13 @@
 Close deals over WhatsApp · AI thread summaries · Full RTL Arabic UI · PDPL-compliant
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/github/v/release/dynamicweblab/masaar-crm)](https://github.com/dynamicweblab/masaar-crm/releases)
+[![Version](https://img.shields.io/github/v/release/Dynamic-Web-Lab/masaar-crm)](https://github.com/Dynamic-Web-Lab/masaar-crm/releases)
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://go.dev)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16+-336791?logo=postgresql)](https://postgresql.org)
 
 **Live Demo:** [masaar.dynamicweblab.com](https://masaar.dynamicweblab.com) &nbsp;·&nbsp; Built by [Dynamic Web Lab FZE LLC](https://dynamicweblab.com)
 
-[Features](#features) · [Quick Start](#quick-start) · [Architecture](#architecture) · [API Reference](#api-reference) · [Contributing](#contributing)
+[Features](#features) · [Why Masaar](#why-choose-masaar) · [Quick Start](#quick-start) · [Architecture](#architecture) · [API Reference](#api-reference) · [Contributing](#contributing)
 
 </div>
 
@@ -28,6 +28,22 @@ Masaar is a **free, open-source CRM designed specifically for UAE businesses**. 
 - Sales teams that need a bilingual (Arabic/English) CRM
 - Businesses subject to UAE PDPL data residency requirements
 - Developers who want a self-hosted alternative to Salesforce, HubSpot, or Zoho
+
+---
+
+## Why Choose Masaar?
+
+| | Masaar CRM | Salesforce / HubSpot / Zoho |
+|---|-----------|---------------------------|
+| **Cost** | Free, open-source. No per-user fees. | $25–300+/user/month |
+| **Data Residency** | Self-hosted in UAE. Your data never leaves. | Hosted in US/EU. PDPL risk. |
+| **Arabic Support** | Native RTL UI. Built for Arabic first. | Arabic bolted on as an afterthought |
+| **WhatsApp Integration** | First-class. Inbound + outbound + AI drafts. | Limited or requires third-party add-ons |
+| **VAT Compliance** | Out-of-the-box 5% UAE VAT invoicing. | Requires custom configuration |
+| **AI Privacy** | Local Ollama LLM. PII never leaves server. | Data sent to external AI providers |
+| **Deployment** | One `docker compose up`. Any UAE cloud. | Vendor lock-in. Complex migration. |
+
+**Bottom line:** Masaar gives you a production-grade CRM without monthly subscriptions, without your customer data leaving the UAE, and without compromising on Arabic language support.
 
 ---
 
@@ -54,7 +70,20 @@ Masaar is a **free, open-source CRM designed specifically for UAE businesses**. 
 
 ---
 
-## 🏢 Real Estate Market Data Integration
+## UAE AI Vision 2031
+
+Masaar CRM is built to align with the **UAE's AI Vision 2031** strategy and national data sovereignty goals:
+
+- **Local AI Processing** — All AI features (thread summaries, lead scoring, draft replies) run on Ollama, a local LLM that keeps customer data on your infrastructure. No PII is sent to external cloud AI providers.
+- **Data Sovereignty** — Self-hosted architecture ensures compliance with UAE PDPL and supports the national priority of keeping sensitive data within UAE borders.
+- **Arabic-Native AI** — Ollama models (llama3, mistral) support Arabic language processing natively, enabling AI-powered CRM features without relying on English-first external services.
+- **UAE Cloud Ready** — Deploy on Moro Hub, G42, or any UAE-based cloud provider to meet data residency requirements while leveraging local AI infrastructure.
+
+By running AI locally, Masaar contributes to the UAE's goal of building a sovereign AI ecosystem that serves national interests while protecting citizen data.
+
+---
+
+## Real Estate Market Data Integration
 
 **Masaar CRM integrates with [BuyOrSell24 by Dynamic Web Lab](https://dynamicweblab.com/products/real-estate-data-api/)** — the UAE's real estate data API — to add market intelligence directly into your CRM workflow.
 
@@ -70,8 +99,7 @@ Masaar is a **free, open-source CRM designed specifically for UAE businesses**. 
 **Step 1: Get Your API Key**
 1. Visit [https://dynamicweblab.com/products/real-estate-data-api/](https://dynamicweblab.com/products/real-estate-data-api/)
 2. View pricing tiers and features
-3. **Contact us** to set up your account (integration form on landing page)
-4. We'll send your API key via Manukaub Bank payment & setup
+3. **Contact us** to set up your account
 
 **Step 2: Configure in Masaar**
 ```bash
@@ -87,16 +115,19 @@ BOS24_API_TOKEN=your-api-token-received-from-setup
 
 **Full API Documentation:** [https://data.buyorsell24.com/redoc](https://data.buyorsell24.com/redoc)
 
-### Pricing & Plans
-- **Masaar Pro users** — BuyOrSell24 API credits included in your subscription
-- **Open-source users** — Optional integration; contact Dynamic Web Lab for pricing:
-  - **Starter** — Limited monthly queries, great for testing
-  - **Growth** — 5,000+ monthly credits (perfect for 10-50 agents)
-  - **Enterprise** — Custom unlimited credits with dedicated support
-  
-👉 **[Contact Dynamic Web Lab](https://dynamicweblab.com/products/real-estate-data-api/)** to discuss your requirements and get a quote
+---
 
-> 💡 **For Masaar Pro Users:** Your CRM subscription includes API credits for unlimited property searches. Market intelligence without additional cost!
+## Ecosystem
+
+Masaar CRM is part of a growing ecosystem of UAE-focused business tools by [Dynamic Web Lab](https://dynamicweblab.com):
+
+| Product | Description |
+|---------|-------------|
+| **[Masaar CRM](https://github.com/Dynamic-Web-Lab/masaar-crm)** | Open-source WhatsApp-first CRM for UAE businesses |
+| **[BuyOrSell24](https://dynamicweblab.com/products/real-estate-data-api/)** | UAE real estate data API — transactions, buildings, yield analysis |
+| **Pause POS** | UAE POS system (coming soon) |
+
+Masaar integrates directly with BuyOrSell24 for real estate market intelligence, and future integrations with Pause POS will enable end-to-end property transaction management.
 
 ---
 
@@ -113,7 +144,7 @@ Try it at **[masaar.dynamicweblab.com](https://masaar.dynamicweblab.com)**
 **Requirements:** Docker and Docker Compose.
 
 ```bash
-git clone https://github.com/dynamicweblab/masaar-crm.git
+git clone https://github.com/Dynamic-Web-Lab/masaar-crm.git
 cd masaar-crm
 cp .env.example .env
 docker compose up
@@ -245,6 +276,18 @@ All protected routes require `Authorization: Bearer <token>`. Full interactive d
 
 Contributions are welcome. Please open an issue first to discuss significant changes.
 
+### High-Value Contributions
+
+We especially welcome contributions that address UAE-specific needs:
+
+- **Payment Gateway Integrations** — PayBy, Network International, Stripe UAE, Tabby, Tamara
+- **Government Integrations** — Ejari registration, DEWA, ADDC, DED trade license verification
+- **AI Model Optimization** — Arabic language model fine-tuning, local LLM performance improvements
+- **WhatsApp Enhancements** — Template management, bulk messaging, chatbot workflows
+- **Reporting** — RERA-compliant reports, FTA VAT exports, custom analytics
+
+### Quick Start
+
 ```bash
 # Fork the repo, then:
 git clone https://github.com/YOUR_USERNAME/masaar-crm.git
@@ -255,6 +298,16 @@ go run ./cmd/server
 ```
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a pull request.
+
+---
+
+## Directory Submissions
+
+Masaar CRM is submitted to the following curated directories:
+
+- [ ] [Awesome Self-Hosted](https://github.com/awesome-selfhosted/awesome-selfhosted)
+- [ ] [Awesome Go](https://github.com/avelino/awesome-go)
+- [ ] [Awesome Arabic Open Source](https://github.com/nicedoc/awesome-arabic-open-source)
 
 ---
 
