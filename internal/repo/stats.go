@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/maidulcu/masaar-crm/internal/domain"
+	"github.com/dynamicweblab/masaar-crm/internal/domain"
 )
 
 type StatsRepo struct {

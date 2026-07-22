@@ -5,7 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/dynamicweblab/masaar-crm/internal/repo"
 )
 
 // CommissionHandler manages commission structures and agent commission records.

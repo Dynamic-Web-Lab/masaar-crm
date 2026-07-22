@@ -11,10 +11,10 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/maidulcu/masaar-crm/internal/bos24"
-	"github.com/maidulcu/masaar-crm/internal/config"
-	"github.com/maidulcu/masaar-crm/internal/domain"
-	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/dynamicweblab/masaar-crm/internal/bos24"
+	"github.com/dynamicweblab/masaar-crm/internal/config"
+	"github.com/dynamicweblab/masaar-crm/internal/domain"
+	"github.com/dynamicweblab/masaar-crm/internal/repo"
 )
 
 // BOS24IntegrationHandler handles BOS24 marketplace integration:

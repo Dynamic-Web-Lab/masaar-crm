@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/dynamicweblab/masaar-crm/internal/repo"
 	"github.com/redis/go-redis/v9"
 )
 

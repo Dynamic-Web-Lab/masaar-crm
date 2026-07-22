@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/maidulcu/masaar-crm/internal/bos24"
-	"github.com/maidulcu/masaar-crm/internal/pdf"
-	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/dynamicweblab/masaar-crm/internal/bos24"
+	"github.com/dynamicweblab/masaar-crm/internal/pdf"
+	"github.com/dynamicweblab/masaar-crm/internal/repo"
 )
 
 const bos24Timeout = 15 * time.Second

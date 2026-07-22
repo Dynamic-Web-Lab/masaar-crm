@@ -6,8 +6,8 @@ import (
 	"log"
 
 	"github.com/google/uuid"
-	"github.com/maidulcu/masaar-crm/internal/domain"
-	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/dynamicweblab/masaar-crm/internal/domain"
+	"github.com/dynamicweblab/masaar-crm/internal/repo"
 )
 
 type TaggingService struct {

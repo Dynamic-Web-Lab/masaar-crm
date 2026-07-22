@@ -6,7 +6,7 @@ import (
 	"html/template"
 	"net/smtp"
 
-	"github.com/maidulcu/masaar-crm/internal/domain"
+	"github.com/dynamicweblab/masaar-crm/internal/domain"
 )
 
 type Config struct {

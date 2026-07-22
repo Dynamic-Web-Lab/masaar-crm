@@ -5,10 +5,10 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/maidulcu/masaar-crm/internal/domain"
-	"github.com/maidulcu/masaar-crm/internal/email"
-	"github.com/maidulcu/masaar-crm/internal/pdf"
-	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/dynamicweblab/masaar-crm/internal/domain"
+	"github.com/dynamicweblab/masaar-crm/internal/email"
+	"github.com/dynamicweblab/masaar-crm/internal/pdf"
+	"github.com/dynamicweblab/masaar-crm/internal/repo"
 	qrcode "github.com/skip2/go-qrcode"
 )
 

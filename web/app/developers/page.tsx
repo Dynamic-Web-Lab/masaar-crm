@@ -83,7 +83,7 @@ export default function DeveloperDocsPage() {
             <a href="/docs" target="_blank" className="text-sm text-gray-500 hover:text-gray-900">
               Swagger UI ↗
             </a>
-            <a href="https://github.com/maidulcu/masaar-crm" target="_blank"
+            <a href="https://github.com/dynamicweblab/masaar-crm" target="_blank"
               className="text-sm bg-gray-900 text-white px-4 py-1.5 rounded-lg hover:bg-gray-700">
               GitHub ↗
             </a>
@@ -559,7 +559,7 @@ POST /api/v1/leads
               </p>
               <div className="flex gap-4">
                 <a href="/docs" className="hover:text-gray-900">Swagger UI</a>
-                <a href="https://github.com/maidulcu/masaar-crm" target="_blank" className="hover:text-gray-900">GitHub</a>
+                <a href="https://github.com/dynamicweblab/masaar-crm" target="_blank" className="hover:text-gray-900">GitHub</a>
               </div>
             </div>
           </footer>

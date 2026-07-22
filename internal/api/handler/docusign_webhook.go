@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/dynamicweblab/masaar-crm/internal/repo"
 )
 
 // DocusignWebhookHandler receives DocuSign Connect events.

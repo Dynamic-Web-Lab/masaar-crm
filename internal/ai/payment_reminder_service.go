@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maidulcu/masaar-crm/internal/domain"
-	"github.com/maidulcu/masaar-crm/internal/email"
-	"github.com/maidulcu/masaar-crm/internal/repo"
-	"github.com/maidulcu/masaar-crm/internal/whatsapp"
-	"github.com/maidulcu/masaar-crm/internal/ws"
+	"github.com/dynamicweblab/masaar-crm/internal/domain"
+	"github.com/dynamicweblab/masaar-crm/internal/email"
+	"github.com/dynamicweblab/masaar-crm/internal/repo"
+	"github.com/dynamicweblab/masaar-crm/internal/whatsapp"
+	"github.com/dynamicweblab/masaar-crm/internal/ws"
 )
 
 type PaymentReminderService struct {

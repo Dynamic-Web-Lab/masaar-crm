@@ -11,12 +11,39 @@ docs/contracts/
 
 # Operational docs with real server IPs / internal infra details
 DEPLOYMENT.md
-COMPLETE_SETUP_GUIDE.md
 DEPLOYMENT_CHECKLIST.md
 DEPLOYMENT_README.md
+DEPLOYMENT_LOCAL.md
+COMPLETE_SETUP_GUIDE.md
+OPERATIONS.md
 GIT_AUTOMATION.md
 MVP_OPTIMIZATION.md
 SHARED_SERVICES.md
+
+# Business strategy & internal planning (sensitive)
+SAAS-PLAN.md
+GTM-PLAN.md
+ROADMAP.md
+PHASES.md
+PROJECT_OVERVIEW.md
+API_INVENTORY.md
+DOCKER.md
+DOCKER_BEST_PRACTICES.md
+CLAUDE_DESIGN.md
+K8S.md
+
+# Internal scripts & deployment tools
+scripts/
+deploy.sh
+deploy-api.sh
+deploy-web.sh
+setup-git-automation.sh
+
+# Internal docker-compose variants
+docker-compose.server.yml
+docker-compose.mvp.yml
+docker-compose.mvp-shared.yml
+docker-compose.ollama.yml
 
 # AI tool internal notes (security findings, vulnerability logs)
 .jules/
@@ -32,16 +59,19 @@ SHARED_SERVICES.md
 secrets/
 backups/
 
-# Go binaries
-/bin/
-/dist/
+# Compiled binaries (never commit)
+masaar
+seed
+server
+bin/
+dist/
+
+# Go
 *.exe
 *.test
 *.out
 vendor/
 go.sum.bak
-masaar
-/server
 
 # Air (Go live-reload)
 tmp/
@@ -82,4 +112,3 @@ logs/
 # Test coverage
 coverage.out
 coverage.html
-server

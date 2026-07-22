@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/maidulcu/masaar-crm/internal/domain"
+	"github.com/dynamicweblab/masaar-crm/internal/domain"
 )
 
 // LeadRotationRepo manages round-robin and capacity-based lead assignment settings.

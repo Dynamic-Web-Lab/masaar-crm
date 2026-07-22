@@ -6,11 +6,11 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/maidulcu/masaar-crm/internal/api/middleware"
-	"github.com/maidulcu/masaar-crm/internal/config"
-	"github.com/maidulcu/masaar-crm/internal/domain"
-	"github.com/maidulcu/masaar-crm/internal/email"
-	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/dynamicweblab/masaar-crm/internal/api/middleware"
+	"github.com/dynamicweblab/masaar-crm/internal/config"
+	"github.com/dynamicweblab/masaar-crm/internal/domain"
+	"github.com/dynamicweblab/masaar-crm/internal/email"
+	"github.com/dynamicweblab/masaar-crm/internal/repo"
 	"golang.org/x/crypto/bcrypt"
 )
 

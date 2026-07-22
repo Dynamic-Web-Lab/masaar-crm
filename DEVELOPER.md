@@ -35,7 +35,8 @@ Masaar CRM is a self-hosted WhatsApp-first CRM for UAE businesses. It exposes a 
 
 ```bash
 # Clone and configure
-git clone https://github.com/maidulcu/masaar-crm
+git clone https://github.com/dynamicweblab/masaar-crm.git
+cd masaar-crm
 cp .env.example .env   # Fill in your values
 
 # Run with Docker
@@ -653,4 +654,4 @@ See [CLAUDE.md](./CLAUDE.md) for codebase conventions, handler patterns, and rep
 ---
 
 *Masaar CRM is open source under MIT License. Built for UAE businesses.*  
-*Issues & contributions: https://github.com/maidulcu/masaar-crm*
+*Issues & contributions: https://github.com/dynamicweblab/masaar-crm*

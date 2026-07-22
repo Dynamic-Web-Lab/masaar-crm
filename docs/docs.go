@@ -310,7 +310,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.PaginatedResult-github_com_maidulcu_masaar-crm_internal_domain_Contact"
+                            "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.PaginatedResult-github_com_dynamicweblab_masaar-crm_internal_domain_Contact"
                         }
                     }
                 }
@@ -339,7 +339,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.Contact"
+                            "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.Contact"
                         }
                     }
                 ],
@@ -347,7 +347,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.Contact"
+                            "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.Contact"
                         }
                     },
                     "400": {
@@ -392,7 +392,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.Contact"
+                            "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.Contact"
                         }
                     },
                     "400": {
@@ -487,7 +487,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.Contact"
+                            "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.Contact"
                         }
                     }
                 ],
@@ -495,7 +495,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.Contact"
+                            "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.Contact"
                         }
                     },
                     "400": {
@@ -556,7 +556,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.PaginatedResult-github_com_maidulcu_masaar-crm_internal_domain_Deal"
+                            "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.PaginatedResult-github_com_dynamicweblab_masaar-crm_internal_domain_Deal"
                         }
                     }
                 }
@@ -585,7 +585,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.Deal"
+                            "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.Deal"
                         }
                     }
                 ],
@@ -593,7 +593,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.Deal"
+                            "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.Deal"
                         }
                     },
                     "400": {
@@ -638,7 +638,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.Deal"
+                            "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.Deal"
                         }
                     },
                     "400": {
@@ -696,7 +696,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.VATInvoice"
+                                "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.VATInvoice"
                             }
                         }
                     },
@@ -825,7 +825,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.VATInvoice"
+                            "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.VATInvoice"
                         }
                     },
                     "400": {
@@ -869,7 +869,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.VATInvoice"
+                            "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.VATInvoice"
                         }
                     },
                     "400": {
@@ -1068,7 +1068,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.Lead"
+                            "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.Lead"
                         }
                     }
                 ],
@@ -1076,7 +1076,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.Lead"
+                            "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.Lead"
                         }
                     },
                     "400": {
@@ -1121,7 +1121,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.Lead"
+                            "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.Lead"
                         }
                     },
                     "400": {
@@ -1367,7 +1367,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.WhatsAppThread"
+                                "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.WhatsAppThread"
                             }
                         }
                     }
@@ -1449,7 +1449,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.WhatsAppMessage"
+                                "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.WhatsAppMessage"
                             }
                         }
                     },
@@ -1469,7 +1469,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "github_com_maidulcu_masaar-crm_internal_domain.Contact": {
+        "github_com_dynamicweblab_masaar-crm_internal_domain.Contact": {
             "type": "object",
             "properties": {
                 "assigned_to": {
@@ -1502,7 +1502,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_maidulcu_masaar-crm_internal_domain.Deal": {
+        "github_com_dynamicweblab_masaar-crm_internal_domain.Deal": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -1530,7 +1530,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "stage": {
-                    "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.DealStage"
+                    "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.DealStage"
                 },
                 "title": {
                     "type": "string"
@@ -1540,7 +1540,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_maidulcu_masaar-crm_internal_domain.DealStage": {
+        "github_com_dynamicweblab_masaar-crm_internal_domain.DealStage": {
             "type": "string",
             "enum": [
                 "open",
@@ -1553,7 +1553,7 @@ const docTemplate = `{
                 "DealStageLost"
             ]
         },
-        "github_com_maidulcu_masaar-crm_internal_domain.InvoiceStatus": {
+        "github_com_dynamicweblab_masaar-crm_internal_domain.InvoiceStatus": {
             "type": "string",
             "enum": [
                 "draft",
@@ -1566,14 +1566,14 @@ const docTemplate = `{
                 "InvoicePaid"
             ]
         },
-        "github_com_maidulcu_masaar-crm_internal_domain.Lead": {
+        "github_com_dynamicweblab_masaar-crm_internal_domain.Lead": {
             "type": "object",
             "properties": {
                 "contact": {
                     "description": "Joined",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.Contact"
+                            "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.Contact"
                         }
                     ]
                 },
@@ -1597,17 +1597,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "source": {
-                    "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.LeadSource"
+                    "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.LeadSource"
                 },
                 "stage": {
-                    "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.LeadStage"
+                    "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.LeadStage"
                 },
                 "updated_at": {
                     "type": "string"
                 }
             }
         },
-        "github_com_maidulcu_masaar-crm_internal_domain.LeadSource": {
+        "github_com_dynamicweblab_masaar-crm_internal_domain.LeadSource": {
             "type": "string",
             "enum": [
                 "whatsapp",
@@ -1622,7 +1622,7 @@ const docTemplate = `{
                 "SourceEvent"
             ]
         },
-        "github_com_maidulcu_masaar-crm_internal_domain.LeadStage": {
+        "github_com_dynamicweblab_masaar-crm_internal_domain.LeadStage": {
             "type": "string",
             "enum": [
                 "new",
@@ -1641,7 +1641,7 @@ const docTemplate = `{
                 "StageLost"
             ]
         },
-        "github_com_maidulcu_masaar-crm_internal_domain.MessageDirection": {
+        "github_com_dynamicweblab_masaar-crm_internal_domain.MessageDirection": {
             "type": "string",
             "enum": [
                 "inbound",
@@ -1652,13 +1652,13 @@ const docTemplate = `{
                 "DirectionOutbound"
             ]
         },
-        "github_com_maidulcu_masaar-crm_internal_domain.PaginatedResult-github_com_maidulcu_masaar-crm_internal_domain_Contact": {
+        "github_com_dynamicweblab_masaar-crm_internal_domain.PaginatedResult-github_com_dynamicweblab_masaar-crm_internal_domain_Contact": {
             "type": "object",
             "properties": {
                 "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.Contact"
+                        "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.Contact"
                     }
                 },
                 "limit": {
@@ -1672,13 +1672,13 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_maidulcu_masaar-crm_internal_domain.PaginatedResult-github_com_maidulcu_masaar-crm_internal_domain_Deal": {
+        "github_com_dynamicweblab_masaar-crm_internal_domain.PaginatedResult-github_com_dynamicweblab_masaar-crm_internal_domain_Deal": {
             "type": "object",
             "properties": {
                 "data": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.Deal"
+                        "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.Deal"
                     }
                 },
                 "limit": {
@@ -1692,7 +1692,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_maidulcu_masaar-crm_internal_domain.ThreadStatus": {
+        "github_com_dynamicweblab_masaar-crm_internal_domain.ThreadStatus": {
             "type": "string",
             "enum": [
                 "open",
@@ -1705,7 +1705,7 @@ const docTemplate = `{
                 "ThreadPending"
             ]
         },
-        "github_com_maidulcu_masaar-crm_internal_domain.VATInvoice": {
+        "github_com_dynamicweblab_masaar-crm_internal_domain.VATInvoice": {
             "type": "object",
             "properties": {
                 "deal_id": {
@@ -1724,7 +1724,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "status": {
-                    "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.InvoiceStatus"
+                    "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.InvoiceStatus"
                 },
                 "subtotal": {
                     "type": "number"
@@ -1740,14 +1740,14 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_maidulcu_masaar-crm_internal_domain.WhatsAppMessage": {
+        "github_com_dynamicweblab_masaar-crm_internal_domain.WhatsAppMessage": {
             "type": "object",
             "properties": {
                 "body": {
                     "type": "string"
                 },
                 "direction": {
-                    "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.MessageDirection"
+                    "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.MessageDirection"
                 },
                 "id": {
                     "type": "string"
@@ -1766,7 +1766,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_maidulcu_masaar-crm_internal_domain.WhatsAppThread": {
+        "github_com_dynamicweblab_masaar-crm_internal_domain.WhatsAppThread": {
             "type": "object",
             "properties": {
                 "ai_summary": {
@@ -1776,7 +1776,7 @@ const docTemplate = `{
                     "description": "Joined",
                     "allOf": [
                         {
-                            "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.Contact"
+                            "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.Contact"
                         }
                     ]
                 },
@@ -1798,11 +1798,11 @@ const docTemplate = `{
                 "messages": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.WhatsAppMessage"
+                        "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.WhatsAppMessage"
                     }
                 },
                 "thread_status": {
-                    "$ref": "#/definitions/github_com_maidulcu_masaar-crm_internal_domain.ThreadStatus"
+                    "$ref": "#/definitions/github_com_dynamicweblab_masaar-crm_internal_domain.ThreadStatus"
                 },
                 "wa_account_id": {
                     "type": "string"

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/maidulcu/masaar-crm/internal/domain"
+	"github.com/dynamicweblab/masaar-crm/internal/domain"
 )
 
 type AzureService struct {

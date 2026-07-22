@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maidulcu/masaar-crm/internal/repo"
-	"github.com/maidulcu/masaar-crm/internal/ws"
+	"github.com/dynamicweblab/masaar-crm/internal/repo"
+	"github.com/dynamicweblab/masaar-crm/internal/ws"
 )
 
 // SyncService imports BOS24 marketplace data (listings + inquiries) into Masaar.

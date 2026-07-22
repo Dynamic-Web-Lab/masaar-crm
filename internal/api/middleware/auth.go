@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/maidulcu/masaar-crm/internal/domain"
+	"github.com/dynamicweblab/masaar-crm/internal/domain"
 	"github.com/redis/go-redis/v9"
 )
 

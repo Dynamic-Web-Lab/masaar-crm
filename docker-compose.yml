@@ -82,8 +82,8 @@ services:
       # Redis
       REDIS_URL: redis://redis:6379
 
-      # JWT
-      JWT_SECRET: ${JWT_SECRET:-change-me-to-random-string-at-least-32-chars}
+      # JWT (required — generate with: openssl rand -hex 32)
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_ACCESS_EXPIRY_MIN: ${JWT_ACCESS_EXPIRY_MIN:-15}
       JWT_REFRESH_EXPIRY_DAYS: ${JWT_REFRESH_EXPIRY_DAYS:-7}
 
@@ -92,7 +92,7 @@ services:
       WA_API_VERSION: ${WA_API_VERSION:-v19.0}
       WA_PHONE_NUMBER_ID: ${WA_PHONE_NUMBER_ID:-}
       WA_ACCESS_TOKEN: ${WA_ACCESS_TOKEN:-}
-      WA_BASE_URL: ${WA_BASE_URL:-https://graph.instagram.com}
+      WA_BASE_URL: ${WA_BASE_URL:-https://graph.facebook.com}
 
       # SMTP Email (Optional)
       SMTP_HOST: ${SMTP_HOST:-}

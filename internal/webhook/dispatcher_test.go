@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maidulcu/masaar-crm/internal/repo"
+	"github.com/dynamicweblab/masaar-crm/internal/repo"
 )
 
 func TestDispatcher_SSRF(t *testing.T) {
