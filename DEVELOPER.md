@@ -14,7 +14,7 @@
 6. [Environment Variables](#environment-variables)
 7. [Webhooks](#webhooks)
 8. [AI Integration](#ai-integration)
-9. [Real Estate Data (BOS24)](#real-estate-data)
+9. [Real Estate Data (DLD)](#real-estate-data)
 10. [Database Schema Overview](#database-schema)
 11. [Integration Guide](#integration-guide)
 12. [Roadmap — What's Coming](#roadmap)
@@ -296,14 +296,14 @@ POST /api/v1/messages/auto-create-lead  # Auto-create lead from message (agent+)
 ```http
 GET   /api/v1/settings/company
 PATCH /api/v1/settings/company
-GET   /api/v1/settings/bos24
-PATCH /api/v1/settings/bos24
+GET   /api/v1/settings/dld
+PATCH /api/v1/settings/dld
 GET   /api/v1/settings/api-keys
 POST  /api/v1/settings/api-keys
 DELETE /api/v1/settings/api-keys/:id
 ```
 
-### Real Estate Market Data (BOS24)
+### Real Estate Market Data (DLD)
 
 ```http
 POST /api/v1/properties/search             # NL search ("2BR in Marina")
@@ -315,7 +315,7 @@ GET  /api/v1/properties/yield-analysis     # Rental yield analysis
 GET  /api/v1/properties/comparables        # Comparable properties
 GET  /api/v1/properties/market-trends      # Market trends
 ```
-> Requires `BOS24_API_TOKEN` configured. See [BuyOrSell24 API](https://data.buyorsell24.com/redoc).
+> Requires `DLD_API_TOKEN` configured. See [DLDAPI API](https://dldapi.waqov.com/redoc).
 
 ### WebSocket — Real-Time Notifications
 
@@ -347,7 +347,7 @@ Authorization: Bearer <jwt_token>
 | `OLLAMA_MODEL` | — | `llama3` | Ollama model name |
 | `GEMINI_API_KEY` | AI (Gemini) | — | Google Gemini API key |
 | `GEMINI_MODEL` | — | `gemini-2.0-flash` | Gemini model name |
-| `BOS24_API_TOKEN` | Real estate | — | BuyOrSell24 token |
+| `DLD_API_TOKEN` | Real estate | — | DLDAPI token |
 | `SMTP_HOST` | Email | — | SMTP server host |
 | `SMTP_PORT` | — | `587` | SMTP port |
 | `SMTP_USER` | Email | — | SMTP username |
@@ -489,13 +489,13 @@ Get API key: https://aistudio.google.com/app/apikey
 
 ## Real Estate Data
 
-The BOS24 integration (BuyOrSell24) provides UAE market data. Optional — all endpoints return 503 if not configured.
+The DLD integration (DLDAPI) provides UAE market data. Optional — all endpoints return 503 if not configured.
 
 **Setup:**
 1. Contact [Dynamic Web Lab](https://dynamicweblab.com/products/real-estate-data-api/) for API token
-2. Set `BOS24_API_TOKEN` in `.env` or via `PATCH /api/v1/settings/bos24`
+2. Set `DLD_API_TOKEN` in `.env` or via `PATCH /api/v1/settings/dld`
 
-**API Docs:** https://data.buyorsell24.com/redoc
+**API Docs:** https://dldapi.waqov.com/redoc
 
 ---
 

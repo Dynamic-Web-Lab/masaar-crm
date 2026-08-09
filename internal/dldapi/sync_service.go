@@ -1,4 +1,4 @@
-package bos24
+package dldapi
 
 import (
 	"context"
@@ -13,20 +13,20 @@ import (
 	"github.com/dynamicweblab/masaar-crm/internal/ws"
 )
 
-// SyncService imports BOS24 marketplace data (listings + inquiries) into Masaar.
+// SyncService imports DLD marketplace data (listings + inquiries) into Masaar.
 type SyncService struct {
-	bos24Repo   *repo.BOS24IntegrationRepo
+	dldRepo   *repo.DLDIntegrationRepo
 	contactRepo *repo.ContactRepo
 	hub         *ws.Hub
 }
 
 func NewSyncService(
-	bos24Repo *repo.BOS24IntegrationRepo,
+	dldRepo *repo.DLDIntegrationRepo,
 	contactRepo *repo.ContactRepo,
 	hub *ws.Hub,
 ) *SyncService {
 	return &SyncService{
-		bos24Repo:   bos24Repo,
+		dldRepo:   dldRepo,
 		contactRepo: contactRepo,
 		hub:         hub,
 	}
@@ -54,7 +54,7 @@ func (s *SyncService) SyncAll(ctx context.Context, companyID uuid.UUID, apiKey s
 	// Sync listings
 	li, lu, err := s.syncListings(ctx, client, companyID, sinceStr)
 	if err != nil {
-		log.Printf("[BOS24] company %s: listings sync error: %v", companyID, err)
+		log.Printf("[DLD] company %s: listings sync error: %v", companyID, err)
 		// don't abort — still attempt inquiries
 	}
 	result.ListingsImported = li
@@ -63,14 +63,14 @@ func (s *SyncService) SyncAll(ctx context.Context, companyID uuid.UUID, apiKey s
 	// Sync inquiries
 	ic, err := s.syncInquiries(ctx, client, companyID, sinceStr)
 	if err != nil {
-		log.Printf("[BOS24] company %s: inquiries sync error: %v", companyID, err)
+		log.Printf("[DLD] company %s: inquiries sync error: %v", companyID, err)
 	}
 	result.InquiriesCreated = ic
 
 	return result, nil
 }
 
-// syncListings pages through the BOS24 listing feed and upserts each into Masaar.
+// syncListings pages through the DLD listing feed and upserts each into Masaar.
 func (s *SyncService) syncListings(ctx context.Context, client *IntegrationClient, companyID uuid.UUID, updatedSince string) (imported, updated int, err error) {
 	page := 1
 	for {
@@ -79,12 +79,12 @@ func (s *SyncService) syncListings(ctx context.Context, client *IntegrationClien
 			return imported, updated, fmt.Errorf("page %d: %w", page, e)
 		}
 		for _, l := range resp.Data {
-			_, upsertErr := s.bos24Repo.UpsertListing(ctx, companyID,
+			_, upsertErr := s.dldRepo.UpsertListing(ctx, companyID,
 				l.UUID,
 				l.Title,
 				l.Description,
 				mapPropertyType(l.Category.Slug),
-				"sale", // BOS24 listings are for sale by default
+				"sale", // DLD listings are for sale by default
 				l.City.Slug,
 				mapListingStatus(l.Status),
 				imageMediumURL(l.PrimaryImage),
@@ -92,7 +92,7 @@ func (s *SyncService) syncListings(ctx context.Context, client *IntegrationClien
 				l.Price,
 			)
 			if upsertErr != nil {
-				log.Printf("[BOS24] upsert listing %s: %v", l.UUID, upsertErr)
+				log.Printf("[DLD] upsert listing %s: %v", l.UUID, upsertErr)
 				continue
 			}
 			imported++
@@ -106,7 +106,7 @@ func (s *SyncService) syncListings(ctx context.Context, client *IntegrationClien
 	return imported, updated, nil
 }
 
-// syncInquiries pages through the BOS24 inquiry feed and creates contact + lead for each.
+// syncInquiries pages through the DLD inquiry feed and creates contact + lead for each.
 func (s *SyncService) syncInquiries(ctx context.Context, client *IntegrationClient, companyID uuid.UUID, createdSince string) (created int, err error) {
 	page := 1
 	for {
@@ -117,7 +117,7 @@ func (s *SyncService) syncInquiries(ctx context.Context, client *IntegrationClie
 		for _, inq := range resp.Data {
 			ok, e2 := s.processInquiry(ctx, companyID, &inq)
 			if e2 != nil {
-				log.Printf("[BOS24] process inquiry %d: %v", inq.ID, e2)
+				log.Printf("[DLD] process inquiry %d: %v", inq.ID, e2)
 				continue
 			}
 			if ok {
@@ -133,11 +133,11 @@ func (s *SyncService) syncInquiries(ctx context.Context, client *IntegrationClie
 	return created, nil
 }
 
-// ProcessEvent handles a real-time BOS24 webhook event.
-func (s *SyncService) ProcessEvent(ctx context.Context, companyID uuid.UUID, event *BOS24WebhookEvent) error {
+// ProcessEvent handles a real-time DLD webhook event.
+func (s *SyncService) ProcessEvent(ctx context.Context, companyID uuid.UUID, event *DLDWebhookEvent) error {
 	switch event.Event {
 	case "inquiry.created":
-		var inq BOS24Inquiry
+		var inq DLDInquiry
 		if err := json.Unmarshal(event.Data, &inq); err != nil {
 			return fmt.Errorf("parse inquiry payload: %w", err)
 		}
@@ -145,11 +145,11 @@ func (s *SyncService) ProcessEvent(ctx context.Context, companyID uuid.UUID, eve
 		return err
 
 	case "listing.created", "listing.updated", "listing.published":
-		var listing BOS24Listing
+		var listing DLDListing
 		if err := json.Unmarshal(event.Data, &listing); err != nil {
 			return fmt.Errorf("parse listing payload: %w", err)
 		}
-		_, err := s.bos24Repo.UpsertListing(ctx, companyID,
+		_, err := s.dldRepo.UpsertListing(ctx, companyID,
 			listing.UUID,
 			listing.Title,
 			listing.Description,
@@ -165,18 +165,18 @@ func (s *SyncService) ProcessEvent(ctx context.Context, companyID uuid.UUID, eve
 
 	case "listing.deactivated", "listing.deleted":
 		if event.Resource.UUID != "" {
-			return s.bos24Repo.DeactivateListing(ctx, companyID, event.Resource.UUID)
+			return s.dldRepo.DeactivateListing(ctx, companyID, event.Resource.UUID)
 		}
 
 	default:
-		log.Printf("[BOS24] unknown event type: %s", event.Event)
+		log.Printf("[DLD] unknown event type: %s", event.Event)
 	}
 	return nil
 }
 
-// processInquiry creates a contact (upsert by phone) and a lead for a BOS24 inquiry.
+// processInquiry creates a contact (upsert by phone) and a lead for a DLD inquiry.
 // Returns true if a new lead was created, false if it was a duplicate.
-func (s *SyncService) processInquiry(ctx context.Context, companyID uuid.UUID, inq *BOS24Inquiry) (bool, error) {
+func (s *SyncService) processInquiry(ctx context.Context, companyID uuid.UUID, inq *DLDInquiry) (bool, error) {
 	phone := sanitizePhone(inq.BuyerPhone)
 	if phone == "" {
 		return false, nil // no phone — skip
@@ -190,17 +190,17 @@ func (s *SyncService) processInquiry(ctx context.Context, companyID uuid.UUID, i
 
 	// Update email if provided and contact doesn't already have one
 	if inq.BuyerEmail != "" && contact.Email == "" {
-		_ = s.bos24Repo.UpdateContactEmailIfEmpty(ctx, contact.ID, inq.BuyerEmail)
+		_ = s.dldRepo.UpdateContactEmailIfEmpty(ctx, contact.ID, inq.BuyerEmail)
 	}
 
 	// Build notes from inquiry message + listing reference
 	notes := inq.Message
 	if inq.Listing.Title != "" {
-		notes = fmt.Sprintf("BOS24 inquiry on: %s\n\n%s", inq.Listing.Title, inq.Message)
+		notes = fmt.Sprintf("DLD inquiry on: %s\n\n%s", inq.Listing.Title, inq.Message)
 	}
 
-	// Create lead (idempotent — ON CONFLICT bos24_inquiry_id DO NOTHING)
-	created, leadID, err := s.bos24Repo.CreateLeadFromInquiry(ctx, contact.ID, inq.ID, notes)
+	// Create lead (idempotent — ON CONFLICT dld_inquiry_id DO NOTHING)
+	created, leadID, err := s.dldRepo.CreateLeadFromInquiry(ctx, contact.ID, inq.ID, notes)
 	if err != nil {
 		return false, fmt.Errorf("create lead: %w", err)
 	}
@@ -213,7 +213,7 @@ func (s *SyncService) processInquiry(ctx context.Context, companyID uuid.UUID, i
 				"lead_id":    leadID,
 				"contact":    contact.FullName,
 				"phone":      contact.PhoneWA,
-				"source":     "bos24",
+				"source":     "dld",
 				"company_id": companyID,
 			},
 		})
@@ -224,7 +224,7 @@ func (s *SyncService) processInquiry(ctx context.Context, companyID uuid.UUID, i
 
 // ── Mapping helpers ───────────────────────────────────────────────────────────
 
-// mapPropertyType converts BOS24 category slug to Masaar property_type.
+// mapPropertyType converts DLD category slug to Masaar property_type.
 func mapPropertyType(categorySlug string) string {
 	slug := strings.ToLower(categorySlug)
 	switch {
@@ -241,9 +241,9 @@ func mapPropertyType(categorySlug string) string {
 	}
 }
 
-// mapListingStatus converts BOS24 listing status to Masaar listing status.
-func mapListingStatus(bos24Status string) string {
-	switch strings.ToLower(bos24Status) {
+// mapListingStatus converts DLD listing status to Masaar listing status.
+func mapListingStatus(dldStatus string) string {
+	switch strings.ToLower(dldStatus) {
 	case "published", "active":
 		return "active"
 	case "pending":
@@ -255,8 +255,8 @@ func mapListingStatus(bos24Status string) string {
 	}
 }
 
-// imageMediumURL returns the medium URL from a BOS24 primary image, or empty string.
-func imageMediumURL(img *BOS24Image) string {
+// imageMediumURL returns the medium URL from a DLD primary image, or empty string.
+func imageMediumURL(img *DLDImage) string {
 	if img == nil {
 		return ""
 	}

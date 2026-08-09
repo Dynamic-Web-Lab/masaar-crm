@@ -47,14 +47,14 @@ func (r *SettingsRepo) Update(ctx context.Context, key, value string, updatedBy 
 	return err
 }
 
-func (r *SettingsRepo) GetBOS24Token(ctx context.Context) (string, error) {
-	setting, err := r.Get(ctx, "bos24_api_token")
+func (r *SettingsRepo) GetDLDToken(ctx context.Context) (string, error) {
+	setting, err := r.Get(ctx, "dld_api_token")
 	if err != nil {
 		return "", err
 	}
 	return setting.SettingValue, nil
 }
 
-func (r *SettingsRepo) UpdateBOS24Token(ctx context.Context, token string, updatedBy *uuid.UUID) error {
-	return r.Update(ctx, "bos24_api_token", token, updatedBy)
+func (r *SettingsRepo) UpdateDLDToken(ctx context.Context, token string, updatedBy *uuid.UUID) error {
+	return r.Update(ctx, "dld_api_token", token, updatedBy)
 }

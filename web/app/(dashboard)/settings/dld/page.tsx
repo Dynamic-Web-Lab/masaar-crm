@@ -6,7 +6,7 @@ import { useLang } from '@/context/LangContext'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 
-interface BOS24Settings {
+interface DLDSettings {
   api_key_set: boolean
   api_key_preview: string
   webhook_registered: boolean
@@ -16,13 +16,13 @@ interface BOS24Settings {
   last_sync_at: string | null
 }
 
-export default function BOS24IntegrationPage() {
+export default function DLDIntegrationPage() {
   const { user, company } = useAuthStore()
   const { t } = useLang()
   const router = useRouter()
   const isDemo = !!company?.is_demo
 
-  const [settings, setSettings] = useState<BOS24Settings | null>(null)
+  const [settings, setSettings] = useState<DLDSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [apiKey, setApiKey] = useState('')
   const [showKey, setShowKey] = useState(false)
@@ -48,9 +48,9 @@ export default function BOS24IntegrationPage() {
 
   const loadSettings = async () => {
     try {
-      const r = await api.settings.bos24Integration.get() as { data?: BOS24Settings } & BOS24Settings
+      const r = await api.settings.dldIntegration.get() as { data?: DLDSettings } & DLDSettings
       // API returns fields directly (not wrapped in data)
-      const s = (r as any).api_key_set !== undefined ? r as unknown as BOS24Settings : (r as any).data as BOS24Settings
+      const s = (r as any).api_key_set !== undefined ? r as unknown as DLDSettings : (r as any).data as DLDSettings
       setSettings(s)
     } catch {
       // no settings yet — ok
@@ -64,7 +64,7 @@ export default function BOS24IntegrationPage() {
     if (!apiKey.trim()) return
     setSaving(true); setSaveError(''); setSaveSuccess(false)
     try {
-      await api.settings.bos24Integration.update({ api_key: apiKey })
+      await api.settings.dldIntegration.update({ api_key: apiKey })
       setSaveSuccess(true)
       setApiKey('')
       setShowKey(false)
@@ -78,7 +78,7 @@ export default function BOS24IntegrationPage() {
   const handleRegister = async () => {
     setRegistering(true); setRegisterError(''); setRegisterSuccess(false)
     try {
-      await api.settings.bos24Integration.registerWebhook()
+      await api.settings.dldIntegration.registerWebhook()
       setRegisterSuccess(true)
       await loadSettings()
     } catch (err: unknown) {
@@ -89,7 +89,7 @@ export default function BOS24IntegrationPage() {
   const handleSync = async () => {
     setSyncing(true); setSyncError(''); setSyncResult(null)
     try {
-      const r = await api.settings.bos24Integration.syncNow() as any
+      const r = await api.settings.dldIntegration.syncNow() as any
       setSyncResult({ listings_imported: r.listings_imported ?? 0, inquiries_created: r.inquiries_created ?? 0 })
       await loadSettings()
     } catch (err: unknown) {
@@ -111,7 +111,7 @@ export default function BOS24IntegrationPage() {
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <Header title={t('مزامنة BOS24', 'BOS24 Integration')} />
+      <Header title={t('مزامنة DLD', 'DLD Integration')} />
       <main className="flex-1 overflow-y-auto p-6 bg-gray-50">
         <div className="max-w-2xl space-y-6">
 
@@ -122,8 +122,8 @@ export default function BOS24IntegrationPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
               </svg>
               <span>
-                <strong>Demo account</strong> — BOS24 integration settings are read-only.{' '}
-                <a href="/signup" className="underline font-semibold">Start a free trial</a> to connect your BOS24 account.
+                <strong>Demo account</strong> — DLD integration settings are read-only.{' '}
+                <a href="/signup" className="underline font-semibold">Start a free trial</a> to connect your DLD account.
               </span>
             </div>
           )}
@@ -132,8 +132,8 @@ export default function BOS24IntegrationPage() {
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
             <p className="font-semibold mb-1">What this does</p>
             <p className="text-xs leading-relaxed">
-              Connect your BuyOrSell24 account to automatically import listings into Masaar and
-              turn buyer inquiries into leads. BOS24 sends real-time webhook events; a nightly
+              Connect your DLDAPI account to automatically import listings into Masaar and
+              turn buyer inquiries into leads. DLD sends real-time webhook events; a nightly
               sync acts as a safety net.
             </p>
           </div>
@@ -155,7 +155,7 @@ export default function BOS24IntegrationPage() {
               )}
             </div>
             <p className="text-xs text-gray-500 mb-4">
-              {t('احصل على مفتاح API من إدارة BOS24. يختلف هذا عن مفتاح بيانات العقارات.', 'Get this key from your BOS24 admin. It is different from the real estate data API key.')}
+              {t('احصل على مفتاح API من إدارة DLD. يختلف هذا عن مفتاح بيانات العقارات.', 'Get this key from your DLD admin. It is different from the real estate data API key.')}
             </p>
             <form onSubmit={handleSave} className="space-y-3">
               <div>
@@ -165,7 +165,7 @@ export default function BOS24IntegrationPage() {
                     type={showKey ? 'text' : 'password'}
                     value={apiKey}
                     onChange={e => setApiKey(e.target.value)}
-                    placeholder="bos24_live_..."
+                    placeholder="dld_live_..."
                     disabled={isDemo}
                     className={inputCls + (isDemo ? ' bg-gray-50 cursor-not-allowed' : '')}
                   />
@@ -214,13 +214,13 @@ export default function BOS24IntegrationPage() {
                   </button>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
-                  BOS24 will call this URL for real-time events. The secret token is embedded in the URL.
+                  DLD will call this URL for real-time events. The secret token is embedded in the URL.
                 </p>
               </div>
             )}
 
             <p className="text-xs text-gray-500 mb-4">
-              Clicking "Register" calls BOS24 automatically and subscribes to listing and inquiry events.
+              Clicking "Register" calls DLD automatically and subscribes to listing and inquiry events.
               You only need to do this once (or again if you regenerate your API key).
             </p>
 
@@ -237,7 +237,7 @@ export default function BOS24IntegrationPage() {
                 ? t('جارٍ التسجيل...', 'Registering...')
                 : settings?.webhook_registered
                 ? t('إعادة تسجيل', 'Re-register Webhook')
-                : t('تسجيل Webhook مع BOS24', 'Register Webhook with BOS24')}
+                : t('تسجيل Webhook مع DLD', 'Register Webhook with DLD')}
             </button>
           </div>
 
@@ -299,7 +299,7 @@ export default function BOS24IntegrationPage() {
                 </svg>
                 <div>
                   <p className="font-medium text-gray-700">Listings</p>
-                  <p>Published BOS24 listings → Masaar listings table with price, location, images</p>
+                  <p>Published DLD listings → Masaar listings table with price, location, images</p>
                 </div>
               </div>
               <div className="flex items-start gap-2">
@@ -308,7 +308,7 @@ export default function BOS24IntegrationPage() {
                 </svg>
                 <div>
                   <p className="font-medium text-gray-700">Inquiries → Leads</p>
-                  <p>Buyer inquiries create a contact + lead (source: bos24) with the buyer's message</p>
+                  <p>Buyer inquiries create a contact + lead (source: dld) with the buyer's message</p>
                 </div>
               </div>
             </div>

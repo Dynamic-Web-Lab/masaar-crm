@@ -22,7 +22,7 @@ interface PlanOption {
   current: boolean
   features: string[]
   quotas: {
-    bos24_monthly: number
+    dld_monthly: number
     ai_monthly: number
     pdf_monthly: number
   }
@@ -39,7 +39,7 @@ interface BillingData {
     has_sub: boolean
   }
   usage: {
-    bos24: Quota
+    dld: Quota
     ai: Quota
     pdf: Quota
     reset: string
@@ -62,7 +62,7 @@ const PLAN_BADGE: Record<string, string> = {
 }
 
 const QUOTA_LABEL: Record<string, string> = {
-  bos24: 'Market data calls',
+  dld: 'Market data calls',
   ai:    'AI requests',
   pdf:   'PDF reports',
 }
@@ -289,7 +289,7 @@ export default function BillingPage() {
             <span className="text-xs text-gray-400">Resets {data.usage.reset}</span>
           </div>
           <div className="space-y-1">
-            <QuotaMeter label={QUOTA_LABEL.bos24} quota={data.usage.bos24} />
+            <QuotaMeter label={QUOTA_LABEL.dld} quota={data.usage.dld} />
             <QuotaMeter label={QUOTA_LABEL.ai}    quota={data.usage.ai}    />
             <QuotaMeter label={QUOTA_LABEL.pdf}   quota={data.usage.pdf}   />
           </div>
@@ -338,7 +338,7 @@ export default function BillingPage() {
               <div className="text-xs text-gray-500 space-y-1 mb-4 flex-1">
                 <div className="flex justify-between">
                   <span>Market data</span>
-                  <span className="font-medium text-gray-700">{formatQuota(plan.quotas.bos24_monthly)}</span>
+                  <span className="font-medium text-gray-700">{formatQuota(plan.quotas.dld_monthly)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>AI requests</span>
@@ -390,7 +390,7 @@ export default function BillingPage() {
 
       {/* Self-hosted note */}
       <p className="text-xs text-gray-400 text-center">
-        Masaar CRM is open-source and self-hosted. Plans unlock cloud features (BOS24 market data, AI, PDFs)
+        Masaar CRM is open-source and self-hosted. Plans unlock cloud features (DLD market data, AI, PDFs)
         provided by Masaar Pro services. Community plan is always free with no limits on your own data.
       </p>
     </div>

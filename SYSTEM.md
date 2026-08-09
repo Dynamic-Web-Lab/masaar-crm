@@ -131,8 +131,8 @@ DELETE /users/:id                         admin
 
 #### Settings
 ```
-GET    /settings/bos24                    admin
-PATCH  /settings/bos24                    admin
+GET    /settings/dld                    admin
+PATCH  /settings/dld                    admin
 GET    /settings/company                  admin
 PATCH  /settings/company                  admin
 GET    /settings/api-keys                 admin
@@ -211,7 +211,7 @@ POST /messages/suggest-action             agent+admin
 POST /messages/auto-create-lead           agent+admin
 ```
 
-#### Properties (BuyOrSell24, quota-checked)
+#### Properties (DLDAPI, quota-checked)
 ```
 POST /properties/search
 POST /properties/report/pdf
@@ -482,7 +482,7 @@ GET /audit-logs                           admin
 | `email.go` | `EmailRepository` | `/emails/*` |
 | `notification.go` | `NotificationRepo` | `/notifications/*` |
 | `stats.go` | `StatsRepo` | `/stats` |
-| `property.go` | BOS24 client, `CompanySettingsRepo` | `/properties/*` |
+| `property.go` | DLD client, `CompanySettingsRepo` | `/properties/*` |
 | `settings.go` | `SettingsRepo`, `CompanySettingsRepo` | `/settings/*` |
 | `rental_property.go` | `RentalPropertyRepo` | `/rental-properties/*` |
 | `tenant.go` | `TenantRepo` | `/tenants/*` |
@@ -520,7 +520,7 @@ GET /audit-logs                           admin
 | 0007 | `vat_invoices`, `invoice_line_items` |
 | 0008 | `audit_logs` |
 | 0009 | `notifications` |
-| 0010 | `api_settings` (BOS24 token) |
+| 0010 | `api_settings` (DLD token) |
 | 0011 | `email_history` |
 | 0012 | `company_settings` (VAT/bank/invoice config) |
 | 0013 | `whatsapp_outbound` |
@@ -577,7 +577,7 @@ All pages live under `web/app/(dashboard)/` unless noted.
 ### Properties Section
 | Page | Route | Notes |
 |------|-------|-------|
-| Search | `/properties` | BOS24 market data |
+| Search | `/properties` | DLD market data |
 | Rentals | `/rentals`, `/rentals/[id]` | Rental property management |
 | Tenants | `/tenants`, `/tenants/[id]` | Tenant profiles |
 | Leases | `/leases`, `/leases/[id]` | Lease lifecycle |
@@ -696,12 +696,12 @@ All API calls via `web/lib/api.ts`. Namespaces mirror backend resources:
 - `api.documents.*` — templates + CRUD + signatures
 - `api.messageTemplates.*` — CRUD
 - `api.notifications.*` — list, markRead, markAllRead
-- `api.settings.*` — bos24, company
+- `api.settings.*` — dld, company
 - `api.apiKeys.*` — CRUD
 - `api.webhooks.*` — CRUD + test
 - `api.billing.*` — info, usage, checkout, portal
 - `api.stats.*` — overview
-- `api.properties.*` — BOS24 market data
+- `api.properties.*` — DLD market data
 
 ---
 
@@ -807,7 +807,7 @@ These use `companyRepo.List()` — adding a company automatically enrolls it.
 | `internal/webhook` | Outbound webhook dispatcher (fires on lead events) |
 | `internal/billing` | Stripe integration, quota enforcement |
 | `internal/sms` | SMSCountry client (OTP login) |
-| `internal/bos24` | BuyOrSell24 real estate data client |
+| `internal/dld` | DLDAPI real estate data client |
 | `internal/config` | Env var loading |
 
 ---
@@ -855,9 +855,9 @@ SMS_COUNTRY_AUTH_KEY=
 SMS_COUNTRY_AUTH_TOKEN=
 SMS_COUNTRY_SENDER_ID=
 
-# BuyOrSell24 (optional — real estate market data)
-BOS24_TOKEN=
-BOS24_BASE_URL=
+# DLDAPI (optional — real estate market data)
+DLD_TOKEN=
+DLD_BASE_URL=
 
 # Stripe (optional — billing)
 STRIPE_SECRET_KEY=

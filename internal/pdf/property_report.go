@@ -26,7 +26,7 @@ type PropertyReportData struct {
 	BudgetMax    float64
 	Currency     string // default AED
 
-	// Market data (from BOS24 — nil fields are skipped gracefully)
+	// Market data (from DLD — nil fields are skipped gracefully)
 	AreaSummary    map[string]interface{}   // area summary stats
 	Comparables    []map[string]interface{} // recent DLD transactions
 	YieldData      []map[string]interface{} // rental yield rows
@@ -318,7 +318,7 @@ func renderYieldTable(fpdf *gofpdf.Fpdf, rows []map[string]interface{}, pageW fl
 	}
 	fpdf.SetFont("Helvetica", "I", 7)
 	fpdf.SetTextColor(120, 120, 120)
-	fpdf.CellFormat(pageW, 5, "  Source: Ejari rental registry via BuyOrSell24", "", 1, "L", false, 0, "")
+	fpdf.CellFormat(pageW, 5, "  Source: Ejari rental registry via DLDAPI", "", 1, "L", false, 0, "")
 	fpdf.SetTextColor(textR, textG, textB)
 }
 
@@ -376,7 +376,7 @@ func renderFooter(fpdf *gofpdf.Fpdf, d PropertyReportData) {
 	fpdf.SetXY(15, 274)
 	fpdf.MultiCell(180, 4,
 		"This report is prepared for informational purposes only. Market data sourced from the Dubai Land Department "+
-			"(DLD) via BuyOrSell24. All figures are indicative and subject to change. "+
+			"(DLD) via DLDAPI. All figures are indicative and subject to change. "+
 			d.CompanyName+" does not guarantee accuracy. Generated on "+d.GeneratedAt.Format("02 Jan 2006 15:04")+".",
 		"", "L", false)
 }

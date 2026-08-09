@@ -22,7 +22,7 @@ import (
 	"github.com/dynamicweblab/masaar-crm/internal/billing"
 	"github.com/dynamicweblab/masaar-crm/internal/domain"
 	"github.com/dynamicweblab/masaar-crm/internal/docusign"
-	"github.com/dynamicweblab/masaar-crm/internal/bos24"
+	"github.com/dynamicweblab/masaar-crm/internal/dldapi"
 	"github.com/dynamicweblab/masaar-crm/internal/config"
 	"github.com/dynamicweblab/masaar-crm/internal/email"
 	"github.com/dynamicweblab/masaar-crm/internal/repo"
@@ -199,17 +199,17 @@ func main() {
 		log.Println("SMSCountry integration enabled")
 	}
 
-	// ── BuyOrSell24 client (optional real estate integration) ─────────────────
-	var bos24Client *bos24.Client
+	// ── DLDAPI client (optional real estate integration) ─────────────────
+	var dldClient *dldapi.Client
 	// Try to load token from database first, fall back to .env
-	dbToken, err := settingsRepo.GetBOS24Token(context.Background())
+	dbToken, err := settingsRepo.GetDLDToken(context.Background())
 	if err != nil {
-		log.Println("no BOS24 token in database, checking .env")
-		dbToken = cfg.BOS24Token
+		log.Println("no DLD token in database, checking .env")
+		dbToken = cfg.DLDToken
 	}
-	if bos24.IsEnabled(dbToken) {
-		bos24Client = bos24.NewClient(dbToken, cfg.BOS24BaseURL, rdb)
-		log.Println("BuyOrSell24 integration enabled")
+	if dldapi.IsEnabled(dbToken) {
+		dldClient = dldapi.NewClient(dbToken, cfg.DLDBaseURL, rdb)
+		log.Println("DLDAPI integration enabled")
 	}
 
 	// DocuSign client (optional)
@@ -230,9 +230,9 @@ func main() {
 		}
 	}
 
-	// ── BOS24 Integration (per-company marketplace sync) ─────────────────────
-	bos24IntegrationRepo := repo.NewBOS24IntegrationRepo(pool)
-	bos24SyncService := bos24.NewSyncService(bos24IntegrationRepo, contactRepo, hub)
+	// ── DLD Integration (per-company marketplace sync) ─────────────────────
+	dldIntegrationRepo := repo.NewDLDIntegrationRepo(pool)
+	dldSyncService := dldapi.NewSyncService(dldIntegrationRepo, contactRepo, hub)
 
 	auditLogRepo := repo.NewAuditLogRepo(pool)
 	apiKeyRepo := repo.NewApiKeyRepo(pool)
@@ -280,7 +280,7 @@ func main() {
 		Notification:        handler.NewNotificationHandler(notificationRepo),
 		Deal:                handler.NewDealHandler(dealRepo, invoiceRepo, auditLogRepo),
 		Invoice:             handler.NewInvoiceHandler(invoiceRepo, dealRepo, companySettingsRepo),
-		Property:            handler.NewPropertyHandler(bos24Client, companySettingsRepo),
+		Property:            handler.NewPropertyHandler(dldClient, companySettingsRepo),
 		Settings:            handler.NewSettingsHandler(settingsRepo, companySettingsRepo),
 		Email:               handler.NewEmailHandler(emailService, emailRepo),
 		RentalProperty:      handler.NewRentalPropertyHandler(rentalPropertyRepo),
@@ -304,7 +304,7 @@ func main() {
 		Billing:             handler.NewBillingHandler(billingRepo, companySettingsRepo, stripeCfg),
 		MessageTemplate:     handler.NewMessageTemplateHandler(messageTemplateRepo),
 		AuditLog:           handler.NewAuditHandler(auditLogRepo),
-		BOS24Integration:   handler.NewBOS24IntegrationHandler(bos24IntegrationRepo, bos24SyncService, cfg),
+		DLDIntegration:   handler.NewDLDIntegrationHandler(dldIntegrationRepo, dldSyncService, cfg),
 		Offer:              handler.NewOfferHandler(repo.NewOfferRepo(pool), contactRepo, leadRepo, dealRepo, hub),
 		LeadRotation:       handler.NewLeadRotationHandler(repo.NewLeadRotationRepo(pool), leadRepo, userRepo, hub),
 		Commission:         handler.NewCommissionHandler(repo.NewCommissionRepo(pool)),
@@ -476,28 +476,28 @@ func main() {
 		}
 	}()
 
-	// BOS24 nightly delta sync — runs every 24 hours per active integration
+	// DLD nightly delta sync — runs every 24 hours per active integration
 	go func() {
 		ticker := time.NewTicker(24 * time.Hour)
 		defer ticker.Stop()
 		for range ticker.C {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-			log.Println("Running BOS24 nightly sync...")
-			integrations, err := bos24IntegrationRepo.ListCompaniesWithBOS24(ctx)
+			log.Println("Running DLD nightly sync...")
+			integrations, err := dldIntegrationRepo.ListCompaniesWithDLD(ctx)
 			if err != nil {
-				log.Printf("BOS24 sync: error fetching integrations: %v", err)
+				log.Printf("DLD sync: error fetching integrations: %v", err)
 				cancel()
 				continue
 			}
 			for _, s := range integrations {
-				result, err := bos24SyncService.SyncAll(ctx, s.CompanyID, s.APIKey, s.LastSyncAt)
+				result, err := dldSyncService.SyncAll(ctx, s.CompanyID, s.APIKey, s.LastSyncAt)
 				if err != nil {
-					log.Printf("BOS24 sync: company %s: %v", s.CompanyID, err)
+					log.Printf("DLD sync: company %s: %v", s.CompanyID, err)
 					continue
 				}
-				log.Printf("BOS24 sync: company %s — %d listings, %d inquiries",
+				log.Printf("DLD sync: company %s — %d listings, %d inquiries",
 					s.CompanyID, result.ListingsImported, result.InquiriesCreated)
-				_ = bos24IntegrationRepo.UpdateLastSyncAt(ctx, s.CompanyID, time.Now())
+				_ = dldIntegrationRepo.UpdateLastSyncAt(ctx, s.CompanyID, time.Now())
 			}
 			cancel()
 		}

@@ -106,8 +106,8 @@ services:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3}
 
-      # BuyOrSell24 Integration (Optional)
-      BOS24_TOKEN: ${BOS24_TOKEN:-}
+      # DLDAPI Integration (Optional)
+      DLD_API_TOKEN: ${DLD_API_TOKEN:-}
 
     ports:
       - "${PORT:-8080}:8080"

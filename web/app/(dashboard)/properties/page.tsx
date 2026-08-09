@@ -58,7 +58,7 @@ export default function PropertiesPage() {
 
     setLoading(true)
     try {
-      const data = await api.bos24.search(searchQuery)
+      const data = await api.dld.search(searchQuery)
       setResults((data as any).results || [])
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('حدث خطأ', 'Something went wrong'))
@@ -81,7 +81,7 @@ export default function PropertiesPage() {
 
     setLoading(true)
     try {
-      const data = await api.bos24.transactions(searchFilters as Record<string, string | number | undefined>)
+      const data = await api.dld.transactions(searchFilters as Record<string, string | number | undefined>)
       setResults((data as any).transactions || [])
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('حدث خطأ', 'Something went wrong'))

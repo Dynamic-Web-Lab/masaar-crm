@@ -41,7 +41,7 @@ export default function MapPage() {
   const [transAreas, setTransAreas] = useState<MapArea[]>([])
   const [listings, setListings] = useState<OwnListing[]>([])
   const [loading, setLoading] = useState(true)
-  const [bos24Unavailable, setBos24Unavailable] = useState(false)
+  const [dldUnavailable, setBos24Unavailable] = useState(false)
 
   // Filters
   const [propertyType, setPropertyType] = useState('')
@@ -61,10 +61,10 @@ export default function MapPage() {
     setBos24Unavailable(false)
 
     try {
-      // Load BOS24 area pins and transaction heatmap in parallel
+      // Load DLD area pins and transaction heatmap in parallel
       const [areasRes, transRes] = await Promise.allSettled([
-        api.bos24.map.areas() as Promise<{ areas: MapArea[] }>,
-        api.bos24.map.transactionAreas(propertyType || undefined, transType || undefined) as Promise<{ areas: MapArea[] }>,
+        api.dld.map.areas() as Promise<{ areas: MapArea[] }>,
+        api.dld.map.transactionAreas(propertyType || undefined, transType || undefined) as Promise<{ areas: MapArea[] }>,
       ])
 
       if (areasRes.status === 'fulfilled') {
@@ -183,7 +183,7 @@ export default function MapPage() {
           </div>
 
           {/* Legend */}
-          {showHeatmap && !bos24Unavailable && (
+          {showHeatmap && !dldUnavailable && (
             <div className="p-4 border-b border-gray-100">
               <p className="text-xs font-semibold text-gray-500 mb-2">
                 {t('مفتاح الألوان', 'Price Legend')}
@@ -198,12 +198,12 @@ export default function MapPage() {
             </div>
           )}
 
-          {/* BOS24 unavailable notice */}
-          {bos24Unavailable && (
+          {/* DLD unavailable notice */}
+          {dldUnavailable && (
             <div className="p-4">
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
-                <p className="font-semibold mb-1">BOS24 not configured</p>
-                <p>Area data and transaction heatmap require a BOS24 API key.</p>
+                <p className="font-semibold mb-1">DLD not configured</p>
+                <p>Area data and transaction heatmap require a DLD API key.</p>
                 <a href="/settings/api" className="text-amber-700 underline font-medium mt-1 block">
                   Configure in Settings →
                 </a>
@@ -267,7 +267,7 @@ export default function MapPage() {
           )}
 
           {/* Stats summary */}
-          {!bos24Unavailable && areas.length > 0 && (
+          {!dldUnavailable && areas.length > 0 && (
             <div className="p-4 mt-auto">
               <p className="text-[10px] text-gray-400">
                 {areas.length} areas loaded · {listings.length} own listings

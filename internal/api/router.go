@@ -57,7 +57,7 @@ type Handlers struct {
 	MessageTemplate   *handler.MessageTemplateHandler
 	AuditLog          *handler.AuditHandler
 	Listing           *handler.ListingHandler
-	BOS24Integration  *handler.BOS24IntegrationHandler
+	DLDIntegration  *handler.DLDIntegrationHandler
 	Offer             *handler.OfferHandler
 	LeadRotation      *handler.LeadRotationHandler
 	Commission        *handler.CommissionHandler
@@ -155,8 +155,8 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		app.Post("/webhooks/docusign", h.DocusignWebhook.Handle)
 	}
 
-	// BOS24 inbound webhook — company identified by ?token=<secret>, HMAC-verified
-	app.Post("/webhooks/bos24", webhookLimiter, h.BOS24Integration.ReceiveWebhook)
+	// DLD inbound webhook — company identified by ?token=<secret>, HMAC-verified
+	app.Post("/webhooks/dld", webhookLimiter, h.DLDIntegration.ReceiveWebhook)
 
 	// Public listing page — no auth required (for shareable links)
 	app.Get("/api/public/listings/:id", h.Marketing.PublicListing)
@@ -220,13 +220,13 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 	v1.Delete("/users/:id", middleware.RequireRole(domain.RoleAdmin), h.User.DeleteUser)
 
 	// API Settings — admin only (integrations, API keys)
-	v1.Get("/settings/bos24",
+	v1.Get("/settings/dld",
 		middleware.RequireRole(domain.RoleAdmin),
-		h.Settings.GetBOS24Settings,
+		h.Settings.GetDLDSettings,
 	)
-	v1.Patch("/settings/bos24",
+	v1.Patch("/settings/dld",
 		middleware.RequireRole(domain.RoleAdmin),
-		h.Settings.UpdateBOS24Settings,
+		h.Settings.UpdateDLDSettings,
 	)
 
 	// Viewings / Calendar
@@ -331,22 +331,22 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		h.LeadRotation.AutoAssign,
 	)
 
-	// BOS24 Integration — admin only (marketplace listing + inquiry sync)
-	v1.Get("/settings/bos24-integration",
+	// DLD Integration — admin only (marketplace listing + inquiry sync)
+	v1.Get("/settings/dld-integration",
 		middleware.RequireRole(domain.RoleAdmin),
-		h.BOS24Integration.GetSettings,
+		h.DLDIntegration.GetSettings,
 	)
-	v1.Patch("/settings/bos24-integration",
+	v1.Patch("/settings/dld-integration",
 		middleware.RequireRole(domain.RoleAdmin),
-		h.BOS24Integration.UpdateSettings,
+		h.DLDIntegration.UpdateSettings,
 	)
-	v1.Post("/settings/bos24-integration/register",
+	v1.Post("/settings/dld-integration/register",
 		middleware.RequireRole(domain.RoleAdmin),
-		h.BOS24Integration.RegisterWebhook,
+		h.DLDIntegration.RegisterWebhook,
 	)
-	v1.Post("/settings/bos24-integration/sync",
+	v1.Post("/settings/dld-integration/sync",
 		middleware.RequireRole(domain.RoleAdmin),
-		h.BOS24Integration.SyncNow,
+		h.DLDIntegration.SyncNow,
 	)
 
 	// Approval Workflows — admin only (config + review)
@@ -586,11 +586,11 @@ func RegisterRoutes(app *fiber.App, h *Handlers, hub *ws.Hub, cfg *config.Config
 		h.Message.AutoCreateLead,
 	)
 
-	// Real Estate Market Data (BuyOrSell24) — agents and admin only, quota enforced
-	bos24Quota := middleware.CheckQuota(billingRepo, rdb, "bos24")
+	// Real Estate Market Data (DLDAPI) — agents and admin only, quota enforced
+	dldQuota := middleware.CheckQuota(billingRepo, rdb, "dld")
 	prop := v1.Group("/properties",
 		middleware.RequireRole(domain.RoleAdmin, domain.RoleAgent),
-		bos24Quota,
+		dldQuota,
 	)
 
 	// AI search

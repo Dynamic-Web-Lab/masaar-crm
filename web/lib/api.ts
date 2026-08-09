@@ -659,9 +659,9 @@ export const api = {
     getCompany: () => request('/api/v1/settings/company'),
     updateCompany: (data: unknown) =>
       request('/api/v1/settings/company', { method: 'PATCH', body: JSON.stringify(data) }),
-    getBOS24: () => request('/api/v1/settings/bos24'),
-    updateBOS24: (data: unknown) =>
-      request('/api/v1/settings/bos24', { method: 'PATCH', body: JSON.stringify(data) }),
+    getDLD: () => request('/api/v1/settings/dld'),
+    updateDLD: (data: unknown) =>
+      request('/api/v1/settings/dld', { method: 'PATCH', body: JSON.stringify(data) }),
     apiKeys: {
       list: () => request('/api/v1/settings/api-keys'),
       create: (data: unknown) =>
@@ -683,14 +683,14 @@ export const api = {
       update: (data: { mode?: string; enabled: boolean; max_per_agent?: number }) =>
         request('/api/v1/settings/lead-rotation', { method: 'PATCH', body: JSON.stringify(data) }),
     },
-    bos24Integration: {
-      get: () => request('/api/v1/settings/bos24-integration'),
+    dldIntegration: {
+      get: () => request('/api/v1/settings/dld-integration'),
       update: (data: { api_key: string }) =>
-        request('/api/v1/settings/bos24-integration', { method: 'PATCH', body: JSON.stringify(data) }),
+        request('/api/v1/settings/dld-integration', { method: 'PATCH', body: JSON.stringify(data) }),
       registerWebhook: () =>
-        request('/api/v1/settings/bos24-integration/register', { method: 'POST' }),
+        request('/api/v1/settings/dld-integration/register', { method: 'POST' }),
       syncNow: () =>
-        request('/api/v1/settings/bos24-integration/sync', { method: 'POST' }),
+        request('/api/v1/settings/dld-integration/sync', { method: 'POST' }),
     },
   },
 
@@ -831,9 +831,9 @@ export const api = {
       request(`/api/v1/documents/signatures/${signatureId}/mark-signed`, { method: 'PATCH' }),
   },
 
-  // ─── BOS24 / DLD Market Data ──────────────────────────────────────────────
+  // ─── DLD / DLD Market Data ──────────────────────────────────────────────
 
-  bos24: {
+  dld: {
     search: (query: string, limit: number = 20) =>
       request('/api/v1/properties/search', {
         method: 'POST',

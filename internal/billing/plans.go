@@ -10,7 +10,7 @@ const (
 
 // Quotas defines monthly limits for a plan. -1 means unlimited, 0 means blocked.
 type Quotas struct {
-	BOS24Monthly int // BuyOrSell24 API calls per month
+	DLDMonthly int // DLDAPI API calls per month
 	AIMonthly    int // AI (Gemini/Ollama) requests per month
 	PDFMonthly   int // PDF report exports per month
 	AIUserDaily  int // per-user daily AI cap (prevents one agent draining quota)
@@ -32,7 +32,7 @@ var Plans = []Plan{
 		ID:            PlanCommunity,
 		Name:          "Community",
 		PriceUSDMonth: 0,
-		Quotas:        Quotas{BOS24Monthly: 0, AIMonthly: 0, PDFMonthly: 0, AIUserDaily: 0},
+		Quotas:        Quotas{DLDMonthly: 0, AIMonthly: 0, PDFMonthly: 0, AIUserDaily: 0},
 		Features: []string{
 			"Unlimited leads & contacts",
 			"WhatsApp inbox",
@@ -46,10 +46,10 @@ var Plans = []Plan{
 		ID:            PlanStarter,
 		Name:          "Starter",
 		PriceUSDMonth: 29,
-		Quotas:        Quotas{BOS24Monthly: 200, AIMonthly: 100, PDFMonthly: 10, AIUserDaily: 20},
+		Quotas:        Quotas{DLDMonthly: 200, AIMonthly: 100, PDFMonthly: 10, AIUserDaily: 20},
 		Features: []string{
 			"Everything in Community",
-			"200 BOS24 market data calls/month",
+			"200 DLD market data calls/month",
 			"100 AI requests/month",
 			"10 property report PDFs/month",
 			"Area price heatmap",
@@ -60,10 +60,10 @@ var Plans = []Plan{
 		ID:            PlanPro,
 		Name:          "Pro",
 		PriceUSDMonth: 79,
-		Quotas:        Quotas{BOS24Monthly: 1000, AIMonthly: 500, PDFMonthly: -1, AIUserDaily: 100},
+		Quotas:        Quotas{DLDMonthly: 1000, AIMonthly: 500, PDFMonthly: -1, AIUserDaily: 100},
 		Features: []string{
 			"Everything in Starter",
-			"1,000 BOS24 calls/month",
+			"1,000 DLD calls/month",
 			"500 AI requests/month",
 			"Unlimited PDF reports",
 			"Rental yield analysis",
@@ -75,12 +75,12 @@ var Plans = []Plan{
 		ID:            PlanBusiness,
 		Name:          "Business",
 		PriceUSDMonth: 199,
-		Quotas:        Quotas{BOS24Monthly: -1, AIMonthly: -1, PDFMonthly: -1, AIUserDaily: -1},
+		Quotas:        Quotas{DLDMonthly: -1, AIMonthly: -1, PDFMonthly: -1, AIUserDaily: -1},
 		Features: []string{
 			"Everything in Pro",
-			"Unlimited BOS24 calls",
+			"Unlimited DLD calls",
 			"Unlimited AI requests",
-			"Push listings to BOS24 (1-click publish)",
+			"Push listings to DLD (1-click publish)",
 			"AI Listing Health Score",
 			"Pause POS inventory sync",
 			"Priority support",
@@ -99,11 +99,11 @@ func Get(planID string) Plan {
 }
 
 // CheckQuota returns whether the given usage count is within plan limits.
-// resource: "bos24", "ai", or "pdf"
+// resource: "dld", "ai", or "pdf"
 func CheckQuota(plan Plan, resource string, currentCount int) (allowed bool, limit int) {
 	switch resource {
-	case "bos24":
-		limit = plan.Quotas.BOS24Monthly
+	case "dld":
+		limit = plan.Quotas.DLDMonthly
 	case "ai":
 		limit = plan.Quotas.AIMonthly
 	case "pdf":

@@ -85,7 +85,7 @@ By running AI locally, Masaar contributes to the UAE's goal of building a sovere
 
 ## Real Estate Market Data Integration
 
-**Masaar CRM integrates with [BuyOrSell24 by Dynamic Web Lab](https://dynamicweblab.com/products/real-estate-data-api/)** — the UAE's real estate data API — to add market intelligence directly into your CRM workflow.
+**Masaar CRM integrates with [DLDAPI by Dynamic Web Lab](https://dynamicweblab.com/products/real-estate-data-api/)** — the UAE's real estate data API — to add market intelligence directly into your CRM workflow.
 
 ### What You Get
 - **Property Search** — Natural language queries: "2BR apartments in Marina" returns recent transactions, comparable prices, and market trends
@@ -104,7 +104,7 @@ By running AI locally, Masaar contributes to the UAE's goal of building a sovere
 **Step 2: Configure in Masaar**
 ```bash
 # In your .env file:
-BOS24_API_TOKEN=your-api-token-received-from-setup
+DLD_API_TOKEN=your-api-token-received-from-setup
 ```
 
 **Step 3: Start Using**
@@ -113,7 +113,7 @@ BOS24_API_TOKEN=your-api-token-received-from-setup
 - Investors analyze rental yields in seconds
 - All data stays in your self-hosted Masaar instance
 
-**Full API Documentation:** [https://data.buyorsell24.com/redoc](https://data.buyorsell24.com/redoc)
+**Full API Documentation:** [https://dldapi.waqov.com/redoc](https://dldapi.waqov.com/redoc)
 
 ---
 
@@ -124,10 +124,10 @@ Masaar CRM is part of a growing ecosystem of UAE-focused business tools by [Dyna
 | Product | Description |
 |---------|-------------|
 | **[Masaar CRM](https://github.com/Dynamic-Web-Lab/masaar-crm)** | Open-source WhatsApp-first CRM for UAE businesses |
-| **[BuyOrSell24](https://dynamicweblab.com/products/real-estate-data-api/)** | UAE real estate data API — transactions, buildings, yield analysis |
+| **[DLDAPI](https://dynamicweblab.com/products/real-estate-data-api/)** | UAE real estate data API — transactions, buildings, yield analysis |
 | **Pause POS** | UAE POS system (coming soon) |
 
-Masaar integrates directly with BuyOrSell24 for real estate market intelligence, and future integrations with Pause POS will enable end-to-end property transaction management.
+Masaar integrates directly with DLDAPI for real estate market intelligence, and future integrations with Pause POS will enable end-to-end property transaction management.
 
 ---
 

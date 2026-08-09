@@ -11,32 +11,32 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/dynamicweblab/masaar-crm/internal/bos24"
+	"github.com/dynamicweblab/masaar-crm/internal/dldapi"
 	"github.com/dynamicweblab/masaar-crm/internal/config"
 	"github.com/dynamicweblab/masaar-crm/internal/domain"
 	"github.com/dynamicweblab/masaar-crm/internal/repo"
 )
 
-// BOS24IntegrationHandler handles BOS24 marketplace integration:
+// DLDIntegrationHandler handles DLD marketplace integration:
 //
-//	POST /webhooks/bos24?token=<secret>              — receive real-time events from BOS24
-//	GET  /api/v1/settings/bos24-integration          — fetch integration status
-//	PATCH /api/v1/settings/bos24-integration         — save API key
-//	POST /api/v1/settings/bos24-integration/register — register webhook with BOS24
-//	POST /api/v1/settings/bos24-integration/sync     — manual delta sync
-type BOS24IntegrationHandler struct {
-	bos24Repo   *repo.BOS24IntegrationRepo
-	syncService *bos24.SyncService
+//	POST /webhooks/dld?token=<secret>              — receive real-time events from DLD
+//	GET  /api/v1/settings/dld-integration          — fetch integration status
+//	PATCH /api/v1/settings/dld-integration         — save API key
+//	POST /api/v1/settings/dld-integration/register — register webhook with DLD
+//	POST /api/v1/settings/dld-integration/sync     — manual delta sync
+type DLDIntegrationHandler struct {
+	dldRepo   *repo.DLDIntegrationRepo
+	syncService *dldapi.SyncService
 	cfg         *config.Config
 }
 
-func NewBOS24IntegrationHandler(
-	bos24Repo *repo.BOS24IntegrationRepo,
-	syncService *bos24.SyncService,
+func NewDLDIntegrationHandler(
+	dldRepo *repo.DLDIntegrationRepo,
+	syncService *dldapi.SyncService,
 	cfg *config.Config,
-) *BOS24IntegrationHandler {
-	return &BOS24IntegrationHandler{
-		bos24Repo:   bos24Repo,
+) *DLDIntegrationHandler {
+	return &DLDIntegrationHandler{
+		dldRepo:   dldRepo,
 		syncService: syncService,
 		cfg:         cfg,
 	}
@@ -44,24 +44,24 @@ func NewBOS24IntegrationHandler(
 
 // ── Public webhook receiver ───────────────────────────────────────────────────
 
-// ReceiveWebhook handles POST /webhooks/bos24?token=<secret>
-// BOS24 calls this when listing or inquiry events occur.
-// The ?token identifies the company; X-BOS24-Webhook-Signature is verified
+// ReceiveWebhook handles POST /webhooks/dld?token=<secret>
+// DLD calls this when listing or inquiry events occur.
+// The ?token identifies the company; X-DLD-Webhook-Signature is verified
 // with HMAC-SHA256 using the same secret as the token.
-func (h *BOS24IntegrationHandler) ReceiveWebhook(c *fiber.Ctx) error {
+func (h *DLDIntegrationHandler) ReceiveWebhook(c *fiber.Ctx) error {
 	token := c.Query("token")
 	if token == "" {
 		return c.SendStatus(fiber.StatusUnauthorized)
 	}
 
 	// Look up company by webhook secret
-	settings, err := h.bos24Repo.GetCompanyByWebhookSecret(c.Context(), token)
+	settings, err := h.dldRepo.GetCompanyByWebhookSecret(c.Context(), token)
 	if err != nil {
 		return c.SendStatus(fiber.StatusUnauthorized)
 	}
 
 	// Verify HMAC-SHA256 signature — same pattern as WhatsApp webhook handler
-	sig := c.Get("X-BOS24-Webhook-Signature")
+	sig := c.Get("X-DLD-Webhook-Signature")
 	if sig == "" {
 		return c.SendStatus(fiber.StatusUnauthorized)
 	}
@@ -73,15 +73,15 @@ func (h *BOS24IntegrationHandler) ReceiveWebhook(c *fiber.Ctx) error {
 	}
 
 	// Parse the event envelope
-	var event bos24.BOS24WebhookEvent
+	var event dldapi.DLDWebhookEvent
 	if err := c.BodyParser(&event); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid body"})
 	}
 
-	// Process asynchronously — BOS24 expects a 2xx response within 8 seconds
+	// Process asynchronously — DLD expects a 2xx response within 8 seconds
 	go func() {
 		if err := h.syncService.ProcessEvent(c.Context(), settings.CompanyID, &event); err != nil {
-			log.Printf("[BOS24] webhook event %s for company %s: %v", event.Event, settings.CompanyID, err)
+			log.Printf("[DLD] webhook event %s for company %s: %v", event.Event, settings.CompanyID, err)
 		}
 	}()
 
@@ -90,21 +90,21 @@ func (h *BOS24IntegrationHandler) ReceiveWebhook(c *fiber.Ctx) error {
 
 // ── Admin settings endpoints ──────────────────────────────────────────────────
 
-// GetSettings handles GET /api/v1/settings/bos24-integration
-func (h *BOS24IntegrationHandler) GetSettings(c *fiber.Ctx) error {
+// GetSettings handles GET /api/v1/settings/dld-integration
+func (h *DLDIntegrationHandler) GetSettings(c *fiber.Ctx) error {
 	companyID, err := uuid.Parse(c.Locals("company_id").(string))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid company_id"})
 	}
 
-	settings, err := h.bos24Repo.GetSettings(c.Context(), companyID)
+	settings, err := h.dldRepo.GetSettings(c.Context(), companyID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to load settings"})
 	}
 
 	webhookURL := ""
 	if settings.WebhookSecret != "" {
-		webhookURL = h.cfg.AppURL + "/webhooks/bos24?token=" + settings.WebhookSecret
+		webhookURL = h.cfg.AppURL + "/webhooks/dld?token=" + settings.WebhookSecret
 	}
 
 	return c.JSON(fiber.Map{
@@ -118,10 +118,10 @@ func (h *BOS24IntegrationHandler) GetSettings(c *fiber.Ctx) error {
 	})
 }
 
-// UpdateSettings handles PATCH /api/v1/settings/bos24-integration
-// Body: { "api_key": "bos24_live_..." }
+// UpdateSettings handles PATCH /api/v1/settings/dld-integration
+// Body: { "api_key": "dld_live_..." }
 // Auto-generates a webhook_secret on first save so the webhook URL is ready.
-func (h *BOS24IntegrationHandler) UpdateSettings(c *fiber.Ctx) error {
+func (h *DLDIntegrationHandler) UpdateSettings(c *fiber.Ctx) error {
 	companyID, err := uuid.Parse(c.Locals("company_id").(string))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid company_id"})
@@ -138,9 +138,9 @@ func (h *BOS24IntegrationHandler) UpdateSettings(c *fiber.Ctx) error {
 	}
 
 	// Load existing settings to preserve webhook_secret and webhook_id
-	existing, _ := h.bos24Repo.GetSettings(c.Context(), companyID)
+	existing, _ := h.dldRepo.GetSettings(c.Context(), companyID)
 	if existing == nil {
-		existing = &domain.BOS24Settings{CompanyID: companyID}
+		existing = &domain.DLDSettings{CompanyID: companyID}
 	}
 	existing.APIKey = body.APIKey
 
@@ -153,11 +153,11 @@ func (h *BOS24IntegrationHandler) UpdateSettings(c *fiber.Ctx) error {
 		existing.WebhookSecret = secret
 	}
 
-	if err := h.bos24Repo.SaveSettings(c.Context(), existing); err != nil {
+	if err := h.dldRepo.SaveSettings(c.Context(), existing); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to save settings"})
 	}
 
-	webhookURL := h.cfg.AppURL + "/webhooks/bos24?token=" + existing.WebhookSecret
+	webhookURL := h.cfg.AppURL + "/webhooks/dld?token=" + existing.WebhookSecret
 	return c.JSON(fiber.Map{
 		"ok":                 true,
 		"webhook_url":        webhookURL,
@@ -165,18 +165,18 @@ func (h *BOS24IntegrationHandler) UpdateSettings(c *fiber.Ctx) error {
 	})
 }
 
-// RegisterWebhook handles POST /api/v1/settings/bos24-integration/register
-// Calls BOS24's webhook registration endpoint and saves the returned webhook ID.
-func (h *BOS24IntegrationHandler) RegisterWebhook(c *fiber.Ctx) error {
+// RegisterWebhook handles POST /api/v1/settings/dld-integration/register
+// Calls DLD's webhook registration endpoint and saves the returned webhook ID.
+func (h *DLDIntegrationHandler) RegisterWebhook(c *fiber.Ctx) error {
 	companyID, err := uuid.Parse(c.Locals("company_id").(string))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid company_id"})
 	}
 
-	settings, err := h.bos24Repo.GetSettings(c.Context(), companyID)
+	settings, err := h.dldRepo.GetSettings(c.Context(), companyID)
 	if err != nil || !settings.IsConfigured() {
 		return c.Status(fiber.StatusPreconditionFailed).JSON(fiber.Map{
-			"error": "BOS24 API key not configured — save your API key first",
+			"error": "DLD API key not configured — save your API key first",
 		})
 	}
 	if settings.WebhookSecret == "" {
@@ -185,7 +185,7 @@ func (h *BOS24IntegrationHandler) RegisterWebhook(c *fiber.Ctx) error {
 		})
 	}
 
-	webhookURL := h.cfg.AppURL + "/webhooks/bos24?token=" + settings.WebhookSecret
+	webhookURL := h.cfg.AppURL + "/webhooks/dld?token=" + settings.WebhookSecret
 	events := []string{
 		"listing.created",
 		"listing.updated",
@@ -195,16 +195,16 @@ func (h *BOS24IntegrationHandler) RegisterWebhook(c *fiber.Ctx) error {
 		"inquiry.created",
 	}
 
-	client := bos24.NewIntegrationClient(settings.APIKey)
+	client := dldapi.NewIntegrationClient(settings.APIKey)
 	reg, err := client.RegisterWebhook(c.Context(), webhookURL, events, settings.WebhookSecret)
 	if err != nil {
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
-			"error": "Failed to register webhook with BOS24: " + err.Error(),
+			"error": "Failed to register webhook with DLD: " + err.Error(),
 		})
 	}
 
 	settings.WebhookID = fmt.Sprintf("%d", reg.ID)
-	if err := h.bos24Repo.SaveSettings(c.Context(), settings); err != nil {
+	if err := h.dldRepo.SaveSettings(c.Context(), settings); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to save webhook ID"})
 	}
 
@@ -215,18 +215,18 @@ func (h *BOS24IntegrationHandler) RegisterWebhook(c *fiber.Ctx) error {
 	})
 }
 
-// SyncNow handles POST /api/v1/settings/bos24-integration/sync
+// SyncNow handles POST /api/v1/settings/dld-integration/sync
 // Triggers an immediate delta sync (listings + inquiries since last_sync_at).
-func (h *BOS24IntegrationHandler) SyncNow(c *fiber.Ctx) error {
+func (h *DLDIntegrationHandler) SyncNow(c *fiber.Ctx) error {
 	companyID, err := uuid.Parse(c.Locals("company_id").(string))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid company_id"})
 	}
 
-	settings, err := h.bos24Repo.GetSettings(c.Context(), companyID)
+	settings, err := h.dldRepo.GetSettings(c.Context(), companyID)
 	if err != nil || !settings.IsConfigured() {
 		return c.Status(fiber.StatusPreconditionFailed).JSON(fiber.Map{
-			"error": "BOS24 API key not configured",
+			"error": "DLD API key not configured",
 		})
 	}
 
@@ -236,7 +236,7 @@ func (h *BOS24IntegrationHandler) SyncNow(c *fiber.Ctx) error {
 	}
 
 	now := time.Now()
-	_ = h.bos24Repo.UpdateLastSyncAt(c.Context(), companyID, now)
+	_ = h.dldRepo.UpdateLastSyncAt(c.Context(), companyID, now)
 
 	return c.JSON(fiber.Map{
 		"ok":                true,

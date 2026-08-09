@@ -30,7 +30,7 @@ export interface OwnListing {
   area?: string
   cover_image_url?: string
   status: string
-  bos24_listing_uuid?: string
+  dld_listing_uuid?: string
 }
 
 export interface POI {

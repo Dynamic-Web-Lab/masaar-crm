@@ -12,8 +12,8 @@ export default function APISettingsPage() {
   const router = useRouter()
   const isDemo = !!company?.is_demo
 
-  const [bos24Token, setBos24Token] = useState('')
-  const [bos24TokenDisplay, setBos24TokenDisplay] = useState('')
+  const [dldToken, setDldToken] = useState('')
+  const [dldTokenDisplay, setDldTokenDisplay] = useState('')
   const [showToken, setShowToken] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -31,12 +31,12 @@ export default function APISettingsPage() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const data = await api.settings.getBOS24() as any
-        setBos24Token(data.setting_value || '')
+        const data = await api.settings.getDLD() as any
+        setDldToken(data.setting_value || '')
         if (data.setting_value) {
           const masked = data.setting_value.substring(0, 4) + '****' +
                         data.setting_value.substring(data.setting_value.length - 4)
-          setBos24TokenDisplay(masked)
+          setDldTokenDisplay(masked)
         }
       } catch (err) {
         console.error('Failed to load settings:', err)
@@ -53,19 +53,19 @@ export default function APISettingsPage() {
     setError('')
     setSuccess(false)
 
-    if (!bos24Token.trim()) {
+    if (!dldToken.trim()) {
       setError(t('الرجاء إدخال توكن API', 'Please enter an API token'))
       return
     }
 
     setSubmitting(true)
     try {
-      const data = await api.settings.updateBOS24({ token: bos24Token }) as any
+      const data = await api.settings.updateDLD({ token: dldToken }) as any
       setSuccess(true)
-      setBos24Token(data.setting_value || '')
+      setDldToken(data.setting_value || '')
       const masked = data.setting_value.substring(0, 4) + '****' +
                     data.setting_value.substring(data.setting_value.length - 4)
-      setBos24TokenDisplay(masked)
+      setDldTokenDisplay(masked)
       setShowToken(false)
 
       setTimeout(() => setSuccess(false), 3000)
@@ -103,11 +103,11 @@ export default function APISettingsPage() {
             </div>
           )}
 
-          {/* BuyOrSell24 API Settings */}
+          {/* DLDAPI API Settings */}
           <div className="bg-white rounded-xl border border-gray-200 p-6">
             <div className="mb-6">
               <h2 className="text-sm font-semibold text-gray-700 mb-2">
-                {t('بيانات العقارات - BuyOrSell24', 'Real Estate Data - BuyOrSell24')}
+                {t('بيانات العقارات - DLDAPI', 'Real Estate Data - DLDAPI')}
               </h2>
               <p className="text-xs text-gray-500">
                 {t('خدمة بيانات العقارات من Dynamic Web Lab', 'Real estate data service by Dynamic Web Lab')}
@@ -122,8 +122,8 @@ export default function APISettingsPage() {
                 <div className="flex gap-2">
                   <input
                     type={showToken ? 'text' : 'password'}
-                    value={loading ? t('جارٍ التحميل...', 'Loading...') : (showToken ? bos24Token : bos24TokenDisplay)}
-                    onChange={(e) => setBos24Token(e.target.value)}
+                    value={loading ? t('جارٍ التحميل...', 'Loading...') : (showToken ? dldToken : dldTokenDisplay)}
+                    onChange={(e) => setDldToken(e.target.value)}
                     disabled={loading}
                     className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent disabled:bg-gray-100"
                     placeholder={t('أدخل API token من Dynamic Web Lab', 'Enter API token from Dynamic Web Lab')}
@@ -131,7 +131,7 @@ export default function APISettingsPage() {
                   <button
                     type="button"
                     onClick={() => setShowToken(!showToken)}
-                    disabled={loading || !bos24Token}
+                    disabled={loading || !dldToken}
                     className="px-3 py-2.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
                   >
                     {showToken ? t('إخفاء', 'Hide') : t('عرض', 'Show')}

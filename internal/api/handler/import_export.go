@@ -160,7 +160,7 @@ func (h *ImportExportHandler) ImportLeads(c *fiber.Ctx) error {
 
 	header := normaliseHeader(records[0])
 	validStages := map[string]bool{"new": true, "contacted": true, "qualified": true, "proposal": true, "won": true, "lost": true}
-	validSources := map[string]bool{"whatsapp": true, "web": true, "referral": true, "event": true, "bos24": true, "": true}
+	validSources := map[string]bool{"whatsapp": true, "web": true, "referral": true, "event": true, "dld": true, "": true}
 
 	var imported, skipped int
 	var errors []map[string]interface{}

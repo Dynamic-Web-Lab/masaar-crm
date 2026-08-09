@@ -53,7 +53,7 @@ func (h *BillingHandler) GetBilling(c *fiber.Ctx) error {
 
 	usage, err := h.billingRepo.GetUsage(ctx, companyID)
 	if err != nil {
-		usage = map[string]int{"bos24": 0, "ai": 0, "pdf": 0}
+		usage = map[string]int{"dld": 0, "ai": 0, "pdf": 0}
 	}
 
 	plan := billing.Get(companyPlan.Plan)
@@ -79,7 +79,7 @@ func (h *BillingHandler) GetBilling(c *fiber.Ctx) error {
 			"current":  p.ID == plan.ID,
 			"features": p.Features,
 			"quotas": fiber.Map{
-				"bos24_monthly": p.Quotas.BOS24Monthly,
+				"dld_monthly": p.Quotas.DLDMonthly,
 				"ai_monthly":    p.Quotas.AIMonthly,
 				"pdf_monthly":   p.Quotas.PDFMonthly,
 			},
@@ -97,7 +97,7 @@ func (h *BillingHandler) GetBilling(c *fiber.Ctx) error {
 			"has_sub":        companyPlan.StripeSubID != "",
 		},
 		"usage": fiber.Map{
-			"bos24": quotaDisplay(usage["bos24"], plan.Quotas.BOS24Monthly),
+			"dld": quotaDisplay(usage["dld"], plan.Quotas.DLDMonthly),
 			"ai":    quotaDisplay(usage["ai"], plan.Quotas.AIMonthly),
 			"pdf":   quotaDisplay(usage["pdf"], plan.Quotas.PDFMonthly),
 			"reset": nextMonthReset(),
@@ -311,7 +311,7 @@ func (h *BillingHandler) GetUsage(c *fiber.Ctx) error {
 
 	usage, err := h.billingRepo.GetUsage(c.Context(), companyID)
 	if err != nil {
-		usage = map[string]int{"bos24": 0, "ai": 0, "pdf": 0}
+		usage = map[string]int{"dld": 0, "ai": 0, "pdf": 0}
 	}
 
 	claims := middleware.ClaimsFromCtx(c)
@@ -321,7 +321,7 @@ func (h *BillingHandler) GetUsage(c *fiber.Ctx) error {
 		"plan":   plan.ID,
 		"reset":  nextMonthReset(),
 		"user":   userID,
-		"bos24":  fiber.Map{"used": usage["bos24"], "limit": plan.Quotas.BOS24Monthly},
+		"dld":  fiber.Map{"used": usage["dld"], "limit": plan.Quotas.DLDMonthly},
 		"ai":     fiber.Map{"used": usage["ai"], "limit": plan.Quotas.AIMonthly},
 		"pdf":    fiber.Map{"used": usage["pdf"], "limit": plan.Quotas.PDFMonthly},
 	})

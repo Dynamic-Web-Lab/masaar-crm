@@ -1,8 +1,8 @@
-package bos24
+package dldapi
 
-// IntegrationClient calls the BOS24 CRM integration API at api.buyorsell24.com.
-// This is separate from Client (data.buyorsell24.com — market intelligence).
-// The integration API requires a per-company key provisioned by the BOS24 admin.
+// IntegrationClient calls the DLD CRM integration API at dldapi.waqov.com.
+// This is separate from Client (dldapi.waqov.com — market intelligence).
+// The integration API requires a per-company key provisioned by the DLD admin.
 
 import (
 	"bytes"
@@ -15,27 +15,27 @@ import (
 	"time"
 )
 
-const IntegrationBaseURL = "https://api.buyorsell24.com/api"
+const IntegrationBaseURL = "https://dldapi.waqov.com/api"
 
 // ── Domain types ──────────────────────────────────────────────────────────────
 
-type BOS24Category struct {
+type DLDCategory struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
 	Slug string `json:"slug"`
 }
 
-type BOS24City struct {
+type DLDCity struct {
 	ID   int    `json:"id"`
 	Slug string `json:"slug"`
 }
 
-type BOS24Seller struct {
+type DLDSeller struct {
 	UUID string `json:"uuid"`
 	Name string `json:"name"`
 }
 
-type BOS24Image struct {
+type DLDImage struct {
 	URL       string `json:"url"`
 	URLLarge  string `json:"url_large"`
 	URLMedium string `json:"url_medium"`
@@ -43,7 +43,7 @@ type BOS24Image struct {
 	SortOrder int    `json:"sort_order"`
 }
 
-type BOS24Listing struct {
+type DLDListing struct {
 	UUID        string      `json:"uuid"`
 	Title       string      `json:"title"`
 	Description string      `json:"description"`
@@ -52,36 +52,36 @@ type BOS24Listing struct {
 	Status      string      `json:"status"`
 	CreatedAt   time.Time   `json:"created_at"`
 	UpdatedAt   time.Time   `json:"updated_at"`
-	Category    BOS24Category `json:"category"`
-	City        BOS24City   `json:"city"`
-	Seller      BOS24Seller `json:"seller"`
-	PrimaryImage *BOS24Image `json:"primary_image"`
-	Images      []BOS24Image `json:"images"`
+	Category    DLDCategory `json:"category"`
+	City        DLDCity   `json:"city"`
+	Seller      DLDSeller `json:"seller"`
+	PrimaryImage *DLDImage `json:"primary_image"`
+	Images      []DLDImage `json:"images"`
 }
 
-type BOS24RegisteredUser struct {
+type DLDRegisteredUser struct {
 	UUID string `json:"uuid"`
 	Name string `json:"name"`
 }
 
-type BOS24InquiryListing struct {
+type DLDInquiryListing struct {
 	UUID   string `json:"uuid"`
 	Title  string `json:"title"`
 	Status string `json:"status"`
 }
 
-type BOS24Inquiry struct {
+type DLDInquiry struct {
 	ID            int                  `json:"id"`
 	BuyerName     string               `json:"buyer_name"`
 	BuyerEmail    string               `json:"buyer_email"`
 	BuyerPhone    string               `json:"buyer_phone"`
 	Message       string               `json:"message"`
 	CreatedAt     time.Time            `json:"created_at"`
-	Listing       BOS24InquiryListing  `json:"listing"`
-	RegisteredUser *BOS24RegisteredUser `json:"registered_user"`
+	Listing       DLDInquiryListing  `json:"listing"`
+	RegisteredUser *DLDRegisteredUser `json:"registered_user"`
 }
 
-type BOS24User struct {
+type DLDUser struct {
 	UUID             string  `json:"uuid"`
 	Name             string  `json:"name"`
 	CompanyName      string  `json:"company_name"`
@@ -94,24 +94,24 @@ type BOS24User struct {
 	CreatedAt        time.Time `json:"created_at"`
 }
 
-type BOS24PageMeta struct {
+type DLDPageMeta struct {
 	CurrentPage int `json:"current_page"`
 	LastPage    int `json:"last_page"`
 	PerPage     int `json:"per_page"`
 	Total       int `json:"total"`
 }
 
-type BOS24ListingsPage struct {
-	Data []BOS24Listing `json:"data"`
-	Meta BOS24PageMeta  `json:"meta"`
+type DLDListingsPage struct {
+	Data []DLDListing `json:"data"`
+	Meta DLDPageMeta  `json:"meta"`
 }
 
-type BOS24InquiriesPage struct {
-	Data []BOS24Inquiry `json:"data"`
-	Meta BOS24PageMeta  `json:"meta"`
+type DLDInquiriesPage struct {
+	Data []DLDInquiry `json:"data"`
+	Meta DLDPageMeta  `json:"meta"`
 }
 
-type BOS24WebhookRegistration struct {
+type DLDWebhookRegistration struct {
 	ID     int      `json:"id"`
 	URL    string   `json:"url"`
 	Events []string `json:"events"`
@@ -120,16 +120,16 @@ type BOS24WebhookRegistration struct {
 
 // Inbound webhook payload shapes
 
-type BOS24WebhookResource struct {
+type DLDWebhookResource struct {
 	Type string `json:"type"`
 	UUID string `json:"uuid"`
 	ID   int    `json:"id"`
 }
 
-type BOS24WebhookEvent struct {
+type DLDWebhookEvent struct {
 	Event      string               `json:"event"`
 	OccurredAt time.Time            `json:"occurred_at"`
-	Resource   BOS24WebhookResource `json:"resource"`
+	Resource   DLDWebhookResource `json:"resource"`
 	Data       json.RawMessage      `json:"data"` // listing or inquiry shape
 }
 
@@ -151,10 +151,10 @@ func NewIntegrationClient(apiKey string) *IntegrationClient {
 	}
 }
 
-// FetchListings returns a page of BOS24 marketplace listings.
+// FetchListings returns a page of DLD marketplace listings.
 // status: "published", "active", etc. — empty = all.
 // updatedSince: ISO 8601 date string — empty = no filter.
-func (c *IntegrationClient) FetchListings(ctx context.Context, status, updatedSince string, page, perPage int) (*BOS24ListingsPage, error) {
+func (c *IntegrationClient) FetchListings(ctx context.Context, status, updatedSince string, page, perPage int) (*DLDListingsPage, error) {
 	params := url.Values{}
 	if status != "" {
 		params.Set("status", status)
@@ -168,27 +168,27 @@ func (c *IntegrationClient) FetchListings(ctx context.Context, status, updatedSi
 	params.Set("per_page", fmt.Sprintf("%d", perPage))
 	params.Set("page", fmt.Sprintf("%d", page))
 
-	var result BOS24ListingsPage
+	var result DLDListingsPage
 	if err := c.get(ctx, "/v1/integrations/listings", params, &result); err != nil {
-		return nil, fmt.Errorf("bos24 FetchListings: %w", err)
+		return nil, fmt.Errorf("dld FetchListings: %w", err)
 	}
 	return &result, nil
 }
 
-// FetchListing returns a single BOS24 listing by UUID.
-func (c *IntegrationClient) FetchListing(ctx context.Context, uuid string) (*BOS24Listing, error) {
+// FetchListing returns a single DLD listing by UUID.
+func (c *IntegrationClient) FetchListing(ctx context.Context, uuid string) (*DLDListing, error) {
 	var wrapper struct {
-		Data BOS24Listing `json:"data"`
+		Data DLDListing `json:"data"`
 	}
 	if err := c.get(ctx, "/v1/integrations/listings/"+uuid, url.Values{}, &wrapper); err != nil {
-		return nil, fmt.Errorf("bos24 FetchListing %s: %w", uuid, err)
+		return nil, fmt.Errorf("dld FetchListing %s: %w", uuid, err)
 	}
 	return &wrapper.Data, nil
 }
 
 // FetchInquiries returns a page of buyer inquiries, newest first.
 // createdSince: ISO 8601 date string — empty = no filter.
-func (c *IntegrationClient) FetchInquiries(ctx context.Context, createdSince string, page, perPage int) (*BOS24InquiriesPage, error) {
+func (c *IntegrationClient) FetchInquiries(ctx context.Context, createdSince string, page, perPage int) (*DLDInquiriesPage, error) {
 	params := url.Values{}
 	if createdSince != "" {
 		params.Set("created_since", createdSince)
@@ -199,37 +199,37 @@ func (c *IntegrationClient) FetchInquiries(ctx context.Context, createdSince str
 	params.Set("per_page", fmt.Sprintf("%d", perPage))
 	params.Set("page", fmt.Sprintf("%d", page))
 
-	var result BOS24InquiriesPage
+	var result DLDInquiriesPage
 	if err := c.get(ctx, "/v1/integrations/inquiries", params, &result); err != nil {
-		return nil, fmt.Errorf("bos24 FetchInquiries: %w", err)
+		return nil, fmt.Errorf("dld FetchInquiries: %w", err)
 	}
 	return &result, nil
 }
 
-// FetchUser returns the public profile for a BOS24 user by UUID.
-func (c *IntegrationClient) FetchUser(ctx context.Context, userUUID string) (*BOS24User, error) {
+// FetchUser returns the public profile for a DLD user by UUID.
+func (c *IntegrationClient) FetchUser(ctx context.Context, userUUID string) (*DLDUser, error) {
 	var wrapper struct {
-		Data BOS24User `json:"data"`
+		Data DLDUser `json:"data"`
 	}
 	if err := c.get(ctx, "/v1/integrations/users/"+userUUID, url.Values{}, &wrapper); err != nil {
-		return nil, fmt.Errorf("bos24 FetchUser %s: %w", userUUID, err)
+		return nil, fmt.Errorf("dld FetchUser %s: %w", userUUID, err)
 	}
 	return &wrapper.Data, nil
 }
 
-// RegisterWebhook registers a webhook URL with BOS24 for the given events.
+// RegisterWebhook registers a webhook URL with DLD for the given events.
 // events: e.g. ["listing.created","listing.published","listing.updated","inquiry.created"]
-func (c *IntegrationClient) RegisterWebhook(ctx context.Context, webhookURL string, events []string, secret string) (*BOS24WebhookRegistration, error) {
+func (c *IntegrationClient) RegisterWebhook(ctx context.Context, webhookURL string, events []string, secret string) (*DLDWebhookRegistration, error) {
 	body := map[string]interface{}{
 		"url":    webhookURL,
 		"events": events,
 		"secret": secret,
 	}
 	var wrapper struct {
-		Data BOS24WebhookRegistration `json:"data"`
+		Data DLDWebhookRegistration `json:"data"`
 	}
 	if err := c.post(ctx, "/v1/integrations/webhooks/register", body, &wrapper); err != nil {
-		return nil, fmt.Errorf("bos24 RegisterWebhook: %w", err)
+		return nil, fmt.Errorf("dld RegisterWebhook: %w", err)
 	}
 	return &wrapper.Data, nil
 }
@@ -278,10 +278,10 @@ func (c *IntegrationClient) do(req *http.Request, out interface{}) error {
 	}
 
 	if resp.StatusCode == http.StatusTooManyRequests {
-		return fmt.Errorf("bos24 rate limit exceeded (429) — retry after %s", resp.Header.Get("Retry-After"))
+		return fmt.Errorf("dld rate limit exceeded (429) — retry after %s", resp.Header.Get("Retry-After"))
 	}
 	if resp.StatusCode >= 400 {
-		return fmt.Errorf("bos24 api error: status %d — %s", resp.StatusCode, string(bodyBytes))
+		return fmt.Errorf("dld api error: status %d — %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	return json.Unmarshal(bodyBytes, out)

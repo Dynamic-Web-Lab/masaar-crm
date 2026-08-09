@@ -1,4 +1,4 @@
-package bos24
+package dldapi
 
 import (
 	"bytes"
@@ -14,17 +14,16 @@ import (
 )
 
 const (
-	BaseURL = "https://data.buyorsell24.com"
+	BaseURL = "https://dldapi.waqov.com"
 )
 
-// BuyOrSell24 API Documentation & Setup:
-// - API Docs: https://data.buyorsell24.com/redoc
-// - Product: https://dynamicweblab.com/products/real-estate-data-api/
+// DLDAPI Documentation & Setup:
+// - API Docs: https://dldapi.waqov.com/docs
 // - To get API token: Contact via product landing page
 // - Masaar Pro users: Credits included with subscription
 // - Open-source users: Contact for custom pricing
 //
-// Client wraps BuyOrSell24 API with caching
+// Client wraps DLDAPI with caching
 type Client struct {
 	baseURL    string
 	token      string
@@ -33,7 +32,7 @@ type Client struct {
 	cacheTTL   time.Duration
 }
 
-// NewClient creates a new BOS24 API client.
+// NewClient creates a new DLDAPI client.
 // baseURL overrides the default production URL (pass "" to use the default).
 // rdb is optional - if provided, responses will be cached.
 func NewClient(token, baseURL string, rdb *redis.Client) *Client {
@@ -604,7 +603,7 @@ func (c *Client) GetValuation(ctx context.Context, valuationID int) (map[string]
 // Helper methods
 
 func (c *Client) getWithCache(ctx context.Context, path string, params url.Values, result interface{}, ttl time.Duration) error {
-	cacheKey := fmt.Sprintf("bos24:get:%s:%s", path, params.Encode())
+	cacheKey := fmt.Sprintf("dldapi:get:%s:%s", path, params.Encode())
 
 	// Try cache first
 	if c.cache != nil {
@@ -635,7 +634,7 @@ func (c *Client) getWithCache(ctx context.Context, path string, params url.Value
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("bos24 api error: %d - %s", resp.StatusCode, string(body))
+		return fmt.Errorf("dldapi error: %d - %s", resp.StatusCode, string(body))
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -661,7 +660,7 @@ func (c *Client) postWithCache(ctx context.Context, path string, payload interfa
 		return err
 	}
 
-	cacheKey := fmt.Sprintf("bos24:post:%s:%s", path, string(payloadBytes))
+	cacheKey := fmt.Sprintf("dldapi:post:%s:%s", path, string(payloadBytes))
 
 	// Try cache first
 	if c.cache != nil {
@@ -690,7 +689,7 @@ func (c *Client) postWithCache(ctx context.Context, path string, payload interfa
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("bos24 api error: %d - %s", resp.StatusCode, string(body))
+		return fmt.Errorf("dldapi error: %d - %s", resp.StatusCode, string(body))
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -710,7 +709,7 @@ func (c *Client) postWithCache(ctx context.Context, path string, payload interfa
 	return nil
 }
 
-// IsEnabled checks if BOS24 integration is enabled
+// IsEnabled checks if DLDAPI integration is enabled
 // Returns true only if token is set and non-empty
 func IsEnabled(token string) bool {
 	return token != "" && len(token) > 0

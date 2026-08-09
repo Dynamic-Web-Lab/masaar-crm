@@ -9,25 +9,25 @@ import (
 	"github.com/dynamicweblab/masaar-crm/internal/domain"
 )
 
-// BOS24IntegrationRepo handles storage for per-company BOS24 integration settings
+// DLDIntegrationRepo handles storage for per-company DLD integration settings
 // and provides idempotent upsert helpers for synced listings and leads.
-type BOS24IntegrationRepo struct {
+type DLDIntegrationRepo struct {
 	db *pgxpool.Pool
 }
 
-func NewBOS24IntegrationRepo(db *pgxpool.Pool) *BOS24IntegrationRepo {
-	return &BOS24IntegrationRepo{db: db}
+func NewDLDIntegrationRepo(db *pgxpool.Pool) *DLDIntegrationRepo {
+	return &DLDIntegrationRepo{db: db}
 }
 
-// GetSettings returns the BOS24 integration settings for a company.
+// GetSettings returns the DLD integration settings for a company.
 // Returns a zeroed struct (no error) if no row exists yet.
-func (r *BOS24IntegrationRepo) GetSettings(ctx context.Context, companyID uuid.UUID) (*domain.BOS24Settings, error) {
+func (r *DLDIntegrationRepo) GetSettings(ctx context.Context, companyID uuid.UUID) (*domain.DLDSettings, error) {
 	const q = `
 		SELECT id, company_id, api_key, webhook_secret, webhook_id, last_sync_at, updated_at
-		FROM bos24_integration_settings
+		FROM dld_integration_settings
 		WHERE company_id = $1
 	`
-	s := &domain.BOS24Settings{}
+	s := &domain.DLDSettings{}
 	err := r.db.QueryRow(ctx, q, companyID).Scan(
 		&s.ID, &s.CompanyID,
 		&s.APIKey, &s.WebhookSecret, &s.WebhookID,
@@ -35,15 +35,15 @@ func (r *BOS24IntegrationRepo) GetSettings(ctx context.Context, companyID uuid.U
 	)
 	if err != nil {
 		// No row is not an error — return an empty settings object
-		return &domain.BOS24Settings{CompanyID: companyID}, nil
+		return &domain.DLDSettings{CompanyID: companyID}, nil
 	}
 	return s, nil
 }
 
-// SaveSettings upserts BOS24 integration settings for a company.
-func (r *BOS24IntegrationRepo) SaveSettings(ctx context.Context, s *domain.BOS24Settings) error {
+// SaveSettings upserts DLD integration settings for a company.
+func (r *DLDIntegrationRepo) SaveSettings(ctx context.Context, s *domain.DLDSettings) error {
 	const q = `
-		INSERT INTO bos24_integration_settings
+		INSERT INTO dld_integration_settings
 			(id, company_id, api_key, webhook_secret, webhook_id, last_sync_at, updated_at)
 		VALUES (uuid_generate_v4(), $1, $2, $3, $4, $5, NOW())
 		ON CONFLICT (company_id) DO UPDATE SET
@@ -59,25 +59,25 @@ func (r *BOS24IntegrationRepo) SaveSettings(ctx context.Context, s *domain.BOS24
 	return err
 }
 
-// UpdateLastSyncAt sets the last_sync_at timestamp for a company's BOS24 settings.
-func (r *BOS24IntegrationRepo) UpdateLastSyncAt(ctx context.Context, companyID uuid.UUID, t time.Time) error {
+// UpdateLastSyncAt sets the last_sync_at timestamp for a company's DLD settings.
+func (r *DLDIntegrationRepo) UpdateLastSyncAt(ctx context.Context, companyID uuid.UUID, t time.Time) error {
 	const q = `
-		UPDATE bos24_integration_settings SET last_sync_at = $1, updated_at = NOW()
+		UPDATE dld_integration_settings SET last_sync_at = $1, updated_at = NOW()
 		WHERE company_id = $2
 	`
 	_, err := r.db.Exec(ctx, q, t, companyID)
 	return err
 }
 
-// GetCompanyByWebhookSecret finds the company whose BOS24 webhook_secret matches
+// GetCompanyByWebhookSecret finds the company whose DLD webhook_secret matches
 // the provided token. Used to route inbound webhook requests to the correct tenant.
-func (r *BOS24IntegrationRepo) GetCompanyByWebhookSecret(ctx context.Context, secret string) (*domain.BOS24Settings, error) {
+func (r *DLDIntegrationRepo) GetCompanyByWebhookSecret(ctx context.Context, secret string) (*domain.DLDSettings, error) {
 	const q = `
 		SELECT id, company_id, api_key, webhook_secret, webhook_id, last_sync_at, updated_at
-		FROM bos24_integration_settings
+		FROM dld_integration_settings
 		WHERE webhook_secret = $1 AND webhook_secret <> ''
 	`
-	s := &domain.BOS24Settings{}
+	s := &domain.DLDSettings{}
 	err := r.db.QueryRow(ctx, q, secret).Scan(
 		&s.ID, &s.CompanyID,
 		&s.APIKey, &s.WebhookSecret, &s.WebhookID,
@@ -89,17 +89,17 @@ func (r *BOS24IntegrationRepo) GetCompanyByWebhookSecret(ctx context.Context, se
 	return s, nil
 }
 
-// UpsertListing inserts or updates a listing imported from BOS24.
-// Idempotent: ON CONFLICT (company_id, bos24_listing_uuid) updates the key fields.
+// UpsertListing inserts or updates a listing imported from DLD.
+// Idempotent: ON CONFLICT (company_id, dld_listing_uuid) updates the key fields.
 // Returns the listing UUID (Masaar's internal UUID).
-func (r *BOS24IntegrationRepo) UpsertListing(ctx context.Context,
+func (r *DLDIntegrationRepo) UpsertListing(ctx context.Context,
 	companyID uuid.UUID,
-	bos24UUID, title, description, propertyType, listingType, city, status, coverImageURL, currency string,
+	dldUUID, title, description, propertyType, listingType, city, status, coverImageURL, currency string,
 	price float64,
 ) (uuid.UUID, error) {
 	const q = `
 		INSERT INTO listings (
-			id, company_id, bos24_listing_uuid,
+			id, company_id, dld_listing_uuid,
 			title, description, property_type, listing_type,
 			city, status, cover_image_url,
 			price, currency,
@@ -109,9 +109,9 @@ func (r *BOS24IntegrationRepo) UpsertListing(ctx context.Context,
 			$3, $4, $5, $6,
 			$7, $8, $9,
 			$10, $11,
-			'{"source":"bos24"}'::jsonb
+			'{"source":"dld"}'::jsonb
 		)
-		ON CONFLICT (company_id, bos24_listing_uuid) DO UPDATE SET
+		ON CONFLICT (company_id, dld_listing_uuid) DO UPDATE SET
 			title          = EXCLUDED.title,
 			description    = EXCLUDED.description,
 			property_type  = EXCLUDED.property_type,
@@ -126,7 +126,7 @@ func (r *BOS24IntegrationRepo) UpsertListing(ctx context.Context,
 	`
 	var id uuid.UUID
 	err := r.db.QueryRow(ctx, q,
-		companyID, bos24UUID,
+		companyID, dldUUID,
 		title, description, propertyType, listingType,
 		city, status, coverImageURL,
 		price, currency,
@@ -134,31 +134,31 @@ func (r *BOS24IntegrationRepo) UpsertListing(ctx context.Context,
 	return id, err
 }
 
-// DeactivateListing marks a BOS24 listing as inactive/deleted.
-func (r *BOS24IntegrationRepo) DeactivateListing(ctx context.Context, companyID uuid.UUID, bos24UUID string) error {
+// DeactivateListing marks a DLD listing as inactive/deleted.
+func (r *DLDIntegrationRepo) DeactivateListing(ctx context.Context, companyID uuid.UUID, dldUUID string) error {
 	const q = `
 		UPDATE listings SET status = 'inactive', updated_at = NOW()
-		WHERE company_id = $1 AND bos24_listing_uuid = $2
+		WHERE company_id = $1 AND dld_listing_uuid = $2
 	`
-	_, err := r.db.Exec(ctx, q, companyID, bos24UUID)
+	_, err := r.db.Exec(ctx, q, companyID, dldUUID)
 	return err
 }
 
-// CreateLeadFromInquiry creates a lead from a BOS24 inquiry if it doesn't already exist.
-// Idempotent: does nothing on conflict (bos24_inquiry_id already imported).
+// CreateLeadFromInquiry creates a lead from a DLD inquiry if it doesn't already exist.
+// Idempotent: does nothing on conflict (dld_inquiry_id already imported).
 // Returns true if a new lead was created, false if it was a duplicate.
-func (r *BOS24IntegrationRepo) CreateLeadFromInquiry(ctx context.Context,
+func (r *DLDIntegrationRepo) CreateLeadFromInquiry(ctx context.Context,
 	contactID uuid.UUID,
-	bos24InquiryID int,
+	dldInquiryID int,
 	notes string,
 ) (created bool, leadID uuid.UUID, err error) {
 	const q = `
-		INSERT INTO leads (id, contact_id, stage, source, deal_value, currency, notes, bos24_inquiry_id)
-		VALUES (uuid_generate_v4(), $1, 'new', 'bos24', 0, 'AED', $2, $3)
-		ON CONFLICT (bos24_inquiry_id) DO NOTHING
+		INSERT INTO leads (id, contact_id, stage, source, deal_value, currency, notes, dld_inquiry_id)
+		VALUES (uuid_generate_v4(), $1, 'new', 'dld', 0, 'AED', $2, $3)
+		ON CONFLICT (dld_inquiry_id) DO NOTHING
 		RETURNING id
 	`
-	err = r.db.QueryRow(ctx, q, contactID, notes, bos24InquiryID).Scan(&leadID)
+	err = r.db.QueryRow(ctx, q, contactID, notes, dldInquiryID).Scan(&leadID)
 	if err != nil {
 		// pgx returns ErrNoRows when DO NOTHING fires — that's a duplicate, not an error
 		if err.Error() == "no rows in result set" {
@@ -170,8 +170,8 @@ func (r *BOS24IntegrationRepo) CreateLeadFromInquiry(ctx context.Context,
 }
 
 // UpdateContactEmailIfEmpty sets email on a contact only when the contact's
-// current email is NULL or empty — used when enriching from a BOS24 inquiry.
-func (r *BOS24IntegrationRepo) UpdateContactEmailIfEmpty(ctx context.Context, contactID uuid.UUID, email string) error {
+// current email is NULL or empty — used when enriching from a DLD inquiry.
+func (r *DLDIntegrationRepo) UpdateContactEmailIfEmpty(ctx context.Context, contactID uuid.UUID, email string) error {
 	const q = `
 		UPDATE contacts SET email = $1, updated_at = NOW()
 		WHERE id = $2 AND (email IS NULL OR email = '')
@@ -180,12 +180,12 @@ func (r *BOS24IntegrationRepo) UpdateContactEmailIfEmpty(ctx context.Context, co
 	return err
 }
 
-// ListCompaniesWithBOS24 returns all companies that have a non-empty BOS24 API key.
+// ListCompaniesWithDLD returns all companies that have a non-empty DLD API key.
 // Used by the nightly sync goroutine to iterate over active integrations.
-func (r *BOS24IntegrationRepo) ListCompaniesWithBOS24(ctx context.Context) ([]*domain.BOS24Settings, error) {
+func (r *DLDIntegrationRepo) ListCompaniesWithDLD(ctx context.Context) ([]*domain.DLDSettings, error) {
 	const q = `
 		SELECT id, company_id, api_key, webhook_secret, webhook_id, last_sync_at, updated_at
-		FROM bos24_integration_settings
+		FROM dld_integration_settings
 		WHERE api_key <> ''
 		ORDER BY company_id
 	`
@@ -195,9 +195,9 @@ func (r *BOS24IntegrationRepo) ListCompaniesWithBOS24(ctx context.Context) ([]*d
 	}
 	defer rows.Close()
 
-	var results []*domain.BOS24Settings
+	var results []*domain.DLDSettings
 	for rows.Next() {
-		s := &domain.BOS24Settings{}
+		s := &domain.DLDSettings{}
 		if err := rows.Scan(
 			&s.ID, &s.CompanyID,
 			&s.APIKey, &s.WebhookSecret, &s.WebhookID,

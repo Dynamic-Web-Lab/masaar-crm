@@ -88,7 +88,7 @@ func (r *BillingRepo) GetUsage(ctx context.Context, companyID uuid.UUID) (map[st
 	}
 	defer rows.Close()
 
-	result := map[string]int{"bos24": 0, "ai": 0, "pdf": 0}
+	result := map[string]int{"dld": 0, "ai": 0, "pdf": 0}
 	for rows.Next() {
 		var resource string
 		var count int

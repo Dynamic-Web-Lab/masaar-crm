@@ -7,28 +7,28 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/dynamicweblab/masaar-crm/internal/bos24"
+	"github.com/dynamicweblab/masaar-crm/internal/dldapi"
 	"github.com/dynamicweblab/masaar-crm/internal/pdf"
 	"github.com/dynamicweblab/masaar-crm/internal/repo"
 )
 
-const bos24Timeout = 15 * time.Second
+const dldTimeout = 15 * time.Second
 
 type PropertyHandler struct {
-	bos24Client         *bos24.Client
+	dldClient         *dldapi.Client
 	companySettingsRepo *repo.CompanySettingsRepo
 }
 
-func NewPropertyHandler(bos24Client *bos24.Client, companySettingsRepo *repo.CompanySettingsRepo) *PropertyHandler {
+func NewPropertyHandler(dldClient *dldapi.Client, companySettingsRepo *repo.CompanySettingsRepo) *PropertyHandler {
 	return &PropertyHandler{
-		bos24Client:         bos24Client,
+		dldClient:         dldClient,
 		companySettingsRepo: companySettingsRepo,
 	}
 }
 
 func (h *PropertyHandler) notEnabled(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-		"error": "real estate service not enabled — configure BOS24_API_TOKEN",
+		"error": "real estate service not enabled — configure DLD_API_TOKEN",
 	})
 }
 
@@ -45,7 +45,7 @@ func (h *PropertyHandler) notEnabled(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/search [post]
 func (h *PropertyHandler) SearchProperties(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -59,10 +59,10 @@ func (h *PropertyHandler) SearchProperties(c *fiber.Ctx) error {
 		limit = 20
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.SearchProperties(ctx, req.Query, limit)
+	result, err := h.dldClient.SearchProperties(ctx, req.Query, limit)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -86,7 +86,7 @@ func (h *PropertyHandler) SearchProperties(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/transactions [get]
 func (h *PropertyHandler) GetTransactions(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -116,10 +116,10 @@ func (h *PropertyHandler) GetTransactions(c *fiber.Ctx) error {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.GetTransactions(ctx, filters)
+	result, err := h.dldClient.GetTransactions(ctx, filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -140,7 +140,7 @@ func (h *PropertyHandler) GetTransactions(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/buildings [get]
 func (h *PropertyHandler) GetBuildings(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -154,10 +154,10 @@ func (h *PropertyHandler) GetBuildings(c *fiber.Ctx) error {
 		limit = l
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.SearchBuildings(ctx, query, limit)
+	result, err := h.dldClient.SearchBuildings(ctx, query, limit)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -177,7 +177,7 @@ func (h *PropertyHandler) GetBuildings(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/buildings/{id} [get]
 func (h *PropertyHandler) GetBuildingByID(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -186,10 +186,10 @@ func (h *PropertyHandler) GetBuildingByID(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid building ID"})
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.GetBuilding(ctx, buildingID)
+	result, err := h.dldClient.GetBuilding(ctx, buildingID)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -213,7 +213,7 @@ func (h *PropertyHandler) GetBuildingByID(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/pois [get]
 func (h *PropertyHandler) GetNearbyPOIs(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -242,10 +242,10 @@ func (h *PropertyHandler) GetNearbyPOIs(c *fiber.Ctx) error {
 		limit = l
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.GetPOIs(ctx, lat, lng, radius, c.Query("category"), limit)
+	result, err := h.dldClient.GetPOIs(ctx, lat, lng, radius, c.Query("category"), limit)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -268,7 +268,7 @@ func (h *PropertyHandler) GetNearbyPOIs(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/schools/nearby [get]
 func (h *PropertyHandler) GetNearbySchools(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -297,10 +297,10 @@ func (h *PropertyHandler) GetNearbySchools(c *fiber.Ctx) error {
 		limit = l
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.GetNearbySchools(ctx, lat, lng, radius, limit)
+	result, err := h.dldClient.GetNearbySchools(ctx, lat, lng, radius, limit)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -318,14 +318,14 @@ func (h *PropertyHandler) GetNearbySchools(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/areas [get]
 func (h *PropertyHandler) GetAreas(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.GetAreas(ctx)
+	result, err := h.dldClient.GetAreas(ctx)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -345,7 +345,7 @@ func (h *PropertyHandler) GetAreas(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/areas/{slug}/summary [get]
 func (h *PropertyHandler) GetAreaSummary(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -354,10 +354,10 @@ func (h *PropertyHandler) GetAreaSummary(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "area slug is required"})
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.GetAreaSummary(ctx, slug)
+	result, err := h.dldClient.GetAreaSummary(ctx, slug)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -378,7 +378,7 @@ func (h *PropertyHandler) GetAreaSummary(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/areas/{slug}/buildings [get]
 func (h *PropertyHandler) GetAreaBuildings(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -392,10 +392,10 @@ func (h *PropertyHandler) GetAreaBuildings(c *fiber.Ctx) error {
 		limit = l
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.GetAreaBuildings(ctx, slug, limit)
+	result, err := h.dldClient.GetAreaBuildings(ctx, slug, limit)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -413,14 +413,14 @@ func (h *PropertyHandler) GetAreaBuildings(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/map/areas [get]
 func (h *PropertyHandler) GetMapAreas(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.GetAreasWithLocations(ctx)
+	result, err := h.dldClient.GetAreasWithLocations(ctx)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -441,7 +441,7 @@ func (h *PropertyHandler) GetMapAreas(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/transactions/areas [get]
 func (h *PropertyHandler) GetTransactionAreas(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -456,10 +456,10 @@ func (h *PropertyHandler) GetTransactionAreas(c *fiber.Ctx) error {
 		filters["limit"] = l
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.GetTransactionAreas(ctx, filters)
+	result, err := h.dldClient.GetTransactionAreas(ctx, filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -481,7 +481,7 @@ func (h *PropertyHandler) GetTransactionAreas(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/rentals/ejari [get]
 func (h *PropertyHandler) GetEjariRentals(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -499,10 +499,10 @@ func (h *PropertyHandler) GetEjariRentals(c *fiber.Ctx) error {
 		filters["limit"] = l
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.GetEjariRentals(ctx, filters)
+	result, err := h.dldClient.GetEjariRentals(ctx, filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -522,7 +522,7 @@ func (h *PropertyHandler) GetEjariRentals(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/rentals/ejari/yield [get]
 func (h *PropertyHandler) GetEjariYield(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -534,10 +534,10 @@ func (h *PropertyHandler) GetEjariYield(c *fiber.Ctx) error {
 		filters["property_type"] = v
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.GetEjariYield(ctx, filters)
+	result, err := h.dldClient.GetEjariYield(ctx, filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -558,7 +558,7 @@ func (h *PropertyHandler) GetEjariYield(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/rentals [get]
 func (h *PropertyHandler) GetRentals(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -573,10 +573,10 @@ func (h *PropertyHandler) GetRentals(c *fiber.Ctx) error {
 		filters["limit"] = l
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.GetRentals(ctx, filters)
+	result, err := h.dldClient.GetRentals(ctx, filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -596,7 +596,7 @@ func (h *PropertyHandler) GetRentals(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/developers [get]
 func (h *PropertyHandler) GetDevelopers(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -605,10 +605,10 @@ func (h *PropertyHandler) GetDevelopers(c *fiber.Ctx) error {
 		limit = l
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.GetDevelopers(ctx, c.Query("q"), limit)
+	result, err := h.dldClient.GetDevelopers(ctx, c.Query("q"), limit)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -630,7 +630,7 @@ func (h *PropertyHandler) GetDevelopers(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/projects [get]
 func (h *PropertyHandler) GetProjects(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -648,10 +648,10 @@ func (h *PropertyHandler) GetProjects(c *fiber.Ctx) error {
 		filters["limit"] = l
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.GetProjects(ctx, filters)
+	result, err := h.dldClient.GetProjects(ctx, filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -672,7 +672,7 @@ func (h *PropertyHandler) GetProjects(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/projects/search [post]
 func (h *PropertyHandler) SearchProjects(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -686,10 +686,10 @@ func (h *PropertyHandler) SearchProjects(c *fiber.Ctx) error {
 		limit = 20
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.SearchProjects(ctx, req.Query, limit)
+	result, err := h.dldClient.SearchProjects(ctx, req.Query, limit)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -710,7 +710,7 @@ func (h *PropertyHandler) SearchProjects(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/valuations [get]
 func (h *PropertyHandler) GetValuations(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -725,10 +725,10 @@ func (h *PropertyHandler) GetValuations(c *fiber.Ctx) error {
 		filters["rooms"] = v
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.GetValuations(ctx, filters)
+	result, err := h.dldClient.GetValuations(ctx, filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -749,7 +749,7 @@ func (h *PropertyHandler) GetValuations(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/ai/describe [post]
 func (h *PropertyHandler) DescribeProperty(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -758,10 +758,10 @@ func (h *PropertyHandler) DescribeProperty(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "property details are required"})
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.DescribeProperty(ctx, details)
+	result, err := h.dldClient.DescribeProperty(ctx, details)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -783,7 +783,7 @@ func (h *PropertyHandler) DescribeProperty(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/units [get]
 func (h *PropertyHandler) GetUnits(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -803,10 +803,10 @@ func (h *PropertyHandler) GetUnits(c *fiber.Ctx) error {
 		filters["limit"] = l
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	result, err := h.bos24Client.GetUnits(ctx, filters)
+	result, err := h.dldClient.GetUnits(ctx, filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -827,7 +827,7 @@ func (h *PropertyHandler) GetUnits(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/yield-analysis [get]
 func (h *PropertyHandler) GetYieldAnalysis(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -836,7 +836,7 @@ func (h *PropertyHandler) GetYieldAnalysis(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "area is required"})
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
 	filters := map[string]interface{}{"area": area}
@@ -844,12 +844,12 @@ func (h *PropertyHandler) GetYieldAnalysis(c *fiber.Ctx) error {
 		filters["property_type"] = v
 	}
 
-	rentalStats, err := h.bos24Client.GetEjariStats(ctx, filters)
+	rentalStats, err := h.dldClient.GetEjariStats(ctx, filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	salesStats, err := h.bos24Client.GetTransactionStats(ctx, filters)
+	salesStats, err := h.dldClient.GetTransactionStats(ctx, filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -875,7 +875,7 @@ func (h *PropertyHandler) GetYieldAnalysis(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/comparables [get]
 func (h *PropertyHandler) GetComparables(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -892,10 +892,10 @@ func (h *PropertyHandler) GetComparables(c *fiber.Ctx) error {
 		filters["limit"] = l
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	transactions, err := h.bos24Client.GetTransactions(ctx, filters)
+	transactions, err := h.dldClient.GetTransactions(ctx, filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -926,7 +926,7 @@ func (h *PropertyHandler) GetComparables(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/market-trends [get]
 func (h *PropertyHandler) GetMarketTrends(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -940,15 +940,15 @@ func (h *PropertyHandler) GetMarketTrends(c *fiber.Ctx) error {
 		filters["property_type"] = v
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
 
-	stats, err := h.bos24Client.GetTransactionStats(ctx, filters)
+	stats, err := h.dldClient.GetTransactionStats(ctx, filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	rentalStats, err := h.bos24Client.GetEjariStats(ctx, filters)
+	rentalStats, err := h.dldClient.GetEjariStats(ctx, filters)
 	if err != nil {
 		rentalStats = map[string]interface{}{}
 	}
@@ -973,12 +973,12 @@ func (h *PropertyHandler) GetMarketTrends(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/insights/market-overview [get]
 func (h *PropertyHandler) GetMarketOverview(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetMarketOverview(ctx, c.Query("period"), c.Query("property_type"))
+	result, err := h.dldClient.GetMarketOverview(ctx, c.Query("period"), c.Query("property_type"))
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -998,16 +998,16 @@ func (h *PropertyHandler) GetMarketOverview(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/insights/area-comparison [get]
 func (h *PropertyHandler) GetAreaComparison(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	areas := c.Query("areas")
 	if areas == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "areas is required"})
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetAreaComparison(ctx, areas, c.Query("property_type"))
+	result, err := h.dldClient.GetAreaComparison(ctx, areas, c.Query("property_type"))
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1028,16 +1028,16 @@ func (h *PropertyHandler) GetAreaComparison(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/insights/price-trends [get]
 func (h *PropertyHandler) GetPriceTrends(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	area := c.Query("area")
 	if area == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "area is required"})
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetPriceTrends(ctx, area, c.Query("property_type"), c.Query("granularity"))
+	result, err := h.dldClient.GetPriceTrends(ctx, area, c.Query("property_type"), c.Query("granularity"))
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1057,16 +1057,16 @@ func (h *PropertyHandler) GetPriceTrends(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/insights/top-areas [get]
 func (h *PropertyHandler) GetTopAreas(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	limit := 10
 	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 {
 		limit = l
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetTopAreas(ctx, c.Query("metric"), c.Query("property_type"), limit)
+	result, err := h.dldClient.GetTopAreas(ctx, c.Query("metric"), c.Query("property_type"), limit)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1085,7 +1085,7 @@ func (h *PropertyHandler) GetTopAreas(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/brokers [get]
 func (h *PropertyHandler) GetBrokers(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	limit := 20
@@ -1096,9 +1096,9 @@ func (h *PropertyHandler) GetBrokers(c *fiber.Ctx) error {
 	if o, err := strconv.Atoi(c.Query("offset")); err == nil && o >= 0 {
 		offset = o
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetBrokers(ctx, limit, offset)
+	result, err := h.dldClient.GetBrokers(ctx, limit, offset)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1117,16 +1117,16 @@ func (h *PropertyHandler) GetBrokers(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/transactions/{id} [get]
 func (h *PropertyHandler) GetTransaction(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	id := c.Params("id")
 	if id == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetTransaction(ctx, id)
+	result, err := h.dldClient.GetTransaction(ctx, id)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1145,16 +1145,16 @@ func (h *PropertyHandler) GetTransaction(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/transactions/{id}/enriched [get]
 func (h *PropertyHandler) GetEnrichedTransaction(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	id := c.Params("id")
 	if id == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "id is required"})
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetEnrichedTransaction(ctx, id)
+	result, err := h.dldClient.GetEnrichedTransaction(ctx, id)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1174,7 +1174,7 @@ func (h *PropertyHandler) GetEnrichedTransaction(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/transactions/by-project/{name} [get]
 func (h *PropertyHandler) GetTransactionsByProject(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	name := c.Params("name")
@@ -1185,9 +1185,9 @@ func (h *PropertyHandler) GetTransactionsByProject(c *fiber.Ctx) error {
 	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 {
 		filters["limit"] = l
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetTransactionsByProject(ctx, name, filters)
+	result, err := h.dldClient.GetTransactionsByProject(ctx, name, filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1206,16 +1206,16 @@ func (h *PropertyHandler) GetTransactionsByProject(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/transactions/area/{name}/summary [get]
 func (h *PropertyHandler) GetAreaTransactionSummary(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	name := c.Params("name")
 	if name == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name is required"})
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetAreaTransactionSummary(ctx, name)
+	result, err := h.dldClient.GetAreaTransactionSummary(ctx, name)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1234,7 +1234,7 @@ func (h *PropertyHandler) GetAreaTransactionSummary(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/rentals/stats [get]
 func (h *PropertyHandler) GetRentalStats(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	filters := make(map[string]interface{})
@@ -1244,9 +1244,9 @@ func (h *PropertyHandler) GetRentalStats(c *fiber.Ctx) error {
 	if v := c.Query("property_type"); v != "" {
 		filters["property_type"] = v
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetRentalStats(ctx, filters)
+	result, err := h.dldClient.GetRentalStats(ctx, filters)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1263,12 +1263,12 @@ func (h *PropertyHandler) GetRentalStats(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/rentals/areas [get]
 func (h *PropertyHandler) GetRentalAreas(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetRentalAreas(ctx)
+	result, err := h.dldClient.GetRentalAreas(ctx)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1289,7 +1289,7 @@ func (h *PropertyHandler) GetRentalAreas(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/rentals/project/{name} [get]
 func (h *PropertyHandler) GetRentalsByProject(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	name := c.Params("name")
@@ -1304,9 +1304,9 @@ func (h *PropertyHandler) GetRentalsByProject(c *fiber.Ctx) error {
 	if o, err := strconv.Atoi(c.Query("offset")); err == nil && o >= 0 {
 		offset = o
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetRentalsByProject(ctx, name, limit, offset)
+	result, err := h.dldClient.GetRentalsByProject(ctx, name, limit, offset)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1327,7 +1327,7 @@ func (h *PropertyHandler) GetRentalsByProject(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/rentals/building/{name} [get]
 func (h *PropertyHandler) GetRentalsByBuilding(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	name := c.Params("name")
@@ -1342,9 +1342,9 @@ func (h *PropertyHandler) GetRentalsByBuilding(c *fiber.Ctx) error {
 	if o, err := strconv.Atoi(c.Query("offset")); err == nil && o >= 0 {
 		offset = o
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetRentalsByBuilding(ctx, name, limit, offset)
+	result, err := h.dldClient.GetRentalsByBuilding(ctx, name, limit, offset)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1363,7 +1363,7 @@ func (h *PropertyHandler) GetRentalsByBuilding(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/lands [get]
 func (h *PropertyHandler) GetLands(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	limit := 20
@@ -1374,9 +1374,9 @@ func (h *PropertyHandler) GetLands(c *fiber.Ctx) error {
 	if o, err := strconv.Atoi(c.Query("offset")); err == nil && o >= 0 {
 		offset = o
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetLands(ctx, limit, offset)
+	result, err := h.dldClient.GetLands(ctx, limit, offset)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1395,16 +1395,16 @@ func (h *PropertyHandler) GetLands(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/lands/{id} [get]
 func (h *PropertyHandler) GetLand(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	idInt, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetLand(ctx, idInt)
+	result, err := h.dldClient.GetLand(ctx, idInt)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1421,12 +1421,12 @@ func (h *PropertyHandler) GetLand(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/map/config [get]
 func (h *PropertyHandler) GetMapConfig(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetMapConfig(ctx)
+	result, err := h.dldClient.GetMapConfig(ctx)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1443,12 +1443,12 @@ func (h *PropertyHandler) GetMapConfig(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/map/bounds [get]
 func (h *PropertyHandler) GetMapBounds(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetMapBounds(ctx)
+	result, err := h.dldClient.GetMapBounds(ctx)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1465,12 +1465,12 @@ func (h *PropertyHandler) GetMapBounds(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/map/poi-categories [get]
 func (h *PropertyHandler) GetPOICategories(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetPOICategories(ctx)
+	result, err := h.dldClient.GetPOICategories(ctx)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1489,12 +1489,12 @@ func (h *PropertyHandler) GetPOICategories(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/map/heatmap [get]
 func (h *PropertyHandler) GetPropertyHeatmap(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetPropertyHeatmap(ctx)
+	result, err := h.dldClient.GetPropertyHeatmap(ctx)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1513,16 +1513,16 @@ func (h *PropertyHandler) GetPropertyHeatmap(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/map/area/{name} [get]
 func (h *PropertyHandler) GetAreaLocation(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	name := c.Params("name")
 	if name == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "name is required"})
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetAreaLocation(ctx, name)
+	result, err := h.dldClient.GetAreaLocation(ctx, name)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1541,16 +1541,16 @@ func (h *PropertyHandler) GetAreaLocation(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/areas/{id} [get]
 func (h *PropertyHandler) GetAreaByID(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	idInt, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetAreaByID(ctx, idInt)
+	result, err := h.dldClient.GetAreaByID(ctx, idInt)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1569,16 +1569,16 @@ func (h *PropertyHandler) GetAreaByID(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/developers/{id} [get]
 func (h *PropertyHandler) GetDeveloper(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	idInt, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetDeveloper(ctx, idInt)
+	result, err := h.dldClient.GetDeveloper(ctx, idInt)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1597,16 +1597,16 @@ func (h *PropertyHandler) GetDeveloper(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/projects/{id} [get]
 func (h *PropertyHandler) GetProject(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	idInt, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetProject(ctx, idInt)
+	result, err := h.dldClient.GetProject(ctx, idInt)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1625,16 +1625,16 @@ func (h *PropertyHandler) GetProject(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/units/{id} [get]
 func (h *PropertyHandler) GetUnit(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	idInt, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetUnit(ctx, idInt)
+	result, err := h.dldClient.GetUnit(ctx, idInt)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1653,16 +1653,16 @@ func (h *PropertyHandler) GetUnit(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/valuations/{id} [get]
 func (h *PropertyHandler) GetValuationByID(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 	idInt, err := strconv.Atoi(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
-	ctx, cancel := context.WithTimeout(c.Context(), bos24Timeout)
+	ctx, cancel := context.WithTimeout(c.Context(), dldTimeout)
 	defer cancel()
-	result, err := h.bos24Client.GetValuation(ctx, idInt)
+	result, err := h.dldClient.GetValuation(ctx, idInt)
 	if err != nil {
 		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -1682,7 +1682,7 @@ func (h *PropertyHandler) GetValuationByID(c *fiber.Ctx) error {
 // @Security     BearerAuth
 // @Router       /properties/report/pdf [post]
 func (h *PropertyHandler) GeneratePropertyReport(c *fiber.Ctx) error {
-	if h.bos24Client == nil {
+	if h.dldClient == nil {
 		return h.notEnabled(c)
 	}
 
@@ -1717,7 +1717,7 @@ func (h *PropertyHandler) GeneratePropertyReport(c *fiber.Ctx) error {
 	}
 
 	// Fetch area summary
-	areaSummary, _ := h.bos24Client.GetAreaSummary(ctx, areaSlug)
+	areaSummary, _ := h.dldClient.GetAreaSummary(ctx, areaSlug)
 
 	// Fetch comparable transactions
 	transFilters := map[string]interface{}{}
@@ -1731,7 +1731,7 @@ func (h *PropertyHandler) GeneratePropertyReport(c *fiber.Ctx) error {
 		transFilters["min_price"] = req.BudgetMin
 	}
 	transFilters["limit"] = 10
-	comparables, _ := h.bos24Client.GetTransactions(ctx, transFilters)
+	comparables, _ := h.dldClient.GetTransactions(ctx, transFilters)
 
 	// Fetch yield data if requested
 	var yieldData []map[string]interface{}
@@ -1740,13 +1740,13 @@ func (h *PropertyHandler) GeneratePropertyReport(c *fiber.Ctx) error {
 		if req.PropertyType != "" {
 			yieldFilters["property_type"] = req.PropertyType
 		}
-		yieldData, _ = h.bos24Client.GetEjariYield(ctx, yieldFilters)
+		yieldData, _ = h.dldClient.GetEjariYield(ctx, yieldFilters)
 	}
 
 	// Fetch POIs if coordinates provided
 	var pois []map[string]interface{}
 	if req.IncludePOIs && req.Lat != 0 && req.Lng != 0 {
-		pois, _ = h.bos24Client.GetPOIs(ctx, req.Lat, req.Lng, 2.0, "", 10)
+		pois, _ = h.dldClient.GetPOIs(ctx, req.Lat, req.Lng, 2.0, "", 10)
 	}
 
 	// AI description
